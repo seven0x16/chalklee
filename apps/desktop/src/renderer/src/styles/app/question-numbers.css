@@ -1,0 +1,136 @@
+/* 题号：写法与样子是整份文档的一项设置（appearance.questionNumbering），由纸张上的 data-question-number-*、
+   data-sub-number-style 属性给出。每道题的编号来自 --chalklee-number-value（自动编号与只有数字的手动编号），
+   照原样显示的手动编号（如“(1)”“例1”）用 --chalklee-number-text。屏幕与打印共用。
+   文档的设计 CSS 用 --design-number-color、-weight、-background、-border、-radius、-box（题号框宽度）、-align
+   改题号的样子，可写在 :root、[data-question-style] 或 [data-chalklee-subquestions] 上；写法只由 questionNumbering 决定。 */
+
+@counter-style chalklee-circled {
+  system: fixed;
+  symbols: "①" "②" "③" "④" "⑤" "⑥" "⑦" "⑧" "⑨" "⑩" "⑪" "⑫" "⑬" "⑭" "⑮" "⑯" "⑰" "⑱" "⑲" "⑳"
+    "㉑" "㉒" "㉓" "㉔" "㉕" "㉖" "㉗" "㉘" "㉙" "㉚" "㉛" "㉜" "㉝" "㉞" "㉟"
+    "㊱" "㊲" "㊳" "㊴" "㊵" "㊶" "㊷" "㊸" "㊹" "㊺" "㊻" "㊼" "㊽" "㊾" "㊿";
+}
+
+@layer chalklee-question-numbers {
+  :is(.chalklee-paper, .chalklee-number-thumb) {
+    /* 题号占的宽度：题干首行从这里起排，第二行起与它对齐。 */
+    --chalklee-number-slot: 18pt;
+    --chalklee-number-before: "";
+    --chalklee-number-after: ".";
+    --chalklee-number-counter: decimal;
+    --chalklee-number-weight: 700;
+    /* 默认深蓝，与 @chalklee/format 的 CHALKLEE_QUESTION_NUMBER_COLOR 一致。 */
+    --chalklee-number-color: var(--chalklee-number-color-setting, #113264);
+  }
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-question-number-weight="normal"] { --chalklee-number-weight: 400; }
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-question-number-style="comma"] { --chalklee-number-after: "、"; --chalklee-number-slot: 21pt; }
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-question-number-style="paren"] { --chalklee-number-before: "("; --chalklee-number-after: ")"; --chalklee-number-slot: 22pt; }
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-question-number-style="circle"] { --chalklee-number-after: ""; --chalklee-number-counter: chalklee-circled; }
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-question-number-style="plain"] { --chalklee-number-after: ""; }
+  /* 方框：数字居中在固定宽度的细框里，一位、两位数的框一样大。 */
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-question-number-frame="true"] {
+    --chalklee-number-box: 1.7em;
+    --chalklee-number-align: center;
+    --chalklee-number-border: .5pt solid currentColor;
+    --chalklee-number-slot: 22pt;
+  }
+
+  /* 题组中的小题有自己的写法，不带方框。 */
+  :is(.chalklee-paper, .chalklee-number-thumb) [data-chalklee-subquestions] {
+    --chalklee-number-before: "(";
+    --chalklee-number-after: ")";
+    --chalklee-number-counter: decimal;
+    --chalklee-number-slot: 22pt;
+    --chalklee-number-box: initial;
+    --chalklee-number-align: initial;
+    --chalklee-number-border: initial;
+  }
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-sub-number-style="dot"] [data-chalklee-subquestions] { --chalklee-number-before: ""; --chalklee-number-after: "."; --chalklee-number-slot: 18pt; }
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-sub-number-style="circle"] [data-chalklee-subquestions] { --chalklee-number-before: ""; --chalklee-number-after: ""; --chalklee-number-counter: chalklee-circled; --chalklee-number-slot: 18pt; }
+
+  /* 小题接着全卷编号的题组：小题用大题的写法，比如“33.”，题组本身不显示题号。 */
+  :is(.chalklee-paper, .chalklee-number-thumb) [data-question-number-mode="continue"] [data-chalklee-subquestions] {
+    --chalklee-number-before: inherit;
+    --chalklee-number-after: inherit;
+    --chalklee-number-counter: inherit;
+    --chalklee-number-slot: inherit;
+    --chalklee-number-box: inherit;
+    --chalklee-number-align: inherit;
+    --chalklee-number-border: inherit;
+  }
+
+  /* ㊿ 以后的圆圈题号写成“51.”。 */
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-question-number-style="circle"] [data-number-large]:not([data-chalklee-subquestions] *),
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-question-number-style="circle"] [data-question-number-mode="continue"] [data-chalklee-subquestions] [data-number-large],
+  :is(.chalklee-paper, .chalklee-number-thumb)[data-sub-number-style="circle"] [data-chalklee-subquestions] [data-number-large] {
+    --chalklee-number-counter: decimal;
+    --chalklee-number-after: ".";
+  }
+}
+
+.chalklee-question-object,
+.chalklee-number-thumb-line {
+  counter-reset: chalklee-question-number var(--chalklee-number-value, 0);
+  /* A number written as it is belongs to its own question only, not to the subquestions inside it. */
+  --chalklee-number-text: initial;
+}
+
+/* The number stands on the first baseline of the stem or a group's material, so a tall formula on that line
+   lowers it together with the text. It stays in the head only when no text line opens the stem: an empty stem,
+   whose number shares a line with the first options, or a stem that starts with a table or formula block. */
+.chalklee-question-number::before,
+.chalklee-question-object:not(.group):not([data-inline-number="true"]):not([data-question-number-mode="none"]):not([data-stem-empty="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="stem"] > p:first-child::before,
+.chalklee-question-object.group:is([data-question-number-mode="fixed"], [data-question-number-mode="auto"]):not([data-material-number="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="material"] > p:first-of-type::before {
+  content: var(--chalklee-number-text, var(--chalklee-number-before, "") counter(chalklee-question-number, var(--chalklee-number-counter, decimal)) var(--chalklee-number-after, "."));
+}
+
+.chalklee-question-number,
+.chalklee-question-object:not(.group):not([data-inline-number="true"]):not([data-question-number-mode="none"]):not([data-stem-empty="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="stem"] > p:first-child::before,
+.chalklee-question-object.group:is([data-question-number-mode="fixed"], [data-question-number-mode="auto"]):not([data-material-number="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="material"] > p:first-of-type::before {
+  display: inline-block;
+  box-sizing: border-box;
+  width: var(--design-number-box, var(--chalklee-number-box, var(--chalklee-number-slot, 18pt)));
+  margin-right: calc(var(--chalklee-number-slot, 18pt) - var(--design-number-box, var(--chalklee-number-box, var(--chalklee-number-slot, 18pt))));
+  padding: 0;
+  border: var(--design-number-border, var(--chalklee-number-border, 0));
+  border-radius: var(--design-number-radius, 0);
+  background: var(--design-number-background, none);
+  color: var(--design-number-color, var(--chalklee-number-color, currentColor));
+  font-weight: var(--design-number-weight, var(--chalklee-number-weight, 700));
+  font-style: normal;
+  line-height: 1.3;
+  text-align: var(--design-number-align, var(--chalklee-number-align, left));
+  text-indent: 0;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+/* Numbers drawn on a first line sit in the space the line leaves for them, and never make that line taller. */
+.chalklee-question-object:not(.group):not([data-inline-number="true"]):not([data-question-number-mode="none"]):not([data-stem-empty="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="stem"] > p:first-child::before,
+.chalklee-question-object.group:is([data-question-number-mode="fixed"], [data-question-number-mode="auto"]):not([data-material-number="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="material"] > p:first-of-type::before {
+  margin-block: -.5em;
+  margin-left: calc(-1 * var(--chalklee-number-slot, 18pt));
+}
+
+/* 题目属性“题号样式”的缩略图：一道题的开头，题号按样式画出，题干画成灰线。 */
+.chalklee-number-thumb {
+  position: absolute;
+  inset: 6px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #111111;
+  font: 12px/16px "Times New Roman", "Songti SC", "STSong", serif;
+}
+.chalklee-number-thumb-line { display: flex; align-items: center; min-width: 0; height: 16px; }
+.chalklee-number-thumb-line > .chalklee-question-number { flex: none; }
+.chalklee-number-thumb-line > i,
+.chalklee-number-thumb > i {
+  display: block;
+  flex: 1;
+  height: 5px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: .16;
+}
+.chalklee-number-thumb > i { flex: none; width: 62%; margin: 5.5px 0 5.5px var(--chalklee-number-slot); }

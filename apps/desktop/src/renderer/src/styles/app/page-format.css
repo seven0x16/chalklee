@@ -1,0 +1,146 @@
+/* Both insert menus (toolbar and the blank line's ＋) share one panel, styled like the app's menus. */
+.chalklee-insert-panel {
+  width: 244px;
+  box-sizing: border-box;
+  padding: 6px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  color: var(--cm-ui-text);
+  border: 0.5px solid var(--cm-ui-border);
+  border-radius: 12px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 10px 28px rgb(var(--cm-theme-shadow-rgb) / .16), 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .08);
+  font: 400 var(--cm-font-size-small)/1.4 var(--cm-ui-font);
+  text-align: left;
+}
+.chalklee-insert-panel::-webkit-scrollbar { display: none; }
+
+.chalklee-insert-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  max-height: min(480px, calc(100vh - 150px));
+}
+.chalklee-toolbar-overflow-items .chalklee-insert-popover {
+  z-index: 2;
+  right: 0;
+  left: auto;
+}
+
+.chalklee-insert-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+}
+
+/* Outweighs the toolbar's own button rules. */
+.chalklee-insert-panel .chalklee-insert-item {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 0 8px;
+  color: var(--cm-ui-text);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: none;
+}
+.chalklee-insert-panel .chalklee-insert-item > svg {
+  flex: none;
+  color: var(--cm-ui-muted);
+  stroke-width: 1.75;
+}
+.chalklee-insert-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chalklee-insert-panel .chalklee-insert-item:disabled { opacity: .38; cursor: default; }
+.chalklee-insert-panel .chalklee-insert-item:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .48);
+  outline-offset: -2px;
+}
+
+.chalklee-recognition-prompt {
+  position: relative;
+  z-index: 12;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 11px;
+  color: var(--cm-ui-fg);
+  border-bottom: 1px solid var(--cm-ui-divider);
+  background: var(--cm-ui-surface-soft);
+  box-shadow: 0 5px 16px rgb(var(--cm-theme-shadow-rgb) / .06);
+}
+
+.chalklee-recognition-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  flex: 0 0 28px;
+  place-items: center;
+  color: var(--cm-theme-accent-ink);
+  border: 1px solid var(--cm-ui-border);
+  border-radius: 7px;
+  background: var(--cm-ui-surface);
+}
+
+.chalklee-recognition-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chalklee-recognition-copy strong {
+  font-size: var(--cm-font-size-small);
+  font-weight: 650;
+}
+
+.chalklee-recognition-copy small {
+  overflow: hidden;
+  color: var(--cm-ui-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-recognition-prompt button {
+  height: 27px;
+  flex: 0 0 auto;
+  padding: 0 9px;
+  color: var(--cm-ui-muted);
+  border: 1px solid rgb(var(--cm-theme-shadow-rgb) / .12);
+  border-radius: 6px;
+  background: var(--cm-ui-surface);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-recognition-prompt button.primary {
+  color: var(--cm-theme-on-accent);
+  border-color: transparent;
+  background: var(--cm-theme-accent-strong);
+}
+
+.chalklee-editor-scroll-shell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  transition: margin-right 160ms ease;
+}

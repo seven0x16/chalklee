@@ -1,0 +1,79 @@
+/* Shared selects follow the font menu and stay above scrolling editor surfaces. */
+.app-select { position: relative; display: inline-flex; width: 100%; min-width: 0; vertical-align: middle; }
+.app-select > .app-select-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; min-width: 0; height: 34px; box-sizing: border-box; padding: 0 9px;
+  border: 1px solid var(--cm-ui-divider); border-radius: 7px;
+  color: var(--cm-ui-fg); background: var(--cm-ui-surface-raised);
+  font: inherit; font-size: var(--cm-font-size-small); font-weight: 400; text-align: left; cursor: pointer;
+}
+.app-select-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-select-value { display: flex; align-items: center; gap: 8px; }
+.app-select-value > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-select-option-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: none; }
+.app-select-trigger > .app-select-placeholder { color: var(--cm-ui-muted); }
+.app-select-trigger > svg { flex: none; color: var(--cm-ui-subtle); }
+.app-select > .app-select-trigger:hover:not(:disabled) { background: var(--cm-theme-hover-bg); }
+.app-select > .app-select-trigger[aria-expanded="true"] { border-color: var(--cm-theme-selection-border); }
+.app-select > .app-select-trigger:focus-visible { outline: 2px solid var(--cm-theme-accent-deep); outline-offset: 2px; }
+.app-select > .app-select-trigger:disabled { opacity: .48; cursor: default; }
+.app-select-menu {
+  display: none; position: fixed; inset: auto; margin: 0; z-index: 100;
+  width: 160px; max-height: 360px; box-sizing: border-box; overflow: auto;
+  padding: 6px; color: var(--cm-ui-text);
+  border: 0.5px solid var(--cm-ui-border);
+  border-radius: 12px; background: var(--cm-ui-surface-raised);
+  box-shadow: 0 10px 28px rgb(var(--cm-theme-shadow-rgb) / .16), 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .08);
+  font: 400 var(--cm-font-size-small)/1.4 var(--cm-ui-font);
+  overscroll-behavior: contain; text-align: left;
+}
+.app-select-menu:popover-open { display: block; }
+/* Menu scrollbars match the 6px overlay thumbs, inset 3px from the edge. */
+:is(.app-select-menu, .chalklee-toolbar-combo-popover) { scrollbar-width: auto; scrollbar-color: auto; }
+:is(.app-select-menu, .chalklee-toolbar-combo-popover)::-webkit-scrollbar { width: 12px; background: transparent; }
+:is(.app-select-menu, .chalklee-toolbar-combo-popover)::-webkit-scrollbar-thumb {
+  border: 3px solid transparent; border-radius: 999px; background: var(--cm-ui-scrollbar) padding-box;
+}
+.app-select-menu::backdrop { background: transparent; pointer-events: none; }
+.app-select-menu .app-select-option {
+  display: flex; align-items: center; justify-content: flex-start; gap: 7px;
+  width: 100%; min-width: 0; height: 30px; box-sizing: border-box; margin: 0; padding: 0 8px;
+  border: 0; border-radius: 6px; color: var(--cm-ui-text); background: transparent;
+  font: inherit; font-size: var(--cm-font-size-small); font-weight: 400; text-align: left; cursor: pointer;
+}
+.app-select-option > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-select-option > .app-select-check { flex: none; opacity: 0; }
+.app-select-option > .app-select-meta { flex: none; margin-left: auto; padding-left: 8px; color: var(--cm-ui-subtle); font-size: var(--cm-font-size-small); font-variant-numeric: tabular-nums; }
+.app-select-option[data-highlighted="true"] > .app-select-meta, .app-select-option[aria-selected="true"] > .app-select-meta { color: inherit; opacity: .7; }
+.app-select-option[aria-selected="true"] > .app-select-check { opacity: 1; }
+.app-select-menu .app-select-option[aria-selected="true"] { color: var(--cm-ui-selected-fg); }
+.app-select-menu .app-select-option[data-highlighted="true"]:not(:disabled) { background: var(--cm-theme-hover-bg); }
+.app-select-menu .app-select-option[data-highlighted="true"]:not(:disabled, [aria-selected="true"]) { color: var(--cm-theme-hover-fg); }
+.app-select-menu .app-select-option:disabled { opacity: .38; cursor: default; }
+.app-select-group { display: block; }
+/* Sections are divided from each other, and from options listed before any section, e.g. "添加…" at the end. */
+:is(.app-select-group, .app-select-option) + .app-select-group { margin-top: 5px; padding-top: 5px; border-top: 0.5px solid var(--cm-ui-divider); }
+.app-select-group-label { display: block; padding: 3px 8px 5px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); line-height: 16px; }
+.app-context-menu { outline: none; }
+.app-context-menu .app-select-option { gap: 7px; }
+.app-context-menu .app-select-option > svg { flex: none; color: var(--cm-ui-muted); }
+.app-context-menu .app-select-option[data-highlighted="true"] > svg { color: inherit; }
+.app-context-menu-separator { height: 0.5px; margin: 5px 0; background: var(--cm-ui-divider); }
+.app-context-menu-shortcut { flex: none; margin-left: auto; padding-left: 6px; color: var(--cm-ui-muted); font: inherit; font-size: var(--cm-font-size-small); }
+.app-context-menu .app-select-option[data-tone="danger"] { color: var(--cm-ui-danger); }
+.app-context-menu .app-select-option[data-tone="danger"] > svg { color: inherit; }
+.workspace-tree .tree-cut > :is(svg, span, strong) { opacity: .45; }
+.app-shell .workspace-tree .context-target {
+  background: var(--cm-theme-hover-bg);
+  box-shadow: inset 0 0 0 1px var(--cm-theme-selection-border);
+}
+.app-shell .sidebar-pane-header .pane-sort-select > .app-select-trigger {
+  width: 100%; height: 100%; justify-content: center; padding: 0; border: 0; border-radius: 6px; background: transparent;
+}
+.pane-sort-select > .app-select-trigger > svg { color: inherit; }
+.app-shell .sidebar-pane-header .pane-sort-select > .app-select-trigger:hover:not(:disabled) {
+  color: var(--cm-theme-hover-fg); background: var(--cm-theme-hover-bg);
+}
+.app-shell .sidebar-pane-header .pane-sort-select > .app-select-trigger[aria-expanded="true"] {
+  color: var(--cm-ui-selected-fg); background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+}

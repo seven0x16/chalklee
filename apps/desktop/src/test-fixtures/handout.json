@@ -1,0 +1,289 @@
+{
+  "schemaVersion": "chalklee/0.3",
+  "id": "test-handout",
+  "metadata": {
+    "title": "结构测试样本",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_1",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "1"
+          },
+          "styleRef": "question.example"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_1_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_1_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_2",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "2"
+          },
+          "styleRef": "question.challenge"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_2_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_2_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "appearance": {
+    "page": {
+      "size": "A4",
+      "orientation": "portrait",
+      "marginsPt": {
+        "top": 36,
+        "right": 42,
+        "bottom": 42,
+        "left": 42
+      },
+      "background": {
+        "type": "solid",
+        "color": "#ffffff"
+      },
+      "printBackground": true
+    },
+    "body": {
+      "fontFamilies": [
+        "Times New Roman",
+        "Songti SC",
+        "SimSun",
+        "Noto Serif CJK SC",
+        "serif"
+      ],
+      "fontSizePt": 11.5,
+      "lineHeight": 1.8,
+      "color": "#202a30"
+    },
+    "defaults": {
+      "questionStyleRef": "question.exam",
+      "optionStyleRef": "option.default",
+      "answerStyleRef": "answer.default",
+      "analysisStyleRef": "analysis.default"
+    },
+    "questionStyles": {
+      "question.example": {
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#718999"
+        },
+        "borderRadiusPt": 6,
+        "paddingPt": {
+          "top": 12,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "重点例题",
+          "labelPosition": "top-left",
+          "labelStyle": "plain",
+          "accentColor": "#486879"
+        }
+      },
+      "question.practice": {
+        "backgroundColor": "#f0f8f5",
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#66a99a"
+        },
+        "borderRadiusPt": 3,
+        "paddingPt": {
+          "top": 12,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "随堂练习",
+          "labelPosition": "top-left",
+          "labelStyle": "filled",
+          "accentColor": "#2d7b6b"
+        }
+      },
+      "question.warmup": {
+        "backgroundColor": "#fff8ee",
+        "border": {
+          "style": "dashed",
+          "widthPt": 0.8,
+          "color": "#c89c65"
+        },
+        "borderRadiusPt": 5,
+        "paddingPt": {
+          "top": 15,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "温故知新",
+          "labelPosition": "top-center",
+          "labelStyle": "filled",
+          "accentColor": "#9c692f"
+        }
+      },
+      "question.challenge": {
+        "backgroundColor": "#fff7ed",
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#d49b5e"
+        },
+        "borderRadiusPt": 3,
+        "paddingPt": {
+          "top": 16,
+          "right": 16,
+          "bottom": 14,
+          "left": 24
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "巩固提升",
+          "labelPosition": "left",
+          "labelStyle": "filled",
+          "accentColor": "#9c692f"
+        }
+      },
+      "question.application": {
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#7ba29c"
+        },
+        "borderRadiusPt": 5,
+        "paddingPt": {
+          "top": 12,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "实际应用",
+          "labelPosition": "top-left",
+          "labelStyle": "plain",
+          "accentColor": "#397c70"
+        }
+      },
+      "question.exam": {
+        "gapPt": 0,
+        "breakInside": "auto"
+      },
+      "question.example.explained": {
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#718999"
+        },
+        "borderRadiusPt": 6,
+        "paddingPt": {
+          "top": 12,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "典例精讲",
+          "labelPosition": "top-left",
+          "labelStyle": "plain",
+          "accentColor": "#486879"
+        }
+      }
+    },
+    "optionStyles": {
+      "option.default": {
+        "marker": "label",
+        "layout": "four-column",
+        "columnGapPt": 12,
+        "rowGapPt": 6,
+        "labelGapPt": 4
+      }
+    },
+    "answerStyles": {
+      "answer.default": {
+        "label": "答案"
+      }
+    },
+    "analysisStyles": {
+      "analysis.default": {
+        "label": "解析"
+      }
+    }
+  }
+}

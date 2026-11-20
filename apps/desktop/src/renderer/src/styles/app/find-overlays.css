@@ -1,0 +1,145 @@
+/* Table size grid inside the insert menus. */
+.chalklee-table-size-picker { display: grid; gap: 8px; padding: 10px 12px 12px; color: var(--cm-ui-text); font: 400 var(--cm-font-size-small)/1.4 var(--cm-ui-font); }
+.chalklee-table-size-picker > header { display: flex; align-items: center; gap: 6px; }
+/* Outweighs the insert list's full-width item buttons. */
+.chalklee-editor-toolbar .chalklee-insert-popover .chalklee-table-size-picker > header > button,
+.chalklee-table-size-picker > header > button {
+  flex: none; width: 24px; min-width: 24px; height: 24px; min-height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; color: var(--cm-ui-muted); background: transparent; cursor: pointer;
+}
+.chalklee-table-size-picker > header > strong { white-space: nowrap; }
+.chalklee-table-size-picker > header > strong { font-size: var(--cm-font-size-body); font-weight: 600; color: var(--cm-ui-heading); }
+.chalklee-table-size-picker > header > span { margin-left: auto; color: var(--cm-ui-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.chalklee-table-size-grid { display: grid; gap: 3px; width: max-content; padding: 2px; border-radius: 6px; outline: 0; }
+.chalklee-table-size-grid:focus-visible { box-shadow: 0 0 0 2px var(--cm-theme-selection-border); }
+.chalklee-table-size-grid > span {
+  width: 18px; height: 18px; box-sizing: border-box; border: .5px solid var(--cm-ui-border); border-radius: 3px; background: var(--cm-ui-surface); cursor: pointer;
+}
+.chalklee-table-size-grid > span.on { border-color: var(--cm-theme-selection-border); background: var(--cm-theme-step-5); }
+.chalklee-table-size-picker > footer { color: var(--cm-ui-subtle); font-size: var(--cm-font-size-small); }
+
+/* ⌘F: a compact find bar floating at the top right of the paper area. */
+.chalklee-find-bar {
+  position: absolute; z-index: 30; top: 10px; right: 18px;
+  width: min(380px, calc(100% - 36px)); box-sizing: border-box;
+  display: grid; gap: 4px; padding: 6px;
+  color: var(--cm-ui-text); font: 400 var(--cm-font-size-small)/1.4 var(--cm-ui-font);
+  border: .5px solid var(--cm-ui-border); border-radius: 10px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 10px 28px rgb(var(--cm-theme-shadow-rgb) / .14), 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .08);
+}
+.chalklee-find-row { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.chalklee-find-bar button {
+  flex: none; height: 28px; min-width: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 6px;
+  border: 0; border-radius: 6px; color: var(--cm-ui-muted); background: transparent; font: inherit; cursor: pointer;
+}
+.chalklee-find-bar button:disabled { opacity: .35; cursor: default; }
+.chalklee-find-bar .chalklee-find-toggle { width: 22px; min-width: 22px; padding: 0; }
+span.chalklee-find-toggle { flex: none; }
+.chalklee-find-field {
+  flex: 1; min-width: 0; height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 8px; box-sizing: border-box;
+  border: .5px solid var(--cm-ui-border); border-radius: 7px; color: var(--cm-ui-subtle); background: var(--cm-ui-surface);
+}
+.chalklee-find-field:focus-within { border-color: var(--cm-theme-selection-border); box-shadow: 0 0 0 3px var(--cm-theme-state-surface); }
+.chalklee-find-field > svg { flex: none; }
+.chalklee-find-field input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; color: var(--cm-ui-text); background: transparent; font: inherit; font-size: var(--cm-font-size-body); }
+.chalklee-find-field input::placeholder { color: var(--cm-ui-subtle); }
+.chalklee-find-count { flex: none; color: var(--cm-ui-subtle); font-size: var(--cm-font-size-small); font-variant-numeric: tabular-nums; }
+.chalklee-find-bar .chalklee-find-text-button { color: var(--cm-ui-text); font-size: var(--cm-font-size-small); }
+.chalklee-find-hit { border-radius: 2px; background: rgb(var(--cm-theme-accent-rgb) / .16); }
+.chalklee-find-hit.current { background: rgb(var(--cm-theme-accent-rgb) / .36); box-shadow: 0 0 0 1px rgb(var(--cm-theme-accent-rgb) / .55); }
+#chalklee-print-root .chalklee-find-hit { background: none !important; box-shadow: none !important; }
+@media print { .chalklee-find-bar { display: none !important; } .chalklee-find-hit { background: none !important; box-shadow: none !important; } }
+
+/* Until the paper is fitted and paginated it stays hidden behind a quiet spinner. */
+.chalklee-editor-scroll[data-layout-pending] .chalklee-paper-viewport { visibility: hidden; }
+.chalklee-editor-layout-pending { position: absolute; inset: 0; z-index: 2; width: auto; height: auto; pointer-events: none; }
+
+.chalklee-line-insert { position: absolute; z-index: 24; }
+.chalklee-line-insert-trigger {
+  display: grid; place-items: center; width: 24px; height: 26px; padding: 0;
+  border: 0; border-radius: 6px; color: var(--cm-ui-muted);
+  background: transparent; cursor: pointer;
+}
+.chalklee-line-insert-trigger[aria-expanded="true"] {
+  color: var(--cm-ui-selected-fg); background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+}
+.chalklee-line-insert-menu { position: fixed; inset: auto; margin: 0; }
+.chalklee-line-insert-trigger:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .48); outline-offset: -2px;
+}
+.chalklee-question-object[data-line-insert-active="true"] > .chalklee-question-object-head > .chalklee-question-grip {
+  visibility: hidden; pointer-events: none;
+}
+@media print { .chalklee-line-insert { display: none; } }
+
+.chalklee-editor-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 32px;
+  scrollbar-width: none;
+}
+
+.chalklee-editor-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.chalklee-overlay-scrollbar,
+.sidebar-overlay-scrollbar {
+  position: absolute;
+  z-index: 3;
+  display: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cm-ui-scrollbar, #C1C1C1);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .42), 0 1px 3px rgba(16, 28, 40, .32);
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+  will-change: transform, width, height;
+}
+
+.chalklee-overlay-scrollbar {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .14s ease;
+}
+
+.chalklee-editor-scroll-shell:hover .chalklee-overlay-scrollbar,
+.chalklee-editor-scroll-shell:has(.chalklee-overlay-scrollbar:active) .chalklee-overlay-scrollbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chalklee-overlay-scrollbar-y,
+.sidebar-overlay-scrollbar-y {
+  top: 0;
+  right: 3px;
+  width: 6px;
+  min-height: 36px;
+}
+
+.chalklee-overlay-scrollbar-x,
+.sidebar-overlay-scrollbar-x {
+  bottom: 3px;
+  left: 0;
+  height: 6px;
+  min-width: 36px;
+}
+
+.sidebar-overlay-scrollbar {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .14s ease;
+}
+
+.sidebar-overlay-scroll-shell:hover .sidebar-overlay-scrollbar,
+.sidebar-overlay-scroll-shell:focus-within .sidebar-overlay-scrollbar,
+.sidebar-overlay-scroll-shell:has(.sidebar-overlay-scrollbar:active) .sidebar-overlay-scrollbar {
+  opacity: 1;
+  pointer-events: auto;
+}

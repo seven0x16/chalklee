@@ -1,0 +1,385 @@
+.chalklee-paper-viewport {
+  position: relative;
+  margin: 0 auto;
+}
+
+.chalklee-paper {
+  --chalklee-placeholder-color: #9a9a9a;
+  position: relative;
+  box-sizing: border-box;
+  margin: 0 auto;
+  transform-origin: top left;
+}
+
+.chalklee-paper-viewport > .chalklee-paper {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.chalklee-paper-sheets {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.chalklee-paper-sheet,
+.chalk-word-page,
+.pdf-viewer-container .pdfViewer .page {
+  box-shadow:
+    0 0 0 calc(.5px * var(--cm-page-effect-scale, 1)) rgba(35, 48, 64, .1),
+    0 calc(1px * var(--cm-page-effect-scale, 1)) calc(2px * var(--cm-page-effect-scale, 1)) rgba(35, 48, 64, .06),
+    0 calc(8px * var(--cm-page-effect-scale, 1)) calc(24px * var(--cm-page-effect-scale, 1)) rgba(35, 48, 64, .08);
+}
+
+.chalklee-paper-sheet {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: var(--chalklee-page-height);
+}
+
+.chalklee-editor-surface {
+  position: relative;
+}
+
+.chalklee-page-gap {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  box-sizing: border-box;
+  vertical-align: top;
+  pointer-events: none;
+  user-select: none;
+  color: transparent;
+  background: var(--chalklee-page-background, #fff);
+  font-size: 0;
+  line-height: 0;
+  text-indent: 0;
+}
+
+/* With drawings in the side margins, a page break covers only the body width, so the drawings stay whole. */
+/* Pagination measures the authored flow without the current page spacers; front-matter pages keep theirs. */
+.chalklee-pagination-measuring .chalklee-page-gap:not(.chalklee-front-spacer *),
+.chalklee-pagination-measuring .chalklee-page-repeat-header {
+  display: none !important;
+}
+
+.chalklee-paper[data-side-decorations="true"] .chalklee-page-gap {
+  background: linear-gradient(var(--chalklee-page-background, #fff), var(--chalklee-page-background, #fff))
+    var(--chalklee-gap-ml, 0px) 0 / calc(100% - var(--chalklee-gap-ml, 0px) - var(--chalklee-gap-mr, 0px)) 100% no-repeat;
+}
+
+.chalklee-editor-content {
+  min-height: 100%;
+  outline: none;
+  caret-color: var(--cm-theme-accent-strong);
+  counter-reset: chalklee-auto-question;
+}
+
+/* Electron 44's Chromium supports wrapped multicol rows. Each row is one
+   physical sheet; row-gap includes both margins and the space between sheets. */
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-editor-content {
+  column-count: var(--chalklee-column-count);
+  column-gap: var(--chalklee-column-gap);
+  column-height: var(--chalklee-page-content-height);
+  column-wrap: wrap;
+  column-fill: auto;
+  row-gap: var(--chalklee-column-row-gap);
+  overflow-wrap: anywhere;
+}
+
+.chalklee-paper[data-column-count] .chalklee-editor-content.chalklee-column-measuring,
+.chalklee-paper[data-column-layout-pending]:not([data-column-count="1"])[data-column-count] .chalklee-editor-content {
+  column-count: auto;
+  column-height: auto;
+  column-wrap: nowrap;
+  width: var(--chalklee-column-width);
+}
+
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-question-object {
+  break-inside: auto !important;
+}
+
+/* Pagination hints on questions and boxes belong to their block node views. */
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-editor-content > :where(.react-renderer):has(> [data-pagination-keep-together="true"]),
+.chalklee-paper:not([data-column-count="1"])[data-column-count] [data-chalklee-table] tr,
+.chalklee-paper:not([data-column-count="1"])[data-column-count] [data-chalklee-image],
+.chalklee-paper:not([data-column-count="1"])[data-column-count] [data-chalklee-block-math] {
+  break-inside: avoid;
+}
+
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-editor-content h1,
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-editor-content h2,
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-editor-content h3,
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-editor-content h4,
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-editor-content h5,
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-editor-content h6 {
+  break-after: avoid;
+}
+
+.chalklee-paper:not([data-column-count="1"])[data-column-count] [data-chalklee-page-break] {
+  break-after: column;
+  margin-inline: 0;
+}
+
+
+.chalklee-column-page-skip { display: contents; }
+.chalklee-column-page-skip > span {
+  display: block;
+  height: .02px;
+  break-after: column;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Keep saved option preferences; only wrap a row whose formulas cannot fit
+   the narrower paper column, in both the editable and printed surface. */
+.chalklee-paper:not([data-column-count="1"])[data-column-count] [data-column-options-wrap="true"] .chalklee-option-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.chalklee-paper:not([data-column-count="1"])[data-column-count] [data-column-options-wrap="true"] [data-chalklee-option] {
+  min-width: min(72pt, 100%);
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.chalklee-editor-content > :first-child {
+  margin-top: 0;
+}
+
+.chalklee-editor-content > :last-child {
+  margin-bottom: 0;
+}
+
+.chalklee-editor-content h1,
+.chalklee-editor-content h2,
+.chalklee-editor-content h3,
+.chalklee-editor-content h4,
+.chalklee-editor-content h5,
+.chalklee-editor-content h6 {
+  margin: 0;
+  color: inherit;
+}
+
+.chalklee-editor-content h1 { font-size: 16pt; line-height: 1.95; }
+.chalklee-editor-content h2,
+.chalklee-editor-content h3 { font-size: 12pt; line-height: 1.3; }
+.chalklee-editor-content h4,
+.chalklee-editor-content h5,
+.chalklee-editor-content h6 { font-size: 10pt; line-height: 1.3; }
+
+.chalklee-editor-content p {
+  min-height: 1em;
+  margin: 0 0 var(--chalklee-paragraph-space-after, 0);
+  orphans: 2;
+  widows: 2;
+}
+
+.chalklee-editor-content p[data-chalklee-list] {
+  display: list-item;
+  margin-inline-start: 1.55em;
+  padding-inline-start: .2em;
+}
+
+/* 最左边一栏的数字只有题号：正文和盒子里的列表整组缩到题干文字那一栏，序号也不进题号栏。
+   题目里的列表本来就从题干、答案或解析的文字起排。 */
+.chalklee-editor-content > p[data-chalklee-list],
+.chalklee-box-content > [data-node-view-content-react] > p[data-chalklee-list] {
+  margin-inline-start: calc(var(--chalklee-number-slot, 18pt) + 1.55em);
+}
+
+.chalklee-editor-content p[data-chalklee-list="bullet"] { list-style-type: disc; }
+.chalklee-editor-content p[data-chalklee-list="ordered"] { list-style-type: decimal; counter-increment: chalklee-list-item; }
+.chalklee-editor-content p[data-chalklee-list="ordered"]:not(p[data-chalklee-list="ordered"] + p[data-chalklee-list="ordered"], p[data-chalklee-list="ordered"] + .chalklee-page-gap + p[data-chalklee-list="ordered"]) { counter-reset: chalklee-list-item; }
+.chalklee-editor-content p[data-chalklee-list="ordered"]::marker { content: counter(chalklee-list-item) ". "; }
+
+/* A divider: a thin rule in the text color, with room above and below to click it. */
+[data-chalklee-divider] { clear: both; padding: 6pt 0; break-inside: avoid; }
+[data-chalklee-divider] > hr { height: 0; margin: 0; border: 0; border-top: 0.75pt solid currentColor; }
+
+.chalklee-editor-content p.ProseMirror-selectednode,
+.chalklee-editor-content [data-chalklee-divider].ProseMirror-selectednode,
+.chalklee-editor-content [data-chalklee-block-math].ProseMirror-selectednode {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .42);
+  outline-offset: 3px;
+}
+
+.chalklee-question-object {
+  --chalklee-question-padding-top: 0pt;
+  --chalklee-question-padding-left: 0pt;
+  --chalklee-question-padding-right: 0pt;
+  --chalklee-question-padding-bottom: 0pt;
+  position: relative;
+  display: block;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transition: outline-color .14s ease;
+}
+
+.chalklee-question-object {
+  counter-increment: chalklee-auto-question;
+}
+
+/* Keep inter-question spacing in the measured flow even when a page widget
+   separates the wrappers. Put it before the widget so page-gap alignment
+   absorbs it into the previous sheet instead of adding space at the next top.
+   Larger authored margins still collapse naturally; subquestions are excluded. */
+.chalklee-paper { --chalklee-question-spacing: 6pt; }
+.chalklee-editor-content > :where(.react-renderer):is(.node-question, .node-questionGroup):has(+ :is(.node-question, .node-questionGroup)),
+.chalklee-editor-content > :where(.react-renderer):is(.node-question, .node-questionGroup):has(+ :is(.chalklee-page-gap, .ProseMirror-gapcursor) + :is(.node-question, .node-questionGroup)),
+.chalklee-editor-content > :where(.react-renderer):is(.node-question, .node-questionGroup):has(+ :is(.chalklee-page-gap, .ProseMirror-gapcursor) + :is(.chalklee-page-gap, .ProseMirror-gapcursor) + :is(.node-question, .node-questionGroup)),
+.chalklee-box-content :where(.react-renderer):is(.node-question, .node-questionGroup):not([data-chalklee-subquestions] *):has(+ :is(.node-question, .node-questionGroup)),
+.chalklee-box-content :where(.react-renderer):is(.node-question, .node-questionGroup):not([data-chalklee-subquestions] *):has(+ :is(.chalklee-page-gap, .ProseMirror-gapcursor) + :is(.node-question, .node-questionGroup)),
+.chalklee-box-content :where(.react-renderer):is(.node-question, .node-questionGroup):not([data-chalklee-subquestions] *):has(+ :is(.chalklee-page-gap, .ProseMirror-gapcursor) + :is(.chalklee-page-gap, .ProseMirror-gapcursor) + :is(.node-question, .node-questionGroup)) {
+  margin-bottom: var(--chalklee-question-spacing);
+}
+
+/* Separate a new section from the preceding question or solution strip.
+   Use the question wrapper so larger authored margins still collapse naturally;
+   keep this spacing across pagination widgets so gapless measurements stay
+   stable. The aligned page spacer absorbs it into the previous page's tail. */
+.chalklee-editor-content > :where(.react-renderer):is(.node-question, .node-questionGroup):has(+ :is(h1, h2, h3)),
+.chalklee-editor-content > :where(.react-renderer):is(.node-question, .node-questionGroup):has(+ :is(.chalklee-page-gap, .ProseMirror-gapcursor) + :is(h1, h2, h3)),
+.chalklee-editor-content > :where(.react-renderer):is(.node-question, .node-questionGroup):has(+ :is(.chalklee-page-gap, .ProseMirror-gapcursor) + :is(.chalklee-page-gap, .ProseMirror-gapcursor) + :is(h1, h2, h3)) {
+  margin-bottom: 12pt;
+}
+
+.chalklee-question-object-head > span[data-number-mode="none"] {
+  display: none;
+}
+
+.chalklee-question-object:hover,
+.chalklee-question-object.selected,
+.chalklee-question-object.is-editing,
+.chalklee-question-object:focus-within {
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.chalklee-question-object.group {
+  background: transparent;
+}
+
+.chalklee-question-object.selected.is-editing {
+  background: rgb(var(--cm-theme-accent-rgb) / .045);
+  box-shadow: none;
+  outline: none;
+}
+
+/* The page-gap overlay after the question has z-index 1; keep the active frame above it. */
+.chalklee-question-object.is-editing {
+  z-index: 2;
+}
+
+/* A clear, softly lifted focus frame without changing the document's layout. */
+.chalklee-question-object::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  /* Vertically the frame sits in the middle of the spacing between questions. */
+  inset: calc(var(--chalklee-question-spacing, 6pt) / -2) -10px;
+  box-sizing: border-box;
+  border: 2px solid rgb(var(--cm-theme-accent-rgb) / .46);
+  border-radius: 10px;
+  box-shadow: 0 0 0 3px rgb(var(--cm-theme-accent-rgb) / .05), 0 4px 14px rgb(var(--cm-theme-accent-rgb) / .05);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .14s ease;
+}
+
+.chalklee-question-object.is-editing:not(.selected):not([data-question-drop])::before {
+  opacity: 1;
+}
+
+/* Whole-question selection reuses the rounded frame with a stronger edge. */
+.chalklee-question-object.selected.is-editing:not([data-question-drop])::before {
+  opacity: 1;
+  border-color: rgb(var(--cm-theme-accent-rgb) / .68);
+  box-shadow: 0 0 0 3px rgb(var(--cm-theme-accent-rgb) / .09), 0 5px 16px rgb(var(--cm-theme-accent-rgb) / .08);
+}
+
+#chalklee-print-root .chalklee-question-object::before {
+  display: none;
+}
+
+/* Outline follows every native fragment; an absolute pseudo-element would
+   cover the union of unrelated columns when a long question is active. */
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-question-object::before { display: none; }
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-question-object.is-editing:not(.selected):not([data-question-drop]) {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .5);
+  outline-offset: 3px;
+}
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-question-object.selected.is-editing {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .62);
+  outline-offset: 3px;
+}
+
+
+.chalklee-question-outside-gap-target {
+  position: absolute;
+  z-index: 11;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 8px;
+  cursor: text;
+}
+
+.chalklee-question-outside-gap-target:hover::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--chalklee-question-spacing, 6pt) / 2 - .75px);
+  right: 0;
+  left: 0;
+  border-top: 1.5px solid rgb(var(--cm-theme-accent-rgb) / .68);
+}
+
+/* Between two blocks the caret is a line across the space they already leave, so it never pushes the page down;
+   between two questions it lies in the middle of their spacing. */
+.chalklee-editor-content .ProseMirror-gapcursor {
+  position: relative;
+  display: none;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.chalklee-editor-content.ProseMirror-focused .ProseMirror-gapcursor {
+  display: block;
+}
+
+.chalklee-editor-content .ProseMirror-gapcursor::after {
+  content: "";
+  position: absolute;
+  top: -.75px;
+  right: 0;
+  left: 0;
+  width: auto;
+  border-top: 1.5px solid var(--cm-theme-accent-strong);
+  animation: chalklee-cursor-blink 1.05s steps(2, start) infinite;
+}
+
+.chalklee-editor-content > :is(.node-question, .node-questionGroup) + .ProseMirror-gapcursor::after {
+  top: calc(var(--chalklee-question-spacing, 6pt) / 2 - .75px);
+}
+
+@keyframes chalklee-cursor-blink {
+  to { visibility: hidden; }
+}
+
+/* 放映: the page on a dark surround; the paper copy keeps its own look, and its text can be selected. */
+.chalklee-presentation { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgb(var(--cm-theme-shadow-rgb)); outline: none; user-select: none; }
+.chalklee-presentation-stage { position: relative; overflow: hidden; background: var(--cm-document-paper-bg); cursor: text; user-select: text; }
+.chalklee-presentation-paper { position: absolute !important; top: 0 !important; left: 0 !important; margin: 0 !important; transform-origin: 0 0 !important; box-shadow: none !important; }
+.chalklee-presentation-counter { position: absolute; right: 16px; bottom: 12px; color: var(--cm-document-paper-bg); font-size: var(--cm-font-size-small); font-variant-numeric: tabular-nums; opacity: .55; }
+
+/* Bold is a plain bold. In a heading, already bold, "bolder" would reach 900: CJK fonts with a black face change
+   while Latin fonts without one do not, so the same bold would look different inside one title. */
+.chalklee-editor-content strong { font-weight: 700; }

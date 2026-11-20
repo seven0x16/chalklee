@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChalkLee plugin manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "publisher",
+    "name",
+    "version",
+    "apiVersion",
+    "summary",
+    "author"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\.[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "发布者.插件名，发布后不再改动"
+    },
+    "publisher": {
+      "type": "string",
+      "maxLength": 40,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "发布者标识，与 id 的前半段相同"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "apiVersion": {
+      "const": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "description": "显示给老师的作者名"
+    },
+    "license": {
+      "type": "string",
+      "maxLength": 60
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^https://\\S+$",
+      "maxLength": 300
+    },
+    "entry": {
+      "type": "string",
+      "default": "index.html"
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "document.read",
+          "document.create",
+          "question-bank.read",
+          "basket.write",
+          "assistant.draft"
+        ]
+      }
+    }
+  }
+}

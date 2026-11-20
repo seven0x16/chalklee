@@ -1,0 +1,61 @@
+ChalkLee
+Copyright 2026 seven0x5e
+
+ChalkLee is free software: you can redistribute it and/or modify it under the
+terms of the GNU Affero General Public License, version 3 only
+(AGPL-3.0-only), as published by the Free Software Foundation. See LICENSE.
+
+Commercial license
+------------------
+
+ChalkLee is also available under a commercial license for uses that cannot
+meet the terms of the AGPL, such as including it in proprietary software or
+services. Contact seven0x16@163.com.
+
+Plugins
+-------
+
+Additional permission under GNU AGPL version 3 section 7:
+
+Plugins that interact with ChalkLee only through the plugin interface
+described in docs/plugin-api.md, including the chalklee-plugin.js script that
+ChalkLee provides to them, may be created, used and distributed under terms
+of their authors' choice, without being subject to the GNU AGPL. This
+permission does not extend to ChalkLee itself or to modified versions of it.
+If you modify ChalkLee, you may extend this permission to your version, but
+you are not obliged to do so; if you do not wish to, delete this section from
+your version.
+
+The built-in todo and calendar plugins in apps/desktop/src/main/plugins/builtin/
+and the template in templates/plugin/ are also available under the MIT License
+(see templates/plugin/LICENSE and https://github.com/seven0x16/chalklee-plugins).
+
+Trademarks
+----------
+
+The ChalkLee name, logo and application icons identify this project. As
+permitted by section 7(e) of the AGPL, no rights are granted to use them as
+trademarks, and under section 7(c) modified versions must be marked in
+reasonable ways as different from the original.
+
+Third-party components
+----------------------
+
+Third-party dependencies retain their respective copyright notices and licenses.
+Their inclusion does not change those licenses. Application packages include
+THIRD_PARTY_LICENSES.txt next to LICENSE.txt and NOTICE.txt, listing the
+third-party packages compiled into the application, their license texts, and
+the license notices and attribution for the assets below.
+
+The ChalkLee logo (apps/desktop/src/renderer/src/assets/logo.svg) embeds a
+subset of the Poppins font. Copyright 2020 The Poppins Project Authors
+(https://github.com/itfoundry/Poppins). Licensed under the SIL Open Font
+License, Version 1.1; see apps/desktop/src/renderer/src/assets/Poppins-OFL.txt.
+
+AI provider logos are from Lobe Icons (https://github.com/lobehub/lobe-icons).
+Copyright (c) 2023 LobeHub. Licensed under the MIT License; see
+apps/desktop/src/renderer/src/assets/ai-providers/LICENSE.
+
+External app brand artwork is attributed in
+apps/desktop/src/renderer/src/assets/external-apps/README.md.
+Trademarks belong to their respective owners.

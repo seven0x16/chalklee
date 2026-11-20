@@ -1,0 +1,157 @@
+:root {
+  --cm-document-toolbar-height: 43px;
+  --cm-ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  /* Interface text uses only these sizes; weight and color carry further hierarchy. Document content keeps its own sizes. */
+  --cm-font-size-small: 12px;
+  --cm-font-size-body: 13px;
+  --cm-font-size-title: 20px;
+  /* Count badges on icon buttons only: digits in a 16px pill, not reading text. */
+  --cm-font-size-badge: 10px;
+  color: var(--cm-ui-text);
+  background: var(--cm-theme-shell);
+  font-family: var(--cm-ui-font);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.app-crash-recovery {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 32px;
+  color: var(--cm-ui-text, #202a36);
+  background: var(--cm-ui-bg, #f5f7fa);
+}
+
+.app-crash-recovery > section {
+  width: min(480px, 100%);
+  box-sizing: border-box;
+  padding: 28px;
+  border: 1px solid rgb(var(--cm-theme-shadow-rgb, 28 45 69) / .12);
+  border-radius: 12px;
+  background: var(--cm-ui-surface, #fff);
+  box-shadow: 0 18px 50px rgb(var(--cm-theme-shadow-rgb, 28 45 69) / .12);
+}
+
+.app-crash-recovery strong { display: block; font-size: var(--cm-font-size-title); }
+.app-crash-recovery p { margin: 10px 0 18px; color: var(--cm-ui-muted, #677386); line-height: 1.65; }
+.app-crash-recovery button {
+  min-height: 34px;
+  padding: 0 14px;
+  color: var(--cm-ui-selected-fg, #1759a5);
+  border: 1px solid rgb(var(--cm-theme-accent-rgb, 48 124 217) / .22);
+  border-radius: 7px;
+  background: var(--cm-theme-selection-surface, #eaf3ff);
+  font: inherit;
+  cursor: pointer;
+}
+.app-crash-recovery small { display: block; margin-top: 14px; color: var(--cm-ui-muted, #677386); overflow-wrap: anywhere; }
+
+.app-shell {
+  --cm-workspace-header-height: 42px;
+  min-width: 0;
+}
+
+.app-shell * {
+  scrollbar-color: var(--cm-ui-scrollbar, #C1C1C1) transparent;
+}
+
+.app-shell *::-webkit-scrollbar-thumb {
+  background-color: var(--cm-ui-scrollbar, #C1C1C1);
+}
+
+/* Browser document links use the complete available surface for one document. */
+.app-shell.document-only-shell {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  gap: 0;
+}
+
+.app-shell.document-only-shell .app-body {
+  padding: 0;
+  gap: 0;
+}
+
+.document-only-shell .unified-document-frame {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.document-only-shell .app-global-statusbar {
+  height: 30px;
+  min-height: 30px;
+  flex-basis: 30px;
+  margin: 0;
+  padding: 0 8px;
+  gap: 8px;
+  border-top: 1px solid var(--cm-ui-border);
+  background: var(--cm-ui-surface);
+}
+
+.document-view-brand {
+  height: 24px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 2px;
+  color: var(--cm-theme-accent-ink);
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+  font-weight: 500;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.document-view-brand:focus-visible { outline: 2px solid var(--cm-theme-accent); outline-offset: 1px; }
+.document-view-brand:disabled { opacity: .45; cursor: default; }
+
+.document-view-brand > img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+@media (max-width: 460px) {
+  .document-only-shell .app-global-statusbar {
+    height: auto;
+    flex-basis: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 3px 8px;
+    gap: 2px 8px;
+  }
+  .document-only-shell .app-global-status-left { flex: 0 0 auto; height: 24px; }
+  .document-only-shell .app-global-status-actions { height: 24px; }
+}
+
+.app-shell .complete-sidebar {
+  width: var(--workspace-left-pane-width, 248px);
+  flex: 0 0 var(--workspace-left-pane-width, 248px);
+}
+
+.app-shell .document-sidebar {
+  background: var(--cm-ui-surface-bright);
+}
+
+.app-shell .workspace-inspector {
+  width: var(--workspace-right-pane-width, 268px);
+  flex: 0 0 var(--workspace-right-pane-width, 268px);
+}

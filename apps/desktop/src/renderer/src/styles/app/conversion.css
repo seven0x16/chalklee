@@ -1,0 +1,156 @@
+.inspector-import-host:empty { display: none; }
+.ai-import-dialog button.primary { background: var(--cm-theme-accent-strong); color: var(--cm-theme-on-accent); border-color: transparent; }
+.ai-import-dialog button:disabled { opacity: .5; cursor: default; }
+.ai-import-spinner { animation: ai-import-spin 1s linear infinite; }
+@keyframes ai-import-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ai-import-spinner { animation: none; } }
+.ai-import-dialog { width: min(540px, calc(100vw - 40px)); max-height: calc(100vh - 72px); overflow-y: auto; padding: 22px; border: 1px solid rgb(var(--cm-theme-shadow-rgb) / .16); border-radius: 15px; background: var(--cm-ui-surface); color: var(--cm-ui-text); box-shadow: 0 24px 90px rgb(0 0 0 / .22); }
+.ai-import-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.ai-import-dialog > header strong { font-size: var(--cm-font-size-body); }
+.ai-import-dialog button { border: 1px solid rgb(var(--cm-theme-shadow-rgb) / .15); border-radius: 7px; background: var(--cm-ui-surface); color: var(--cm-theme-accent-ink); padding: 7px 10px; cursor: pointer; font: inherit; font-size: var(--cm-font-size-small); }
+.ai-import-dialog > header button { display: flex; border: 0; padding: 5px; }
+.ai-import-dialog p, .ai-import-dialog small { font-size: var(--cm-font-size-small); line-height: 1.7; color: var(--cm-ui-muted); }
+.ai-import-dialog label { display: flex; flex-direction: column; gap: 7px; margin: 17px 0; font-size: var(--cm-font-size-small); }
+.ai-import-dialog input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid rgb(var(--cm-theme-shadow-rgb) / .22); border-radius: 8px; background: var(--cm-ui-surface); color: var(--cm-ui-text); font: inherit; }
+.ai-import-dialog input:focus { outline: 2px solid var(--cm-theme-accent); outline-offset: 2px; }
+.ai-import-dialog footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.ai-import-dialog button.danger { border-color: transparent; color: var(--cm-ui-on-danger); background: var(--cm-ui-danger-solid); }
+.unsaved-close-dialog footer button:first-child { margin-right: auto; }
+.chalklee-trash-originals { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: var(--cm-theme-hover-bg); }
+.chalklee-trash-originals p { margin: 0; color: var(--cm-ui-text); }
+.chalklee-trash-originals p + p { margin-top: 6px; }
+.ai-import-message { display: flex; align-items: flex-start; gap: 8px; margin-top: 15px; font-size: var(--cm-font-size-small); line-height: 1.6; color: var(--cm-theme-accent-ink); overflow-wrap: anywhere; }
+.ai-import-message.error { color: var(--cm-ui-text); }
+.ai-import-timeline { padding: 0; list-style: none; margin: 18px 0; }
+.ai-import-timeline li { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; padding: 14px 0; border-top: 1px solid rgb(var(--cm-theme-shadow-rgb) / .12); font-size: var(--cm-font-size-small); }
+.ai-import-timeline li span { grid-column: 1; font-size: var(--cm-font-size-small); color: var(--cm-ui-muted); }
+.ai-import-timeline li button { grid-column: 2; grid-row: span 2; align-self: center; }
+.ai-import-dialog h3 { font-size: var(--cm-font-size-body); margin: 24px 0 10px; }
+.ai-import-notices { list-style: none; padding: 0; }
+.ai-import-notices li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; font-size: var(--cm-font-size-small); line-height: 1.7; border-bottom: 1px solid rgb(var(--cm-theme-shadow-rgb) / .1); }
+.ai-import-notices li span { flex: 1; }
+.ai-import-notices li button { flex-shrink: 0; padding: 3px 7px; }
+
+/* Source previews use the toolbar row for their conversion banner. */
+.source-conversion-banner {
+  display: flex; flex: none; align-items: center; gap: 10px; height: var(--cm-document-toolbar-height); box-sizing: border-box;
+  padding: 0 12px; border-bottom: 1px solid var(--cm-ui-divider);
+  background: var(--cm-ui-surface-soft);
+  color: var(--cm-ui-text);
+}
+.source-conversion-symbol {
+  display: grid; place-items: center; flex: none; width: 28px; height: 28px;
+  color: var(--cm-theme-accent-ink); border-radius: 7px; background: var(--cm-ui-surface);
+  box-shadow: inset 0 0 0 1px rgb(var(--cm-theme-shadow-rgb) / .1), 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06);
+}
+.source-conversion-banner.is-done .source-conversion-symbol {
+  color: var(--cm-ui-success);
+  box-shadow: inset 0 0 0 1px var(--cm-ui-success-surface), 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06);
+}
+.source-conversion-banner.has-error .source-conversion-symbol {
+  color: var(--cm-ui-danger);
+  box-shadow: inset 0 0 0 1px var(--cm-ui-danger-border), 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06);
+}
+/* No progress for a while: still running, but no longer shown as a confident spinner. */
+.source-conversion-banner.is-stalled .source-conversion-symbol, .conversion-task-row.is-stalled .conversion-task-symbol { color: var(--cm-ui-warning); }
+.source-conversion-banner.is-stalled .source-conversion-symbol { box-shadow: inset 0 0 0 1px var(--cm-ui-warning-border), 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06); }
+.source-conversion-copy { display: flex; align-items: baseline; flex: 1; gap: 10px; min-width: 0; font-size: var(--cm-font-size-small); line-height: 1.5; }
+.source-conversion-copy > * { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-conversion-copy strong { flex: none; color: var(--cm-ui-heading); font-weight: 600; }
+.source-conversion-copy > span { color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
+/* The detail truncates while a link after it stays whole; clip, so focusing the link never scrolls the text sideways. */
+.source-conversion-copy > .source-conversion-detail { display: flex; align-items: baseline; gap: 2px; overflow: clip; }
+.source-conversion-detail > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-conversion-link { flex: none; padding: 0 4px; border: 0; border-radius: 4px; background: transparent; color: var(--cm-theme-accent-ink); font: inherit; font-weight: 500; cursor: pointer; }
+.source-conversion-link:disabled { opacity: .6; cursor: default; }
+/* Asked under the hand-off button before copying an instruction that could not reach ChalkLee. */
+.source-conversion-prompt {
+  position: fixed; inset: auto; z-index: 120; width: 312px; box-sizing: border-box; margin: 0; padding: 14px 14px 12px;
+  color: var(--cm-ui-text); text-align: left; font: 400 var(--cm-font-size-small)/1.6 var(--cm-ui-font);
+  border: 1px solid var(--cm-ui-border); border-radius: 12px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 14px 36px rgb(var(--cm-theme-shadow-rgb) / .2), 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .08);
+}
+.source-conversion-prompt strong { display: flex; align-items: center; gap: 7px; color: var(--cm-ui-heading); font-size: var(--cm-font-size-body); font-weight: 600; }
+.source-conversion-prompt strong svg { flex: none; color: var(--cm-ui-warning); }
+.source-conversion-prompt p { margin: 6px 0 0 22px; color: var(--cm-ui-muted); text-wrap: pretty; }
+.source-conversion-prompt .source-conversion-prompt-error { color: var(--cm-ui-danger); }
+.source-conversion-prompt footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.source-conversion-prompt footer button { height: 28px; padding: 0 12px; border: 1px solid var(--cm-ui-divider); border-radius: 6px; font: inherit; font-weight: 500; background: var(--cm-ui-surface); color: var(--cm-ui-text); cursor: pointer; white-space: nowrap; }
+.source-conversion-prompt footer button.primary { border-color: transparent; background: var(--cm-theme-accent-strong); color: var(--cm-theme-on-accent); }
+.source-conversion-prompt footer button:disabled { opacity: .6; cursor: default; }
+.source-conversion-prompt footer button:focus-visible { outline: 2px solid var(--cm-theme-accent-deep); outline-offset: 2px; }
+.source-conversion-link:focus-visible { outline: 2px solid var(--cm-theme-accent-deep); outline-offset: 1px; }
+.source-conversion-actions { display: flex; flex: none; gap: 8px; }
+.source-conversion-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 28px; padding: 0 12px; border: 1px solid var(--cm-ui-divider); border-radius: 6px; font: inherit; font-size: var(--cm-font-size-small); font-weight: 500; background: var(--cm-ui-surface); color: var(--cm-ui-text); cursor: pointer; white-space: nowrap; }
+.source-conversion-actions button.primary { border-color: transparent; background: var(--cm-theme-accent-strong); color: var(--cm-theme-on-accent); box-shadow: 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .14); }
+.source-conversion-actions button:hover:not(:disabled) { border-color: var(--cm-theme-hover-border); background: var(--cm-theme-hover-bg); }
+.source-conversion-actions button.primary:hover:not(:disabled) { border-color: transparent; background: var(--cm-theme-accent-deep); color: var(--cm-theme-on-accent); }
+.source-conversion-actions button:active:not(:disabled) { background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow); }
+.source-conversion-actions button.primary:active:not(:disabled) { background: var(--cm-theme-accent-deep); color: var(--cm-theme-on-accent); }
+.source-conversion-actions button:disabled { opacity: .5; cursor: default; }
+.source-conversion-actions button:focus-visible { outline: 2px solid var(--cm-theme-accent-deep); outline-offset: 2px; }
+.app-titlebar .conversion-tasks-trigger.is-running { color: var(--cm-theme-accent-ink); }
+/* The task list and the basket fill the right pane like the conversation. */
+.conversion-tasks-panel {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden; outline: none;
+  color: var(--cm-ui-text); font: 400 var(--cm-font-size-small)/1.4 var(--cm-ui-font);
+  overscroll-behavior: contain;
+}
+/* The floating scrollbar takes no width, so rows keep equal margins on both sides. */
+.conversion-tasks-scroll { padding: 6px; overscroll-behavior: contain; }
+.conversion-tasks-panel button { font: inherit; cursor: pointer; }
+.conversion-tasks-scroll h3 { margin: 8px 8px 4px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); font-weight: 500; }
+:is(.conversion-tasks-scroll h3, .conversion-tasks-recent summary) > span { margin-left: 6px; color: var(--cm-ui-subtle); font-weight: 400; font-variant-numeric: tabular-nums; }
+/* One row per original: name and status across the full width, its actions underneath. */
+.conversion-task-row { position: relative; border-radius: 6px; }
+.conversion-task-file { display: flex; align-items: flex-start; gap: 8px; width: 100%; min-width: 0; padding: 8px; border: 0; border-radius: inherit; background: transparent; text-align: left; color: var(--cm-ui-text); }
+.conversion-task-row.is-active .conversion-task-file { padding-right: 34px; }
+.conversion-task-file > svg { flex: none; margin-top: 2px; color: var(--cm-ui-subtle); }
+.conversion-task-symbol { display: grid; place-items: center; width: 16px; height: 18px; flex: none; color: var(--cm-ui-muted); }
+.conversion-task-copy { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; line-height: 18px; }
+.conversion-task-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.conversion-task-copy small, .conversion-task-error { color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
+/* Lines break between phrases, never inside one; a phrase too wide for its line is cut short. */
+.conversion-task-copy small > span { display: inline-block; overflow: hidden; max-width: 100%; text-overflow: ellipsis; vertical-align: top; white-space: nowrap; }
+.conversion-task-copy small.is-single-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conversion-task-error { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+:root[data-appearance] .conversion-tasks-panel .conversion-task-stop { position: absolute; top: 5px; right: 5px; display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--cm-ui-muted); }
+/* Text buttons start where the text does: the button padding hangs into the gutter.
+   The root prefix outweighs the dark shell rule that recolours every button. */
+.conversion-task-actions { display: flex; flex-wrap: wrap; gap: 2px; margin-top: -4px; padding: 0 8px 6px 24px; }
+:root[data-appearance] .conversion-tasks-panel :is(.conversion-task-actions, .conversion-batch-actions) button { height: 24px; padding: 0 8px; border: 0; border-radius: 4px; color: var(--cm-theme-accent-ink); background: transparent; font-size: var(--cm-font-size-small); white-space: nowrap; }
+:root[data-appearance] .conversion-tasks-panel :is(.conversion-task-actions, .conversion-batch-actions) button.is-quiet { color: var(--cm-ui-muted); }
+.conversion-tasks-panel button:focus-visible, .conversion-tasks-panel summary:focus-visible { outline: 2px solid var(--cm-theme-accent-deep); outline-offset: -2px; }
+.conversion-tasks-panel button:disabled { opacity: .4; cursor: default; }
+/* Only ended tasks left: one quiet line above them instead of the empty pane. */
+.conversion-tasks-idle { display: flex; flex-flow: row wrap; align-items: center; justify-content: space-between; gap: 2px 16px; padding: 6px 0 6px 8px; color: var(--cm-ui-muted); }
+.conversion-tasks-idle > span { white-space: nowrap; }
+.conversion-tasks-recent { margin-top: 4px; border-top: 0.5px solid var(--cm-ui-divider); }
+.conversion-tasks-recent summary { margin-top: 4px; padding: 6px 8px; border-radius: 6px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); font-weight: 500; cursor: pointer; }
+.conversion-batch { display: flex; flex-direction: column; gap: 8px; margin: 2px 0 8px; padding: 12px; border-radius: 8px; background: var(--cm-ui-surface-soft); }
+.conversion-batch > header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 8px; }
+.conversion-batch > header > * { white-space: nowrap; }
+.conversion-batch > header strong { color: var(--cm-ui-heading); font-size: var(--cm-font-size-small); font-weight: 600; }
+.conversion-batch > header span { color: var(--cm-ui-text); font-size: var(--cm-font-size-small); font-variant-numeric: tabular-nums; }
+.conversion-batch-bar { height: 4px; overflow: hidden; border-radius: 2px; background: var(--cm-theme-step-5); }
+.conversion-batch-bar span { display: block; height: 100%; border-radius: inherit; background: var(--cm-theme-accent-strong); transition: width .25s ease-out; }
+.conversion-batch p { margin: 0; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); line-height: 18px; }
+.conversion-batch-actions { display: flex; flex-wrap: wrap; gap: 2px; margin: -2px 0 -4px -8px; }
+.conversion-batch-picker { max-height: 260px; overflow-y: auto; margin: 14px 0 4px; padding: 4px 10px 8px; border: 1px solid rgb(var(--cm-theme-shadow-rgb) / .12); border-radius: 9px; overscroll-behavior: contain; }
+.ai-import-dialog .conversion-batch-picker label { flex-direction: row; align-items: center; gap: 8px; margin: 0; padding: 5px 0; font-size: var(--cm-font-size-small); cursor: pointer; }
+.ai-import-dialog .conversion-batch-picker input { width: auto; flex: none; margin: 0; padding: 0; accent-color: var(--cm-theme-accent-strong); }
+.conversion-batch-picker label span { overflow: hidden; flex: 1; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
+.ai-import-dialog .conversion-batch-picker .conversion-batch-all { position: sticky; top: 0; z-index: 1; padding: 7px 0; border-bottom: 1px solid rgb(var(--cm-theme-shadow-rgb) / .1); background: var(--cm-ui-surface); }
+.conversion-batch-picker .conversion-batch-all small { flex: none; font-size: var(--cm-font-size-small); }
+.conversion-batch-picker h4 { margin: 9px 0 2px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); font-weight: 500; }
+.conversion-batch-notes { margin: 12px 0 0; padding-left: 18px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); line-height: 1.7; }
+.conversion-batch-notes li + li { margin-top: 3px; }
+.conversion-tasks-panel > footer { display: flex; justify-content: flex-end; flex: none; padding: 6px; border-top: 0.5px solid var(--cm-ui-divider); }
+:root[data-appearance] .conversion-tasks-panel > footer button { height: 24px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
+@media (max-width: 1200px) {
+  .source-conversion-copy { flex-direction: column; align-items: flex-start; gap: 0; }
+  .source-conversion-copy > span { font-size: var(--cm-font-size-small); }
+}
+@media print { .source-conversion-banner, .source-conversion-prompt, .conversion-tasks-panel { display: none !important; } }

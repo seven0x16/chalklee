@@ -1,0 +1,78 @@
+/* Plugin center: the list of plugins on the left and the chosen plugin's page in the middle. */
+.app-shell .plugin-center-sidebar { display: flex; flex-direction: column; min-height: 0; background: var(--cm-ui-surface-bright); }
+.plugin-center-list > .sidebar-overlay-scroll-content { padding: 2px 8px 12px; }
+.plugin-center-group + .plugin-center-group { margin-top: 16px; }
+.plugin-center-group > h3 {
+  display: flex; align-items: center;
+  height: 28px; margin: 0; padding: 0 4px;
+  color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); font-weight: 600;
+}
+.plugin-center-none { margin: 0; padding: 2px 4px 4px; color: var(--cm-ui-subtle); font-size: var(--cm-font-size-small); line-height: 20px; }
+
+.plugin-center-row {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 4px; border: 0; border-radius: 10px; box-sizing: border-box;
+  color: var(--cm-ui-text); background: transparent; font: inherit; text-align: left; cursor: pointer;
+}
+/* Keeps a hovered row from touching the chosen row next to it. */
+.plugin-center-row + .plugin-center-row { margin-top: 4px; }
+/* The chosen plugin matches the file and tag trees' current row on the white left pane. */
+.plugin-center-row[aria-current="page"] { color: var(--cm-ui-selected-fg); background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow); }
+.plugin-center-row[aria-current="page"] .plugin-center-row-copy > strong { color: var(--cm-ui-selected-fg); }
+.plugin-center-row-copy { min-width: 0; display: grid; }
+.plugin-center-row-copy > :is(strong, small) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-center-row-copy > strong { color: var(--cm-ui-heading); font-size: var(--cm-font-size-body); font-weight: 500; line-height: 20px; }
+.plugin-center-row-copy > small { color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); line-height: 18px; }
+
+/* Each plugin is a solid tile of its own color, like an app icon; the first character stands in when it brings no icon. */
+.plugin-center-icon { flex: none; display: grid; place-items: center; color: var(--cm-plugin-on-tone); font-weight: 600; line-height: 1; }
+.plugin-center-icon > svg { stroke-width: 2; }
+/* Concentric with the row: 10px row corner = 6px tile corner + 4px padding. */
+.plugin-center-icon.is-small { width: 32px; height: 32px; border-radius: 6px; font-size: var(--cm-font-size-body); }
+.plugin-center-icon.is-large { width: 56px; height: 56px; border-radius: 12px; font-size: var(--cm-font-size-title); }
+
+.app-shell .plugin-center-frame { background: var(--cm-ui-surface); }
+.plugin-center-page { max-width: 760px; margin: 0 auto; padding: 40px 32px 56px; color: var(--cm-ui-text); font-size: var(--cm-font-size-body); }
+.plugin-center-head { display: flex; align-items: center; gap: 16px; }
+.plugin-center-head-copy { flex: 1; min-width: 0; }
+.plugin-center-head h1 { margin: 0; color: var(--cm-ui-heading); font-size: var(--cm-font-size-title); font-weight: 600; line-height: 28px; }
+.plugin-center-head p { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); line-height: 20px; }
+.plugin-center-status { padding: 0 6px; border-radius: 4px; color: var(--cm-ui-muted); background: var(--cm-ui-fill); line-height: 18px; }
+.plugin-center-install {
+  flex: none; height: 30px; padding: 0 14px; border: 0; border-radius: 8px;
+  color: var(--cm-theme-on-accent); background: var(--cm-theme-accent); font: inherit; font-size: var(--cm-font-size-body); cursor: pointer;
+}
+.plugin-center-description { max-width: 640px; margin: 20px 0 0; line-height: 1.75; }
+
+@media print { .plugin-center-frame, .plugin-center-sidebar { display: none !important; } }
+
+/* An installed plugin: one line of its own above the page it runs. */
+.plugin-center-drop { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.plugin-center-empty { align-items: center; justify-content: center; color: var(--cm-ui-subtle); font-size: var(--cm-font-size-body); }
+.plugin-run { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--cm-ui-text); font-size: var(--cm-font-size-body); }
+.plugin-run-head { flex: none; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px 0 16px; }
+.plugin-run-head > strong { overflow: hidden; color: var(--cm-ui-heading); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-run-head > .plugin-center-status { flex: none; font-size: var(--cm-font-size-small); }
+.plugin-run-approve { flex: none; height: 24px; padding: 0 8px; border: 0.5px solid var(--cm-ui-border); border-radius: 6px; color: var(--cm-theme-accent-ink); background: transparent; font: inherit; font-size: var(--cm-font-size-small); cursor: pointer; }
+.plugin-frame { flex: 1; min-height: 0; width: 100%; border: 0; background: var(--cm-ui-surface); }
+
+.plugin-dialog {
+  width: min(420px, calc(100vw - 48px)); box-sizing: border-box; padding: 18px 20px 16px;
+  border: 0.5px solid var(--cm-ui-border); border-radius: 14px; outline: 0;
+  color: var(--cm-ui-text); background: var(--cm-ui-surface); box-shadow: 0 24px 80px rgb(0 0 0 / .22);
+  font-size: var(--cm-font-size-body); line-height: 1.6;
+}
+.plugin-dialog > h2 { margin: 0 0 4px; color: var(--cm-ui-heading); font-size: var(--cm-font-size-title); font-weight: 600; }
+.plugin-dialog p { margin: 8px 0 0; }
+.plugin-dialog-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
+.plugin-dialog-warning { color: var(--cm-ui-danger); }
+.plugin-dialog p.plugin-dialog-note { color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
+.plugin-dialog section { margin-top: 12px; }
+.plugin-dialog h3 { margin: 0 0 4px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); font-weight: 600; }
+.plugin-dialog ul { margin: 0; padding: 0; list-style: none; }
+.plugin-dialog li { display: flex; align-items: center; gap: 8px; line-height: 24px; }
+.plugin-dialog-new { padding: 0 6px; border-radius: 4px; color: var(--cm-ui-muted); background: var(--cm-ui-fill); font-size: var(--cm-font-size-small); line-height: 18px; }
+.plugin-dialog > footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.plugin-dialog > footer > button { height: 30px; padding: 0 14px; border: 0.5px solid var(--cm-ui-border); border-radius: 8px; color: var(--cm-ui-text); background: var(--cm-ui-fill); font: inherit; cursor: pointer; }
+.plugin-dialog > footer > .is-primary { border-color: transparent; color: var(--cm-theme-on-accent); background: var(--cm-theme-accent); }
+.plugin-dialog > footer > .is-danger { border-color: transparent; color: var(--cm-theme-on-accent); background: var(--cm-ui-danger-solid); }

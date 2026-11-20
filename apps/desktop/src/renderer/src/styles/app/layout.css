@@ -1,0 +1,372 @@
+/* Title bar shell: one row whose segments follow the panes below it — the places over the left pane, the tabs over
+   the middle and the right pane's switches over the right. Below it the panes float as rounded cards on the
+   tinted canvas, separated by 8px gutters that double as the drag handles, with no status bar. */
+.app-shell.app-shell:not(.document-only-shell) {
+  --cm-titlebar-height: 40px;
+  --cm-shell-pane-bg: var(--cm-theme-shell);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  background: var(--cm-shell-pane-bg);
+}
+
+.app-titlebar {
+  position: relative;
+  z-index: 40;
+  height: var(--cm-titlebar-height);
+  flex: 0 0 var(--cm-titlebar-height);
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  box-sizing: border-box;
+  /* The horizontal inset matches the body's, so the segment edges stay on the card edges below. */
+  padding: 0 8px;
+  background: transparent;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.app-titlebar :is(button, input, .unified-document-tab, .unified-tabs-scrollbar, .unified-tab-menu) {
+  -webkit-app-region: no-drag;
+}
+
+.app-titlebar-left,
+.app-titlebar-right {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 2px;
+  box-sizing: border-box;
+  padding: 0 8px;
+}
+
+/* The traffic lights sit at the start of the left segment. */
+[data-platform="macos"] .app-titlebar-left { padding-left: 80px; }
+.app-titlebar-left > .sidebar-visibility-toggle { margin-left: auto; }
+.app-titlebar-right > .titlebar-panels { margin-left: auto; }
+/* With the panels open, their toggles sit flush with the card edges below, facing the tabs across the 8px gutter. */
+.app-titlebar-left.is-open { padding-right: 0; }
+.app-titlebar-right.is-open { padding-left: 0; }
+
+.titlebar-places,
+.titlebar-panels {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.app-shell .app-titlebar .workspace-pane-toggle {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.app-shell .app-titlebar .workspace-pane-toggle:focus-visible {
+  outline: 2px solid var(--cm-theme-accent-deep);
+  outline-offset: -2px;
+}
+
+/* Windows: the window buttons end the right segment, mirroring the traffic lights at the start of the left one. The
+   segment keeps their room; the buttons themselves float above dialogs like the native traffic lights, with the close
+   button on the right card's outer edge and a wider gap than the panel icons' setting the group apart. */
+[data-platform="windows"] .app-titlebar-right { padding-right: 100px; }
+
+.window-controls {
+  position: fixed;
+  z-index: 1000;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.window-controls > .window-control {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.window-controls > .window-control:focus-visible {
+  outline: 2px solid var(--cm-theme-accent-deep);
+  outline-offset: -2px;
+}
+
+/* Windows draws "restore" with the back window up to the right. */
+.window-control-restore { transform: scaleX(-1); }
+
+.app-titlebar-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* The margins match the pane gutters, so the tab strip spans the center card's width: the first tab and the tab menu sit on its edges. */
+  margin-inline: 8px;
+  padding: 0;
+}
+
+/* The strip clips its overflow, so it reaches 6px past each end and pads the tabs back: the end tabs keep their place and their shadows are not cut. */
+.app-shell .app-titlebar .unified-tabs-region { height: 100%; margin-inline: -6px; }
+.app-shell .app-titlebar .unified-tabs-scroll { display: flex; padding-inline: 6px; scroll-padding-inline: 6px; }
+/* Once scrolled, tabs passing an end are cut at the tabs' own edge, so the leftmost one stays on the card edge below. */
+.app-shell .app-titlebar .unified-tabs-region.clip-start .unified-tabs-scroll { clip-path: inset(-12px 0 -12px 6px); }
+.app-shell .app-titlebar .unified-tabs-region.clip-end .unified-tabs-scroll { clip-path: inset(-12px 6px -12px 0); }
+.app-shell .app-titlebar .unified-tabs-region.clip-start.clip-end .unified-tabs-scroll { clip-path: inset(-12px 6px); }
+.app-shell .app-titlebar .unified-document-tab:is(.active, .secondary) { height: 28px; }
+.app-shell .app-titlebar .unified-tab-menu-trigger {
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+}
+
+/* "+" follows the last tab; the tab menu stays at the segment's right edge. */
+.app-shell .app-titlebar .unified-tabs-region { flex: 0 1 auto; }
+/* Positioned so it stays above the strip's right padding, which reaches under its edge. */
+.app-shell .app-titlebar .unified-new-tab {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+}
+.app-shell .app-titlebar .unified-tab-menu-anchor { margin-left: auto; }
+.app-shell .blank-document-tab > svg:first-child { color: var(--cm-ui-muted); }
+
+/* The body under the title bar: cards inset from the window edge, the middle keeps the paper's canvas. */
+.app-shell.app-shell:not(.document-only-shell) .app-body {
+  height: auto;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  gap: 0;
+  padding: 4px 8px 8px;
+}
+
+/* Each pane floats on the canvas as a rounded card. */
+.app-shell.app-shell:not(.document-only-shell) :is(.workspace-left-column, .unified-document-frame, .assistant-sidebar, .right-tool-sidebar) {
+  overflow: hidden;
+  border: .5px solid var(--cm-shell-panel-border);
+  border-radius: var(--cm-shell-panel-radius);
+  background: var(--cm-ui-surface);
+  box-shadow: var(--cm-island-shadow);
+}
+
+/* Cards no longer touch: the drag handle is the 8px gutter between them. */
+.app-shell.app-shell:not(.document-only-shell) .workspace-pane-resizer { margin-inline: 0; }
+
+.workspace-left-column {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.app-shell.app-shell .workspace-left-column > .complete-sidebar {
+  width: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.app-shell.app-shell .right-tool-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The pane header's title is the current workspace; both the file tree and the tag tree belong to it. */
+.app-shell .sidebar-pane-workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 0 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-shell .sidebar-pane-workspace > svg:first-child {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  padding: 3px;
+  box-sizing: content-box;
+  color: var(--cm-theme-accent-ink);
+}
+
+.app-shell .sidebar-pane-workspace > strong {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--cm-font-size-body);
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--cm-ui-heading);
+}
+
+/* The left pane's foot: the ChalkLee brand (opening About), appearance and settings. */
+.workspace-left-footer {
+  position: relative;
+  height: 44px;
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  padding: 0 6px;
+}
+
+/* Tree items scrolling beneath the footer soften before the inset hairline instead of meeting a full-width rule. */
+.workspace-left-footer::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 16px;
+  pointer-events: none;
+  background: linear-gradient(transparent, var(--cm-ui-surface-bright));
+}
+
+.workspace-left-footer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 10px;
+  left: 10px;
+  border-top: .5px solid var(--cm-ui-divider);
+  pointer-events: none;
+}
+
+.app-shell .workspace-brand {
+  height: 36px;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.workspace-brand > img {
+  height: 30px;
+  width: auto;
+  /* At the narrowest left pane the wider lockup scales down instead of crowding the buttons. */
+  max-width: 100%;
+  object-fit: contain;
+  object-position: left center;
+  display: block;
+  /* The wordmark's body sits below the SVG's geometric center; lift it onto the footer's midline. */
+  margin-top: -3px;
+}
+
+.app-shell .workspace-footer-button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.app-shell :is(.sidebar-pane-workspace, .workspace-brand, .workspace-footer-button):focus-visible {
+  outline: 2px solid var(--cm-theme-accent-deep);
+  outline-offset: -2px;
+}
+
+/* Opens upward from the foot of the left pane, aligned with the card's left edge. It is fixed so the card's
+   rounded clipping (overflow: hidden) does not cut it off where it is wider than the pane. */
+.workspace-left-footer .complete-theme-menu {
+  position: fixed;
+  top: auto;
+  right: auto;
+  bottom: 58px;
+  left: 8px;
+  max-height: min(420px, calc(100vh - 110px));
+}
+
+/* Page, solutions and zoom float over the bottom-right of the middle, like a status line that only covers its corner. */
+.app-shell .unified-document-content,
+.app-shell .question-library-frame {
+  position: relative;
+}
+
+.app-shell:not(.document-only-shell) .workspace-view-controls {
+  position: absolute;
+  z-index: 25;
+  right: 18px;
+  bottom: 12px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 6px 0 8px;
+  color: var(--cm-ui-muted);
+  border: .5px solid var(--cm-ui-border);
+  border-radius: 999px;
+  background: var(--cm-ui-surface-glass);
+  box-shadow: 0 6px 20px rgb(var(--cm-theme-shadow-rgb) / .09), 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-size: var(--cm-font-size-small);
+  line-height: 1;
+}
+
+.app-shell:not(.document-only-shell) .workspace-view-controls > * + *::before {
+  content: "";
+  width: .5px;
+  height: 12px;
+  margin-right: 7px;
+  background: var(--cm-ui-divider);
+}
+
+.app-shell:not(.document-only-shell) .workspace-view-controls .chalklee-global-visibility-controls::after { content: none; }
+.app-shell:not(.document-only-shell) .workspace-view-controls .app-global-zoom-controls input[type="range"] { width: 72px; }
+.workspace-view-controls .app-global-status-page-label { min-width: 38px; text-align: center; }
+
+@media print {
+  .app-titlebar, .workspace-left-column, .workspace-view-controls { display: none !important; }
+}

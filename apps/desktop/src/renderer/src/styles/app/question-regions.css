@@ -1,0 +1,1080 @@
+/* Optional document ink. These labels and borders also survive PDF export. */
+.chalklee-question-object[data-question-frame],
+.chalklee-box[data-question-frame] {
+  --chalklee-frame-unit: 1pt;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+:is(.chalklee-question-object, .chalklee-box) > .chalklee-question-frame-label {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: max(12pt, var(--chalklee-question-padding-left));
+  max-width: calc(100% - 36pt);
+  box-sizing: border-box;
+  padding: 1.5pt 7pt;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  transform: translateY(-50%);
+  overflow: hidden;
+  color: var(--chalklee-frame-label-text, var(--chalklee-frame-accent));
+  background: var(--chalklee-frame-surface);
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 10pt;
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: none;
+  cursor: text;
+}
+
+.chalklee-question-frame-label:focus-within { outline: 1px dashed var(--chalklee-frame-accent); outline-offset: 2px; }
+.chalklee-question-frame-label-text {
+  display: inline-block;
+  min-inline-size: 1ch;
+  max-inline-size: 100%;
+  vertical-align: top;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  outline: none;
+  user-select: text;
+}
+.chalklee-question-frame-label-text:empty::before { content: attr(aria-placeholder); opacity: .65; pointer-events: none; }
+.chalklee-question-frame-label[data-label-empty="true"] { opacity: 0; }
+.chalklee-question-object:hover > .chalklee-question-frame-label[data-label-empty="true"],
+.chalklee-question-object.is-editing > .chalklee-question-frame-label[data-label-empty="true"],
+.chalklee-box:is(:hover, :focus-within) > .chalklee-question-frame-label[data-label-empty="true"],
+.chalklee-question-frame-label[data-label-empty="true"]:focus-within { opacity: 1; }
+
+.chalklee-question-frame-label[data-label-style="filled"] {
+  padding: 3pt 9pt;
+  color: #fff;
+  border-radius: 3pt;
+  background: var(--chalklee-frame-accent);
+}
+
+[data-question-frame="top-center"] > .chalklee-question-frame-label {
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+[data-question-frame="left"] > .chalklee-question-frame-label {
+  top: 14pt;
+  left: 0;
+  width: 21pt;
+  max-height: calc(100% - 28pt);
+  padding: 7pt 3pt;
+  transform: none;
+  writing-mode: vertical-rl;
+  letter-spacing: 2pt;
+  text-orientation: upright;
+}
+
+/* Printed question frame decorations. */
+.chalklee-frame-decoration { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+
+/* 双线：内圈细线作为外框的浅回声。 */
+[data-frame-design="double"] > .chalklee-frame-decoration { inset: calc(3.5 * var(--chalklee-frame-unit)); border: var(--chalklee-frame-width) var(--chalklee-frame-line) var(--chalklee-frame-border); border-radius: max(0px, calc(var(--chalklee-frame-radius) - 2.5 * var(--chalklee-frame-unit))); opacity: .55; }
+[data-frame-design="double"] > .chalklee-question-frame-label { padding-top: 4pt; padding-bottom: 4pt; }
+
+/* 折角：标题收进框内左上角，折角保持唯一的角部装饰。 */
+[data-frame-design="fold"] > .chalklee-frame-decoration::after { content: ""; position: absolute; top: 0; right: 0; width: calc(20 * var(--chalklee-frame-unit)); height: calc(20 * var(--chalklee-frame-unit)); border-radius: 0 var(--chalklee-frame-radius) 0 calc(3 * var(--chalklee-frame-unit)); background: linear-gradient(45deg, color-mix(in srgb, var(--chalklee-frame-accent) 22%, var(--chalklee-frame-surface)) 48%, var(--chalklee-frame-border) 49%, var(--chalklee-frame-border) 52%, var(--chalklee-frame-surface) 53%); box-shadow: calc(-1 * var(--chalklee-frame-unit)) var(--chalklee-frame-unit) calc(2 * var(--chalklee-frame-unit)) rgb(0 0 0 / .05); }
+[data-frame-design="fold"] > .chalklee-question-frame-label {
+  top: calc(5 * var(--chalklee-frame-unit));
+  left: calc(11 * var(--chalklee-frame-unit));
+  padding: 0;
+  transform: none;
+  background: transparent;
+}
+
+/* 侧签：保留旧文档中已保存样式的渲染。 */
+[data-frame-design="rail"] > .chalklee-frame-decoration { border-left: calc(10 * var(--chalklee-frame-unit)) solid var(--chalklee-frame-accent); border-radius: var(--chalklee-frame-radius) 0 0 var(--chalklee-frame-radius); }
+[data-frame-design="rail"][data-question-frame="left"] > .chalklee-question-frame-label {
+  left: 0;
+  width: calc(10 * var(--chalklee-frame-unit));
+  padding: calc(7 * var(--chalklee-frame-unit)) 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 8.5pt;
+  letter-spacing: 1.5pt;
+  text-align: center;
+}
+
+/* 题头：通栏色带标题，白字与正文左对齐。 */
+[data-frame-design="band"]:not([data-question-frame="left"]) > .chalklee-question-frame-label {
+  top: 0;
+  left: 0;
+  right: 0;
+  max-width: none;
+  padding: 2.5pt 9pt 3pt var(--chalklee-question-padding-left, 18pt);
+  transform: none;
+  border-radius: max(0px, calc(var(--chalklee-frame-radius) - var(--chalklee-frame-width))) max(0px, calc(var(--chalklee-frame-radius) - var(--chalklee-frame-width))) 0 0;
+  background: var(--chalklee-frame-accent);
+  color: #fff;
+  letter-spacing: .06em;
+  text-align: left;
+}
+[data-frame-design="band"][data-question-frame="top-center"] > .chalklee-question-frame-label { padding-inline: 9pt; text-align: center; }
+
+/* 书签：丝带尾巴配一点投影。 */
+[data-frame-design="ribbon"] > .chalklee-question-frame-label[data-label-style="filled"] { padding-inline: calc(9 * var(--chalklee-frame-unit)) calc(16 * var(--chalklee-frame-unit)); clip-path: polygon(0 0, 100% 0, calc(100% - 6 * var(--chalklee-frame-unit)) 50%, 100% 100%, 0 100%); border-radius: calc(2.5 * var(--chalklee-frame-unit)) 0 0 calc(2.5 * var(--chalklee-frame-unit)); filter: drop-shadow(0 var(--chalklee-frame-unit) var(--chalklee-frame-unit) rgb(0 0 0 / .16)); }
+
+/* 信笺：胶囊标题用纸面色托底，从虚线上浮起。 */
+[data-frame-design="dashed"] > .chalklee-question-frame-label[data-label-style="filled"] { border-radius: calc(20 * var(--chalklee-frame-unit)); padding-inline: calc(11 * var(--chalklee-frame-unit)); box-shadow: 0 0 0 calc(1.5 * var(--chalklee-frame-unit)) var(--chalklee-frame-surface), 0 var(--chalklee-frame-unit) calc(2 * var(--chalklee-frame-unit)) rgb(0 0 0 / .1); }
+
+/* 素线：标题字距略开，保持克制。 */
+[data-frame-design="line"] > .chalklee-question-frame-label { letter-spacing: .05em; }
+
+[data-question-frame] > .chalklee-question-object-head > .chalklee-question-grip,
+[data-question-frame] > .chalklee-question-object-head > .chalklee-question-basket-mark,
+[data-question-frame] > .chalklee-question-object-head > .chalklee-question-object-actions {
+  left: calc(-40px - var(--chalklee-question-padding-left));
+}
+
+/* A stem opening with text carries the number on its first baseline. Target the number slot so
+   :has() invalidation does not revisit unrelated spans such as the formulas in the question bank. */
+.chalklee-question-object:not([data-stem-empty="true"]):has(> .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="stem"] > p:first-child) > .chalklee-question-object-head > [data-number-mode] {
+  display: none;
+}
+
+.chalklee-question-object-content > [data-node-view-content-react] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--chalklee-question-gap, 0);
+}
+
+/* A page spacer between a question's regions is not a region: it must not add a second flex gap.
+   Otherwise the content after it measures one gap lower than without it, and a break that fits
+   with the spacer before the question no longer fits with it inside, so the page flips between both. */
+.chalklee-question-object-content > [data-node-view-content-react] > .chalklee-page-gap:not(:first-child) {
+  margin-top: calc(-1 * var(--chalklee-question-gap, 0px));
+}
+
+.chalklee-question-object-content > [data-node-view-content-react] > .chalklee-page-gap:first-child {
+  margin-bottom: calc(-1 * var(--chalklee-question-gap, 0px));
+}
+
+[data-chalklee-region] {
+  position: relative;
+}
+
+[data-chalklee-region="stem"],
+[data-chalklee-region="material"] {
+  padding: 0;
+}
+
+[data-chalklee-region="material"] {
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* Numbered groups print their main number on the shared material's first
+   baseline. Materials that already contain that marker keep one copy. */
+.chalklee-question-object.group:is([data-question-number-mode="fixed"], [data-question-number-mode="auto"]):not([data-material-number="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="material"] > p:first-of-type {
+  padding-left: var(--chalklee-number-slot, 18pt);
+}
+
+.chalklee-question-object:not(.group):not([data-inline-number="true"]) [data-chalklee-region="stem"] > p:first-of-type {
+  box-sizing: border-box;
+  padding-left: var(--chalklee-number-slot, 18pt);
+}
+
+/* Later stem paragraphs line up with the stem text, like its wrapped lines. */
+.chalklee-question-object:not(.group):not([data-inline-number="true"]):not([data-question-kind="writing"][data-question-number-mode="none"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="stem"] > p:not(:first-of-type) {
+  box-sizing: border-box;
+  padding-left: var(--chalklee-number-slot, 18pt);
+}
+
+.chalklee-question-object[data-stem-empty="true"][data-source-blank="true"] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="stem"] {
+  display: none;
+}
+
+/* Options line up with the stem text too, leaving the left column to the question numbers. */
+.chalklee-question-object:not(.group):not([data-inline-number="true"]) .chalklee-option-grid {
+  padding-left: var(--chalklee-number-slot, 18pt);
+}
+
+.chalklee-question-object:not(.group):not([data-linked-placeholder="true"]):not([data-source-blank="true"])[data-stem-empty="true"] [data-chalklee-region="stem"] > p:first-of-type::before {
+  content: "输入题干";
+  float: left;
+  height: 0;
+  color: var(--chalklee-placeholder-color);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* An unnumbered writing task (书面表达) starts its prompt with a first-line indent, as papers print it. A numbered
+   one lines up its number and text with every other question. */
+.chalklee-question-object[data-question-kind="writing"][data-question-number-mode="none"] > .chalklee-question-object-head > span { left: 31pt; }
+
+/* Only the first line, with no number slot: the prompt wraps back to the margin. Not forced, so the paragraph's
+   own indent, which the indent buttons and Backspace set, wins. */
+.chalklee-question-object[data-question-kind="writing"][data-question-number-mode="none"] [data-chalklee-region="stem"] > p:first-of-type {
+  padding-left: 0;
+  text-indent: 31pt;
+}
+
+/* 答案与解析不铺底色以省墨：“答案”“解析”是蓝色的无衬线小标题，右侧一条细竖线与正文隔开，与正文首行居中对齐，
+   正文悬挂缩进。题号用同一色系的深蓝（question-numbers.css），黑白打印接近黑色。文档自带的设计 CSS 仍优先。 */
+@property --chalklee-solution-line {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+.chalklee-paper {
+  --chalklee-solution-accent: #0d74ce;
+  --chalklee-solution-analysis-label: #0d74ce;
+  --chalklee-solution-divider: #8ec8f6;
+  --chalklee-solution-surface: transparent;
+  --chalklee-solution-rule: #cdced6;
+}
+
+[data-chalklee-region="answer"],
+[data-chalklee-region="analysis"] {
+  --chalklee-solution-line: 1lh;
+  --chalklee-solution-pad: 3px;
+  margin-top: 8px;
+  padding: var(--chalklee-solution-pad) 0 var(--chalklee-solution-pad) 3.2em;
+  border: 0;
+  border-radius: 0;
+  background: var(--chalklee-solution-surface);
+}
+
+:is([data-chalklee-region="answer"], [data-chalklee-region="analysis"])[data-label=""] { padding-left: 0; }
+:is([data-chalklee-region="answer"], [data-chalklee-region="analysis"])[data-label=""]::before { display: none; }
+
+/* 题目内容是带 gap 的纵向 flex，连成一块的解答抵消这段间距；两者之间的分页占位不改变这段距离。 */
+[data-chalklee-region="answer"] + [data-chalklee-region="analysis"],
+[data-chalklee-region="answer"] + .chalklee-page-gap + [data-chalklee-region="analysis"] {
+  margin-top: calc(-1 * var(--chalklee-question-gap, 0px));
+}
+
+.chalklee-paper.hide-answers [data-chalklee-region="answer"] + [data-chalklee-region="analysis"],
+.chalklee-paper.hide-answers [data-chalklee-region="answer"] + .chalklee-page-gap + [data-chalklee-region="analysis"],
+#chalklee-print-root [data-chalklee-region="answer"][data-print-empty="true"] + [data-chalklee-region="analysis"] {
+  margin-top: 8px;
+}
+
+/* 不带框的题目：显示的答案与解析合在一个浅灰细线框里，不铺底色；框的左边与题干文字对齐，题号一列空出。
+   答案、解析和题组汇总的每一项都是相邻的块，各自画出自己那段框边：不画的边宽度为 0，由内距补足，
+   显隐和分页都不改变高度，转角也不会被透明的边斜切出缺口。打印副本已移除不输出的解答，答案不在时由解析开框。 */
+@property --chalklee-solution-inset-left {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+@property --chalklee-solution-inset-right {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"]),
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution {
+  --chalklee-solution-edge-top: 0px;
+  --chalklee-solution-edge-right: .5px;
+  --chalklee-solution-edge-bottom: 0px;
+  --chalklee-solution-edge-left: .5px;
+  --chalklee-solution-inset-right: 8px;
+  padding:
+    calc(var(--chalklee-solution-pad) + .5px - var(--chalklee-solution-edge-top))
+    calc(var(--chalklee-solution-inset-right) + .5px - var(--chalklee-solution-edge-right))
+    calc(var(--chalklee-solution-pad-bottom) + .5px - var(--chalklee-solution-edge-bottom))
+    calc(var(--chalklee-solution-inset-left) + .5px - var(--chalklee-solution-edge-left));
+  border-style: solid;
+  border-color: var(--chalklee-solution-rule);
+  border-width: var(--chalklee-solution-edge-top) var(--chalklee-solution-edge-right) var(--chalklee-solution-edge-bottom) var(--chalklee-solution-edge-left);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"]) {
+  --chalklee-solution-pad-bottom: 3px;
+  --chalklee-solution-inset-left: calc(8px + 3.2em);
+  margin-left: var(--chalklee-number-slot, 18pt);
+}
+
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"])[data-label=""] {
+  --chalklee-solution-inset-left: 8px;
+}
+
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"])::before {
+  top: calc(var(--chalklee-solution-pad) + .5px - var(--chalklee-solution-edge-top) + (var(--chalklee-solution-line) - 1.5em) / 2);
+  left: 8px;
+}
+
+/* 题干从页边起排的题目（行内题号、不编号的书面表达），框也从页边起。 */
+.chalklee-question-object:not([data-question-frame]):is([data-inline-number="true"], [data-question-kind="writing"][data-question-number-mode="none"]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"]) {
+  margin-left: 0;
+}
+
+/* 答案与解析交界处重叠半像素，两边都画线时也只有一条。 */
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"] + [data-chalklee-region="analysis"],
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"] + .chalklee-page-gap + [data-chalklee-region="analysis"] {
+  margin-top: calc(-1 * var(--chalklee-question-gap, 0px) - .5px);
+}
+
+/* 框的开头：离选项近、离下一题远，看得出属于哪道题。 */
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"],
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"]:not([data-chalklee-region="answer"] + *):not([data-chalklee-region="answer"] + .chalklee-page-gap + *),
+.chalklee-paper.hide-answers .chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"] {
+  --chalklee-solution-pad: 6px;
+  --chalklee-solution-edge-top: .5px;
+  margin-top: 6px;
+}
+
+/* 框的结尾。 */
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"],
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"]:not(:has(+ [data-chalklee-region="analysis"], + .chalklee-page-gap + [data-chalklee-region="analysis"])),
+.chalklee-paper.hide-analysis .chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"] {
+  --chalklee-solution-pad-bottom: 6px;
+  --chalklee-solution-edge-bottom: .5px;
+  margin-bottom: 4px;
+}
+
+/* 分页处各自闭合：跨页的答案或解析上下边都画线，打印时每页上的部分都是完整的框；
+   答案与解析之间换页时，答案在页底收口，解析在下一页开头画上边。 */
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"]):has(.chalklee-page-gap) {
+  --chalklee-solution-edge-top: .5px;
+  --chalklee-solution-edge-bottom: .5px;
+}
+
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"]:has(+ .chalklee-page-gap + [data-chalklee-region="analysis"]) {
+  --chalklee-solution-edge-bottom: .5px;
+}
+
+/* 解析与答案重叠的半像素会伸到分页占位底下，开头的上边要盖在占位之上。 */
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-page-gap + [data-chalklee-region="analysis"] {
+  --chalklee-solution-edge-top: .5px;
+  z-index: 2;
+}
+
+/* 题组的汇总与普通题的框相同，只是不缩进：材料和小题都从页边起排，框也从页边起。
+   打印副本把汇总移到题组正文之后的一块里。 */
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution {
+  --chalklee-solution-pad: 2px;
+  --chalklee-solution-pad-bottom: 2px;
+  --chalklee-solution-inset-left: calc(8px + var(--chalklee-group-solution-indent));
+  --chalklee-group-solution-label-left: 8px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution:not([data-heading=""]) {
+  --chalklee-solution-pad: 6px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution + .chalklee-group-solution,
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution + .chalklee-page-gap + .chalklee-group-solution {
+  margin-top: calc(-1 * var(--chalklee-question-gap, 0px) - .5px);
+}
+
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution:not(.chalklee-group-solution ~ *),
+.chalklee-paper.hide-answers .chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnalysis"]:not(.chalklee-group-solution[data-solution-region="questionAnalysis"] ~ *) {
+  --chalklee-solution-pad: 6px;
+  --chalklee-solution-edge-top: .5px;
+  margin-top: 6px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution:not(:has(~ .chalklee-group-solution)),
+.chalklee-paper.hide-analysis .chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:not(:has(~ .chalklee-group-solution[data-solution-region="questionAnswer"])) {
+  --chalklee-solution-pad-bottom: 6px;
+  --chalklee-solution-edge-bottom: .5px;
+  margin-bottom: 4px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution:has(.chalklee-page-gap) {
+  --chalklee-solution-edge-top: .5px;
+  --chalklee-solution-edge-bottom: .5px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution:has(+ .chalklee-page-gap + .chalklee-group-solution) {
+  --chalklee-solution-edge-bottom: .5px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-page-gap + .chalklee-group-solution {
+  --chalklee-solution-edge-top: .5px;
+  z-index: 2;
+}
+
+/* 打印副本里汇总不在带 gap 的 flex 中：开头补上这段间距，后面的汇总紧接。 */
+#chalklee-print-root .chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > .chalklee-print-group-solutions > .chalklee-group-solution:not(.chalklee-group-solution ~ *) {
+  margin-top: calc(6px + var(--chalklee-question-gap, 0px));
+}
+
+#chalklee-print-root .chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > .chalklee-print-group-solutions > .chalklee-group-solution ~ .chalklee-group-solution {
+  margin-top: -.5px;
+}
+
+/* 题组小题的答案都很短时横排成列，不再一题一行：字母答案每行五个，单词答案每行三个（列数见题组的
+   data-answer-columns）。各格画出自己所在的框边：行首画左边、行尾画右边、首行画上边、末行画下边，
+   最后一格伸到行尾；换页的占位总在行首，占满一行。解析仍一题一行。 */
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > [data-node-view-content-react] {
+  flex-flow: row wrap;
+  column-gap: 0;
+}
+
+#chalklee-print-root .chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > .chalklee-print-group-solutions {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 0;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > :not(.chalklee-page-gap) {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"] {
+  --chalklee-answer-columns: 1;
+  --chalklee-answer-lead: calc(8px + var(--chalklee-group-solution-indent));
+  --chalklee-solution-inset-left: 0px;
+  --chalklee-solution-inset-right: 0px;
+  --chalklee-solution-edge-left: 0px;
+  --chalklee-solution-edge-right: 0px;
+  --chalklee-solution-edge-bottom: 0px;
+  --chalklee-solution-pad-bottom: 2px;
+  box-sizing: border-box;
+  flex: 0 0 calc((100% - var(--chalklee-answer-lead)) / var(--chalklee-answer-columns));
+  margin-bottom: 0;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-last-child(1 of .chalklee-group-solution[data-solution-region="questionAnswer"]) {
+  --chalklee-solution-edge-right: .5px;
+  flex-grow: 1;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"] { --chalklee-answer-columns: 5; }
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(5n + 1 of .chalklee-group-solution[data-solution-region="questionAnswer"]) {
+  --chalklee-solution-inset-left: var(--chalklee-answer-lead);
+  --chalklee-solution-edge-left: .5px;
+  flex-basis: calc((100% - var(--chalklee-answer-lead)) / 5 + var(--chalklee-answer-lead));
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(5n of .chalklee-group-solution[data-solution-region="questionAnswer"]) {
+  --chalklee-solution-edge-right: .5px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(-n + 5 of .chalklee-group-solution[data-solution-region="questionAnswer"]) {
+  --chalklee-solution-pad: 6px;
+  --chalklee-solution-edge-top: .5px;
+  margin-top: 6px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:not(:nth-child(-n + 5 of .chalklee-group-solution[data-solution-region="questionAnswer"])) {
+  --chalklee-solution-edge-top: 0px;
+  margin-top: calc(-1 * var(--chalklee-question-gap, 0px));
+}
+
+:is(.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"]:not(:has(> .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnalysis"])), .chalklee-paper.hide-analysis .chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(5n + 1 of .chalklee-group-solution[data-solution-region="questionAnswer"]):nth-last-child(-n + 5 of .chalklee-group-solution[data-solution-region="questionAnswer"]),
+:is(.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"]:not(:has(> .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnalysis"])), .chalklee-paper.hide-analysis .chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(5n + 1 of .chalklee-group-solution[data-solution-region="questionAnswer"]):nth-last-child(-n + 5 of .chalklee-group-solution[data-solution-region="questionAnswer"]) ~ .chalklee-group-solution[data-solution-region="questionAnswer"] {
+  --chalklee-solution-pad-bottom: 6px;
+  --chalklee-solution-edge-bottom: .5px;
+  margin-bottom: 4px;
+}
+
+#chalklee-print-root .chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"] > .chalklee-question-object-content > .chalklee-print-group-solutions > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(-n + 5 of .chalklee-group-solution[data-solution-region="questionAnswer"]) {
+  margin-top: calc(6px + var(--chalklee-question-gap, 0px));
+}
+
+#chalklee-print-root .chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="5"] > .chalklee-question-object-content > .chalklee-print-group-solutions > .chalklee-group-solution[data-solution-region="questionAnswer"]:not(:nth-child(-n + 5 of .chalklee-group-solution[data-solution-region="questionAnswer"])) {
+  margin-top: 0;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"] { --chalklee-answer-columns: 3; }
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(3n + 1 of .chalklee-group-solution[data-solution-region="questionAnswer"]) {
+  --chalklee-solution-inset-left: var(--chalklee-answer-lead);
+  --chalklee-solution-edge-left: .5px;
+  flex-basis: calc((100% - var(--chalklee-answer-lead)) / 3 + var(--chalklee-answer-lead));
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(3n of .chalklee-group-solution[data-solution-region="questionAnswer"]) {
+  --chalklee-solution-edge-right: .5px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(-n + 3 of .chalklee-group-solution[data-solution-region="questionAnswer"]) {
+  --chalklee-solution-pad: 6px;
+  --chalklee-solution-edge-top: .5px;
+  margin-top: 6px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"] > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:not(:nth-child(-n + 3 of .chalklee-group-solution[data-solution-region="questionAnswer"])) {
+  --chalklee-solution-edge-top: 0px;
+  margin-top: calc(-1 * var(--chalklee-question-gap, 0px));
+}
+
+:is(.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"]:not(:has(> .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnalysis"])), .chalklee-paper.hide-analysis .chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(3n + 1 of .chalklee-group-solution[data-solution-region="questionAnswer"]):nth-last-child(-n + 3 of .chalklee-group-solution[data-solution-region="questionAnswer"]),
+:is(.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"]:not(:has(> .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnalysis"])), .chalklee-paper.hide-analysis .chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"]) > .chalklee-question-object-content > :is([data-node-view-content-react], .chalklee-print-group-solutions) > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(3n + 1 of .chalklee-group-solution[data-solution-region="questionAnswer"]):nth-last-child(-n + 3 of .chalklee-group-solution[data-solution-region="questionAnswer"]) ~ .chalklee-group-solution[data-solution-region="questionAnswer"] {
+  --chalklee-solution-pad-bottom: 6px;
+  --chalklee-solution-edge-bottom: .5px;
+  margin-bottom: 4px;
+}
+
+#chalklee-print-root .chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"] > .chalklee-question-object-content > .chalklee-print-group-solutions > .chalklee-group-solution[data-solution-region="questionAnswer"]:nth-child(-n + 3 of .chalklee-group-solution[data-solution-region="questionAnswer"]) {
+  margin-top: calc(6px + var(--chalklee-question-gap, 0px));
+}
+
+#chalklee-print-root .chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns="3"] > .chalklee-question-object-content > .chalklee-print-group-solutions > .chalklee-group-solution[data-solution-region="questionAnswer"]:not(:nth-child(-n + 3 of .chalklee-group-solution[data-solution-region="questionAnswer"])) {
+  margin-top: 0;
+}
+
+/* 横排的答案之间换页：占位在本页末尾收口、下一页开头开框，画满整个框宽。 */
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-page-gap + .chalklee-group-solution[data-solution-region="questionAnswer"] {
+  --chalklee-solution-edge-top: 0px;
+  margin-top: calc(-1 * var(--chalklee-question-gap, 0px));
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution[data-solution-region="questionAnswer"]:has(+ .chalklee-page-gap) {
+  --chalklee-solution-edge-bottom: 0px;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution[data-solution-region="questionAnswer"] + .chalklee-page-gap::before,
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution[data-solution-region="questionAnswer"] + .chalklee-page-gap:has(+ .chalklee-group-solution[data-solution-region="questionAnswer"])::after {
+  content: "";
+  position: absolute;
+  left: var(--chalklee-gap-ml, 0px);
+  right: var(--chalklee-gap-mr, 0px);
+  height: 4px;
+  box-sizing: border-box;
+  border: .5px solid var(--chalklee-solution-rule);
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution[data-solution-region="questionAnswer"] + .chalklee-page-gap::before {
+  top: 0;
+  border-top: 0;
+}
+
+.chalklee-question-object.group:not([data-question-frame]):not([data-question-kind="matching"])[data-answer-columns] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution[data-solution-region="questionAnswer"] + .chalklee-page-gap:has(+ .chalklee-group-solution[data-solution-region="questionAnswer"])::after {
+  bottom: 0;
+  border-bottom: 0;
+}
+
+/* 屏幕上分页占位盖住了框的左右边：在本页末尾收口、下一页开头开框，与打印时每页闭合一致。
+   占位可能落在段落中间，宽度从所在段落起算；字号为 0，框的内距按换算好的长度取。 */
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution > [data-chalklee-region] {
+  --chalklee-solution-inset-left: calc(8px + var(--chalklee-group-solution-indent) + 1.6em);
+}
+
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution[data-solution-place]:not([data-label=""]) > [data-chalklee-region] {
+  --chalklee-solution-inset-left: calc(8px + var(--chalklee-group-solution-indent) + 2.2em);
+}
+
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution[data-label=""] > [data-chalklee-region] {
+  --chalklee-solution-inset-left: calc(8px + var(--chalklee-group-solution-indent));
+}
+
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"]) .chalklee-page-gap:not(.chalklee-page-gap-table)::before,
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"]) .chalklee-page-gap:not(.chalklee-page-gap-table)::after,
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution .chalklee-page-gap:not(.chalklee-page-gap-table)::before,
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution .chalklee-page-gap:not(.chalklee-page-gap-table)::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--chalklee-gap-ml, 0px) - var(--chalklee-solution-inset-left) - .5px);
+  right: calc(var(--chalklee-gap-mr, 0px) - var(--chalklee-solution-inset-right) - .5px);
+  height: 4px;
+  box-sizing: border-box;
+  border: .5px solid var(--chalklee-solution-rule);
+}
+
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"]) .chalklee-page-gap:not(.chalklee-page-gap-table)::before,
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution .chalklee-page-gap:not(.chalklee-page-gap-table)::before {
+  top: 0;
+  border-top: 0;
+}
+
+.chalklee-question-object:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"]) .chalklee-page-gap:not(.chalklee-page-gap-table)::after,
+.chalklee-question-object.group:not([data-question-frame]) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution .chalklee-page-gap:not(.chalklee-page-gap-table)::after {
+  bottom: 0;
+  border-bottom: 0;
+}
+
+/* 标签高 1.5em（标签字号），在正文首行行高内垂直居中；竖线落在标签与正文之间。 */
+[data-chalklee-region="answer"]::before,
+[data-chalklee-region="analysis"]::before {
+  position: absolute;
+  top: calc(var(--chalklee-solution-pad) + (var(--chalklee-solution-line) - 1.5em) / 2);
+  left: 0;
+  display: block;
+  margin: 0;
+  padding: 0 .85em 0 0;
+  border: 0;
+  border-right: .5px solid var(--chalklee-solution-divider);
+  border-radius: 0;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: .8em;
+  font-style: normal;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: .1em;
+  white-space: nowrap;
+}
+
+/* Where to write in an answer or analysis that is still empty. */
+:is([data-chalklee-region="answer"], [data-chalklee-region="analysis"])[data-blank="true"] > p:first-child::before {
+  float: left;
+  height: 0;
+  color: var(--chalklee-placeholder-color);
+  pointer-events: none;
+  user-select: none;
+}
+[data-chalklee-region="answer"][data-blank="true"] > p:first-child::before { content: "输入答案"; }
+[data-chalklee-region="analysis"][data-blank="true"] > p:first-child::before { content: "输入解析"; }
+#chalklee-print-root [data-chalklee-region][data-blank="true"] > p:first-child::before { content: none; }
+
+/* ChalkLee AI offer in an empty answer or analysis, after the placeholder on its first line, only while the
+   caret is there. Out of the flow, so it takes no room; never printed. */
+.chalklee-region-assistant {
+  position: absolute;
+  top: var(--chalklee-solution-pad);
+  height: var(--chalklee-solution-line);
+  margin-left: 5em;
+  display: none;
+  align-items: center;
+  user-select: none;
+}
+.chalklee-paper[data-assistant="true"] .chalklee-editor-content[contenteditable="true"] :is([data-chalklee-region="answer"], [data-chalklee-region="analysis"])[data-blank="true"][data-caret="true"] > .chalklee-region-assistant {
+  display: flex;
+}
+.chalklee-region-assistant > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 7px 0 6px;
+  color: var(--cm-theme-accent-ink);
+  font-family: var(--cm-ui-font);
+  font-size: var(--cm-font-size-small);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+.chalklee-region-assistant > button > svg { flex: none; width: 13px; height: 13px; }
+#chalklee-print-root .chalklee-region-assistant { display: none !important; }
+@media print { .chalklee-region-assistant { display: none !important; } }
+
+[data-chalklee-region="answer"]::before { color: var(--chalklee-solution-accent); content: attr(data-label); }
+[data-chalklee-region="analysis"]::before { color: var(--chalklee-solution-analysis-label); content: attr(data-label); }
+
+/* 带框题目的答案与解析不包进边框：框线在解答上方收拢，解答以纸面底色盖住两侧和底部框线，整体落在框外。 */
+.chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"],
+.chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"],
+.chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution {
+  position: relative;
+  margin-left: calc(-1 * (var(--chalklee-question-padding-left) + var(--chalklee-frame-width)));
+  margin-right: calc(-1 * (var(--chalklee-question-padding-right) + var(--chalklee-frame-width)));
+  background: var(--chalklee-page-background, #fff);
+}
+
+/* 框外解答的标签与题目正文左对齐。 */
+.chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"],
+.chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"] {
+  --chalklee-solution-pad: 7px;
+  --chalklee-solution-divider: var(--chalklee-frame-border);
+  padding: 7px calc(var(--chalklee-question-padding-right) + var(--chalklee-frame-width)) 5px calc(var(--chalklee-question-padding-left) + var(--chalklee-frame-width) + 3.2em);
+}
+
+.chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"]::before,
+.chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"]::before {
+  left: calc(var(--chalklee-question-padding-left) + var(--chalklee-frame-width));
+  color: var(--chalklee-frame-label-text, var(--chalklee-frame-accent));
+}
+
+.chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution {
+  --chalklee-group-solution-label-left: calc(var(--chalklee-question-padding-left) + var(--chalklee-frame-width));
+  --chalklee-solution-divider: var(--chalklee-frame-border);
+  padding-left: calc(var(--chalklee-group-solution-label-left) + var(--chalklee-group-solution-indent));
+  padding-right: calc(var(--chalklee-question-padding-right) + var(--chalklee-frame-width));
+  border-left: 0;
+}
+
+/* 第一条解答区域接住框体的底边线；答案与解析紧接排列。 */
+.chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"] {
+  margin-top: 12px;
+  border-top: var(--chalklee-frame-width) var(--chalklee-frame-line) var(--chalklee-frame-border);
+}
+
+.chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"] {
+  --chalklee-solution-pad: 3px;
+  margin-top: calc(-1 * var(--chalklee-question-gap, 0px));
+  padding-top: 3px;
+}
+
+.chalklee-question-object[data-question-frame]:not(:has(> .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"])) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"],
+.chalklee-paper.hide-answers .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"],
+#chalklee-print-root .chalklee-question-object[data-question-frame]:has(> .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"][data-print-empty="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"] {
+  --chalklee-solution-pad: 7px;
+  margin-top: 12px;
+  padding-top: 7px;
+  border-top: var(--chalklee-frame-width) var(--chalklee-frame-line) var(--chalklee-frame-border);
+}
+
+/* 最后一条可见解答向下遮住框体底边，让框线在解答上方闭合。 */
+.chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"],
+.chalklee-question-object[data-question-frame]:not(:has(> .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"])) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"],
+.chalklee-paper.hide-analysis .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"],
+#chalklee-print-root .chalklee-question-object[data-question-frame]:has(> .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"][data-print-empty="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"] {
+  padding-bottom: 7px;
+  margin-bottom: calc(-1 * (var(--chalklee-question-padding-bottom) + var(--chalklee-frame-width)));
+}
+
+/* 题组的答案汇总块同样落在框外。 */
+.chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution {
+  border-top: var(--chalklee-frame-width) var(--chalklee-frame-line) var(--chalklee-frame-border);
+  padding-top: 7px;
+}
+
+.chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution ~ .chalklee-group-solution {
+  margin-top: calc(-1 * var(--chalklee-question-gap, 0px));
+  padding-top: 2px;
+  border-top: 0;
+}
+
+.chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution ~ .chalklee-group-solution:not([data-heading=""]) {
+  padding-top: 6px;
+}
+
+.chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution:not(:has(~ .chalklee-group-solution)),
+.chalklee-paper.hide-analysis .chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution[data-solution-region="questionAnswer"] {
+  padding-bottom: 7px;
+  margin-bottom: calc(-1 * (var(--chalklee-question-padding-bottom) + var(--chalklee-frame-width)));
+}
+
+.chalklee-paper.hide-answers .chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution[data-solution-region="questionAnalysis"] {
+  border-top: var(--chalklee-frame-width) var(--chalklee-frame-line) var(--chalklee-frame-border);
+}
+
+.chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution::before {
+  color: var(--chalklee-frame-label-text, var(--chalklee-frame-accent));
+  font-weight: 600;
+}
+
+/* 打印克隆不再重算布局：题组解答打印时保持框内，避免空块露出条带。 */
+#chalklee-print-root .chalklee-question-object.group[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution {
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top: 0;
+  background: transparent;
+}
+
+/* Layered !important wins over the unlayered document design, even when its
+   selectors use IDs or !important. Visibility is owned by the editor controls. */
+@layer chalklee-visibility {
+  .chalklee-paper.hide-answers [data-chalklee-region="answer"],
+  .chalklee-paper.hide-analysis [data-chalklee-region="analysis"],
+  .chalklee-paper.hide-answers.hide-analysis .chalklee-group-solution,
+  .chalklee-paper.hide-answers .chalklee-group-solution:not(:has([data-chalklee-region="analysis"])),
+  .chalklee-paper.hide-analysis .chalklee-group-solution:not(:has([data-chalklee-region="answer"])) {
+    display: none !important;
+  }
+}
+
+[data-chalklee-options] {
+  position: relative;
+  margin: 0;
+}
+
+.chalklee-question-object.group [data-chalklee-options] { break-inside: avoid; }
+
+.chalklee-option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16pt;
+}
+
+[data-chalklee-options][data-layout="auto"] .chalklee-option-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0 16pt;
+}
+
+[data-chalklee-options][data-layout="auto"] [data-chalklee-option] {
+  min-width: min(72pt, 100%);
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+[data-chalklee-options][data-layout="auto"][data-auto-columns] .chalklee-option-grid { display: grid; }
+[data-chalklee-options][data-layout="auto"][data-auto-columns="4"] .chalklee-option-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+[data-chalklee-options][data-layout="auto"][data-auto-columns="2"] .chalklee-option-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+[data-chalklee-options][data-layout="auto"][data-auto-columns="1"] .chalklee-option-grid { grid-template-columns: minmax(0, 1fr); }
+[data-chalklee-options][data-layout="auto"][data-auto-columns] [data-chalklee-option] { min-width: 0; }
+[data-chalklee-options][data-layout="inline"] .chalklee-option-grid { display: flex; flex-wrap: wrap; gap: 0 16pt; }
+[data-chalklee-options][data-layout="inline"] [data-chalklee-option] { min-width: 120px; flex: 1; }
+[data-chalklee-options][data-layout="one-column"] .chalklee-option-grid { grid-template-columns: minmax(0, 1fr); }
+[data-chalklee-options][data-layout="two-column"] .chalklee-option-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+[data-chalklee-options][data-layout="four-column"] .chalklee-option-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+[data-chalklee-option] {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 4pt;
+  align-items: start;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+[data-chalklee-option]:focus-within {
+  background: transparent;
+  outline: none;
+}
+
+.chalklee-option-marker {
+  width: auto;
+  height: auto;
+  display: inline;
+  margin: 0;
+  color: inherit;
+  border: 0;
+  border-radius: 0;
+  font-size: 1em;
+  font-weight: 400;
+  line-height: inherit;
+}
+
+.chalklee-option-marker::after { content: "."; }
+
+[data-chalklee-option][data-marker="none"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+[data-chalklee-option][data-marker="none"] > .chalklee-option-marker {
+  display: none;
+}
+
+[data-chalklee-option][data-marker="circle"] > .chalklee-option-marker,
+[data-chalklee-option][data-marker="square"] > .chalklee-option-marker {
+  width: 10pt;
+  height: 10pt;
+  box-sizing: border-box;
+  margin-top: .12em;
+  overflow: hidden;
+  color: transparent;
+  border: .75pt solid #555;
+  line-height: 0;
+}
+
+[data-chalklee-option][data-marker="circle"] > .chalklee-option-marker { border-radius: 50%; }
+[data-chalklee-option][data-marker="square"] > .chalklee-option-marker { border-radius: 1pt; }
+[data-chalklee-option][data-marker="circle"] > .chalklee-option-marker::after,
+[data-chalklee-option][data-marker="square"] > .chalklee-option-marker::after { content: none; }
+
+.chalklee-option-content {
+  min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
+  overflow-wrap: anywhere;
+}
+
+.chalklee-option-empty-hint {
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--chalklee-placeholder-color);
+  pointer-events: none;
+  user-select: none;
+}
+
+:is(#chalklee-print-root, #chalklee-paginated-print-root) .chalklee-option-empty-hint {
+  display: none;
+}
+
+[data-chalklee-subquestions] {
+  counter-reset: chalklee-auto-question;
+  display: block;
+  padding: 0;
+  border: 0;
+}
+
+/* A solution remains ordinary editable document content in visual order.
+   Consecutive items share one solution strip, like a single question's answer and analysis: the heading stands
+   left of the first line with the same divider, and every item of that kind lines up after it. */
+.chalklee-group-solution {
+  --chalklee-solution-line: 1lh;
+  --chalklee-group-solution-indent: 3.2em;
+  --chalklee-group-solution-label-left: 0px;
+  grid-column: 1 / -1; position: relative; min-width: 0; margin-top: 8pt; padding: 2px 0 2px var(--chalklee-group-solution-indent); clear: both; break-inside: avoid; background: var(--chalklee-solution-surface);
+}
+/* A kind whose label is empty has no heading anywhere: its items start at the left edge, as a question's would. */
+.chalklee-group-solution[data-solution-region="questionAnswer"][data-heading=""]:not(.chalklee-group-solution[data-solution-region="questionAnswer"]:not([data-heading=""]) ~ *),
+.chalklee-group-solution[data-solution-region="questionAnalysis"][data-heading=""]:not(.chalklee-group-solution[data-solution-region="questionAnalysis"]:not([data-heading=""]) ~ *) {
+  --chalklee-group-solution-indent: 0px;
+}
+.chalklee-group-solution:not([data-heading=""]) { padding-top: 6px; }
+.chalklee-group-solution:not(:has(~ .chalklee-group-solution)) { padding-bottom: 6px; }
+.chalklee-group-solution + .chalklee-group-solution { margin-top: calc(-1 * var(--chalklee-question-gap, 0px)); }
+/* Out of the flow at its static place, so it centres on the first line without taking a line of its own. */
+.chalklee-group-solution::before {
+  content: attr(data-heading);
+  position: absolute;
+  left: var(--chalklee-group-solution-label-left);
+  display: block;
+  margin: calc((var(--chalklee-solution-line) - 1.5em) / 2) 0 0;
+  padding: 0 .85em 0 0;
+  border-right: .5px solid var(--chalklee-solution-divider);
+  color: var(--chalklee-solution-accent);
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: .8em;
+  font-style: normal;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: .1em;
+  white-space: nowrap;
+}
+.chalklee-group-solution[data-solution-region="questionAnalysis"]::before { color: var(--chalklee-solution-analysis-label); }
+.chalklee-group-solution[data-heading=""]::before { display: none; }
+.chalklee-group-solution > [data-chalklee-region] { margin-top: 0 !important; padding: 0 0 0 1.6em !important; border: 0; background: none; }
+.chalklee-group-solution[data-label=""] > [data-chalklee-region] { padding-left: 0 !important; }
+.chalklee-group-solution > [data-chalklee-region]::before { display: none; }
+.chalklee-group-solution:not([data-label=""]) > [data-chalklee-region] > p:first-of-type::before {
+  content: var(--chalklee-solution-number);
+  display: inline-block;
+  width: 1.6em;
+  margin-left: -1.6em;
+  text-indent: 0;
+}
+.chalklee-group-solution:not([data-label=""]) > [data-chalklee-region]:not(:has(> p))::before {
+  content: var(--chalklee-solution-number);
+  display: block;
+  width: 1.6em;
+  color: inherit;
+  font-size: inherit;
+}
+/* 小题接着全卷编号的题组：答案写真实题号，如“33)”，跟着增删题目更新；题号宽一些。 */
+.chalklee-group-solution[data-solution-place]:not([data-label=""]) > [data-chalklee-region] { padding-left: 2.2em !important; }
+.chalklee-group-solution[data-solution-place]:not([data-label=""]) > [data-chalklee-region] > p:first-of-type::before,
+.chalklee-group-solution[data-solution-place]:not([data-label=""]) > [data-chalklee-region]:not(:has(> p))::before {
+  content: var(--chalklee-solution-place);
+  width: 2.2em;
+}
+.chalklee-group-solution[data-solution-place]:not([data-label=""]) > [data-chalklee-region] > p:first-of-type::before { margin-left: -2.2em; }
+
+.chalklee-question-object.group[data-question-kind="matching"] > .chalklee-question-object-content {
+  display: block;
+}
+
+.chalklee-question-object.group[data-question-kind="matching"] > .chalklee-question-object-content > [data-node-view-content-react] {
+  width: min(100%, 415.5pt);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0;
+}
+
+.chalklee-question-object.group[data-question-kind="matching"] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="material"] {
+  grid-column: 1 / -1;
+}
+
+.chalklee-question-object.group[data-question-kind="matching"] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-options] {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  padding: 3.75pt 6pt;
+  border: .5pt solid #000;
+  border-left: 0;
+}
+
+.chalklee-question-object.group[data-question-kind="matching"] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-subquestions] {
+  grid-column: 1;
+  grid-row: 2;
+  padding: 3.75pt 6pt;
+  border: .5pt solid #000;
+}
+
+.chalklee-question-object.group[data-question-kind="matching"] [data-chalklee-option] {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.chalklee-question-object.group[data-question-kind="matching"] .chalklee-option-marker { font-weight: 700; }
+
+/* Blanks already printed inside the material keep only hidden linked items.
+   Their empty matching column must not leave a second frame under the table. */
+.chalklee-question-object.group[data-question-kind="matching"] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-subquestions]:not(:has(.chalklee-question-object:not([data-linked-placeholder="true"]))) {
+  display: none;
+}
+
+/* Measure the authored grid without runtime page spacers. */
+.chalklee-matching-measuring .chalklee-page-gap,
+.chalklee-matching-measuring .chalklee-page-repeat-header { display: none !important; }
+
+/* Long matching grids cannot be fragmented safely as two independent columns.
+   Use a linear reading order above half a page, on screen and in print, so
+   the remaining space can hold the opening questions and options. */
+.chalklee-question-object.group[data-question-kind="matching"][data-pagination-overflow="true"]:not(.chalklee-matching-measuring) > .chalklee-question-object-content > [data-node-view-content-react] {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chalklee-question-object.group[data-question-kind="matching"][data-pagination-overflow="true"]:not(.chalklee-matching-measuring) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="material"] {
+  order: 0;
+}
+
+.chalklee-question-object.group[data-question-kind="matching"][data-pagination-overflow="true"]:not(.chalklee-matching-measuring) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-subquestions] {
+  order: 1;
+  padding: 3.75pt 6pt;
+  border: .5pt solid #000;
+}
+
+/* Boundary widgets must travel with the block they precede when flex order
+   differs from document order, or a solution's page gap precedes the prompt. */
+.chalklee-question-object.group[data-question-kind="matching"][data-pagination-overflow="true"]:not(.chalklee-matching-measuring) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-page-gap:has(+ [data-chalklee-subquestions]) {
+  order: 1;
+}
+
+.chalklee-question-object.group[data-question-kind="matching"][data-pagination-overflow="true"]:not(.chalklee-matching-measuring) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-page-gap:has(+ [data-chalklee-options]) {
+  order: 2;
+}
+
+.chalklee-question-object.group[data-question-kind="matching"][data-pagination-overflow="true"]:not(.chalklee-matching-measuring) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-options] {
+  order: 2;
+  break-inside: auto;
+  margin: 0;
+  padding: 3.75pt 6pt;
+  border: .5pt solid #000;
+  border-top: 0;
+}
+
+/* Solutions follow the prompt and options in the linear fallback too. */
+.chalklee-question-object.group[data-question-kind="matching"][data-pagination-overflow="true"]:not(.chalklee-matching-measuring) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-group-solution,
+.chalklee-question-object.group[data-question-kind="matching"][data-pagination-overflow="true"]:not(.chalklee-matching-measuring) > .chalklee-question-object-content > [data-node-view-content-react] > .chalklee-page-gap:has(+ .chalklee-group-solution) {
+  order: 3;
+}
+
+[data-chalklee-image] {
+  position: relative;
+  margin: 0;
+}
+
+/* A title on the top edge of a question frame or box stays whole at a page break: the space it needs is the
+   wrapper's padding, which a break never removes, and the frame's own space above shrinks to match. */
+.chalklee-paper .chalklee-editor-content :is(.node-question, .node-questionGroup, .node-box)[data-frame-room="true"] {
+  --chalklee-frame-label-room: 10pt;
+  padding-top: var(--chalklee-frame-label-room);
+  margin-top: max(0pt, calc(var(--chalklee-frame-space-before, 0pt) - var(--chalklee-frame-label-room)));
+}
+.chalklee-paper .chalklee-editor-content [data-frame-room="true"] > :is(.chalklee-question-object, .chalklee-box) {
+  margin-top: 0 !important;
+  break-before: avoid;
+}
+.chalklee-paper .chalklee-editor-content [data-frame-room="true"]:has(> [data-pagination-keep-together="true"]) { break-inside: avoid; }

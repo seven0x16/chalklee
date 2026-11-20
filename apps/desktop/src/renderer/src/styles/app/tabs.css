@@ -1,0 +1,614 @@
+.app-shell .unified-tabs-region {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+}
+
+.app-shell .unified-tabs-scroll {
+  width: 100%;
+  height: 100%;
+  gap: 3px;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0;
+  scrollbar-width: none;
+}
+
+/* Tabs share one basis and shrink together; the active tab is a raised card. */
+.app-shell .unified-document-tab,
+.app-shell .unified-document-tab.active,
+.app-shell .unified-document-tab.secondary {
+  position: relative;
+  width: 224px;
+  min-width: 96px;
+  max-width: 224px;
+  height: 30px;
+  flex: 0 1 224px;
+  margin-bottom: 0;
+  padding: 0 6px 0 10px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 6px;
+  color: var(--cm-ui-muted);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.app-shell .unified-document-tab .unified-tab-target span {
+  font-size: var(--cm-font-size-small);
+}
+
+.app-shell .unified-document-tab {
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.app-shell .unified-tabs-region.is-reordering,
+.app-shell .unified-tabs-region.is-reordering .unified-document-tab * {
+  cursor: grabbing;
+}
+
+.app-shell .unified-document-tab.is-dragging {
+  z-index: 3;
+  opacity: .85;
+  background: var(--cm-ui-surface);
+  box-shadow: 0 3px 10px rgb(var(--cm-theme-shadow-rgb) / .18);
+}
+
+.app-shell .unified-tab-drop-indicator {
+  position: absolute;
+  z-index: 4;
+  top: 5px;
+  bottom: 5px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--cm-theme-accent-ink);
+  pointer-events: none;
+}
+
+.app-shell .unified-document-tab:is(.active, .secondary) .unified-tab-close {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  color: var(--cm-ui-muted);
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* While the close button shows, the title fades out before it instead of running under it. */
+.app-shell .unified-document-tab.active:not(.dirty) .unified-tab-target,
+.app-shell .unified-document-tab:hover .unified-tab-target,
+.app-shell .unified-document-tab:has(:focus-visible) .unified-tab-target {
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent calc(100% - 20px));
+}
+
+.app-shell .unified-document-tab.active .unified-tab-close,
+.app-shell .unified-document-tab:hover .unified-tab-close,
+.app-shell .unified-document-tab:has(:focus-visible) .unified-tab-close {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.app-shell .unified-document-tab .unified-tab-close:hover {
+  color: var(--cm-ui-heading);
+  background: var(--cm-theme-hover-bg);
+}
+
+.app-shell .unified-tab-close:focus-visible {
+  outline: 2px solid var(--cm-theme-accent-ink);
+  outline-offset: -2px;
+}
+
+.app-shell .unified-document-tab small {
+  color: var(--cm-ui-warning);
+  font-size: var(--cm-font-size-small);
+}
+
+.app-shell .unified-document-tab.secondary::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  width: .5px;
+  height: 12px;
+  transform: translateY(-50%);
+  background: var(--cm-ui-divider);
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+.app-shell .unified-document-tab.secondary:hover {
+  color: var(--cm-ui-heading);
+  border-color: transparent;
+  background: var(--cm-theme-hover-bg);
+  box-shadow: none;
+  transform: none;
+}
+
+.app-shell .unified-document-tab.secondary:is(:hover, :last-child)::after,
+.app-shell .unified-document-tab.secondary:has(+ .active)::after,
+.app-shell .unified-document-tab.secondary:has(+ .secondary:hover)::after {
+  opacity: 0;
+}
+
+.app-shell .unified-document-tab.active {
+  z-index: 1;
+  color: var(--cm-theme-accent-ink);
+  border-color: transparent;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: var(--cm-current-card-shadow);
+}
+
+.app-shell .unified-document-tab.active::after {
+  content: none;
+}
+
+.app-shell .unified-document-tab.active > svg:first-child {
+  color: var(--cm-theme-accent-ink);
+}
+
+.app-shell .unified-add-tab {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  margin: 0;
+}
+
+.unified-tab-menu-anchor {
+  position: relative;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+}
+
+.app-shell .unified-tab-menu-trigger.active {
+  color: var(--cm-selection-fg);
+  background: var(--cm-selection-bg);
+}
+
+.unified-tab-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(340px, calc(100vw - 36px));
+  max-height: min(540px, calc(100vh - 112px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 8px;
+  color: var(--cm-ui-text);
+  border: .5px solid var(--cm-ui-border);
+  border-radius: 14px;
+  background: var(--cm-ui-menu-surface);
+  box-shadow:
+    0 18px 44px rgb(var(--cm-theme-shadow-rgb) / .18),
+    0 3px 10px rgb(var(--cm-theme-shadow-rgb) / .08);
+  backdrop-filter: blur(18px);
+  font-size: var(--cm-font-size-small);
+}
+
+.unified-tab-menu-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding-bottom: 6px;
+}
+
+.unified-tab-menu-actions > button {
+  width: 100%;
+  height: 33px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 5px;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: center;
+  cursor: pointer;
+  font-size: var(--cm-font-size-small);
+}
+
+.unified-tab-menu-actions > button:hover:not(:disabled),
+.unified-tab-menu-actions > button:focus-visible {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+  outline: 0;
+}
+
+.unified-tab-menu-actions > button:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+.unified-tab-menu-actions > button svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+.unified-tab-menu-search {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 2px;
+  padding: 0 10px;
+  color: var(--cm-ui-subtle);
+  border: .5px solid transparent;
+  border-radius: 9px;
+  background: rgb(var(--cm-theme-shadow-rgb) / .045);
+}
+
+.unified-tab-menu-search:focus-within {
+  color: var(--cm-ui-selected-fg);
+  border-color: var(--cm-theme-step-7);
+  background: var(--cm-ui-surface-bright);
+  box-shadow: 0 0 0 2px rgb(var(--cm-theme-accent-rgb) / .1);
+}
+
+.unified-tab-menu-search input {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  color: var(--cm-ui-text);
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: var(--cm-font-size-small);
+}
+
+.unified-tab-menu-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.unified-tab-menu-search > button {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  padding: 0;
+  color: var(--cm-ui-subtle);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.unified-tab-menu-search > button:hover {
+  color: var(--cm-ui-muted);
+  background: var(--cm-theme-hover-bg);
+}
+
+.unified-tab-menu-section {
+  padding-top: 6px;
+}
+
+.unified-tab-menu-section.recent {
+  margin-top: 4px;
+  border-top: .5px solid var(--cm-ui-divider);
+}
+
+.unified-tab-menu-section > header {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  color: var(--cm-ui-muted);
+}
+
+.unified-tab-menu-section > header strong {
+  font-size: var(--cm-font-size-small);
+  font-weight: 650;
+  letter-spacing: .02em;
+}
+
+.unified-tab-menu-section > header span {
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgb(var(--cm-theme-shadow-rgb) / .06);
+  font-size: var(--cm-font-size-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.unified-tab-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.unified-tab-menu-row {
+  position: relative;
+  min-width: 0;
+  height: 46px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: center;
+  border-radius: 9px;
+}
+
+.unified-tab-menu-row:hover,
+.unified-tab-menu-row:focus-within {
+  background: var(--cm-theme-hover-bg);
+}
+
+.unified-tab-menu-row.active {
+  background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+}
+
+.unified-tab-menu-row.active .unified-tab-menu-file-copy strong {
+  color: var(--cm-ui-selected-fg);
+}
+
+.unified-tab-menu-row-target,
+.unified-tab-menu-recent-row {
+  min-width: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  color: inherit;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.unified-tab-menu-row-target:focus-visible,
+.unified-tab-menu-recent-row:focus-visible,
+.unified-tab-menu-row-close:focus-visible {
+  outline: 2px solid var(--cm-theme-selection-border);
+  outline-offset: -2px;
+}
+
+.unified-tab-menu-file-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: var(--cm-theme-accent-ink);
+  border-radius: 9px;
+  background: var(--cm-ui-surface-bright);
+  box-shadow: inset 0 0 0 1px rgb(var(--cm-theme-shadow-rgb) / .08);
+}
+
+.unified-tab-menu-row.active .unified-tab-menu-file-icon {
+  color: var(--cm-theme-accent-deep);
+  background: var(--cm-ui-surface);
+  box-shadow: inset 0 0 0 1px rgb(var(--cm-theme-shadow-rgb) / .12);
+}
+
+.unified-tab-menu-file-icon.recent {
+  color: var(--cm-ui-muted);
+  background: rgb(var(--cm-theme-shadow-rgb) / .05);
+  box-shadow: none;
+}
+
+.unified-tab-menu-file-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.unified-tab-menu-file-copy strong,
+.unified-tab-menu-file-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-tab-menu-file-copy strong {
+  color: var(--cm-ui-text);
+  font-size: var(--cm-font-size-small);
+  font-weight: 500;
+}
+
+.unified-tab-menu-file-copy small {
+  color: var(--cm-ui-subtle);
+  font-size: var(--cm-font-size-small);
+}
+
+.unified-tab-menu-row-close {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  opacity: 0;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.unified-tab-menu-row:hover .unified-tab-menu-row-close,
+.unified-tab-menu-row:focus-within .unified-tab-menu-row-close {
+  opacity: 1;
+}
+
+.unified-tab-menu-row-close:hover {
+  color: var(--cm-ui-text);
+  background: var(--cm-theme-hover-bg);
+}
+
+.unified-tab-menu-recent-row {
+  width: 100%;
+  height: 46px;
+}
+
+.unified-tab-menu-recent-row:hover {
+  background: var(--cm-theme-hover-bg);
+}
+
+.unified-tab-menu-empty {
+  display: block;
+  padding: 10px 8px 12px;
+  color: var(--cm-ui-subtle);
+  font-size: var(--cm-font-size-small);
+}
+
+.app-shell .unified-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.app-shell .unified-tabs-scrollbar {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 6px;
+  opacity: 0;
+  cursor: pointer;
+  pointer-events: none;
+  transition: opacity .14s ease;
+}
+
+.app-shell .unified-tabs-region:hover .unified-tabs-scrollbar,
+.app-shell .unified-tabs-scrollbar.dragging {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.app-shell .unified-tabs-scrollbar > span {
+  position: absolute;
+  top: 1px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--cm-ui-scrollbar, #C1C1C1);
+  cursor: grab;
+  touch-action: none;
+}
+
+.app-shell .unified-tabs-scrollbar > span:active {
+  cursor: grabbing;
+}
+
+.source-change-banner {
+  min-height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 17px auto minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  color: var(--cm-ui-warning);
+  border-bottom: 1px solid var(--cm-ui-warning-border);
+  background: var(--cm-ui-warning-surface);
+  font-size: var(--cm-font-size-small);
+}
+
+.source-change-banner.missing {
+  color: var(--cm-ui-danger);
+  border-color: var(--cm-ui-danger-border);
+  background: var(--cm-ui-danger-surface);
+}
+
+.source-change-banner strong {
+  font-weight: 500;
+}
+
+.source-change-banner span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cm-ui-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--cm-font-size-small);
+}
+
+.source-change-banner button {
+  height: 24px;
+  padding: 0 10px;
+  color: var(--cm-ui-warning);
+  border: 0;
+  border-radius: 6px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--cm-ui-warning-border);
+  cursor: pointer;
+  font-size: var(--cm-font-size-small);
+}
+
+.app-preview-scroll {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.app-viewer-host {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+}
+
+.cached-document-viewer {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.cached-document-viewer:not(.active, [data-paper-ready="true"]) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.cached-document-viewer.active {
+  z-index: 1;
+}
+
+/* Skipping a ready pane hides its contents while the active pane covers its box.
+   Leave inherited visibility and pointer events unchanged across tab switches. */
+.cached-document-viewer[data-paper-ready="true"]:not(.active) {
+  content-visibility: hidden;
+}
+
+.app-shell .unified-document-tab.dirty::after {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--cm-theme-accent);
+  content: "";
+}
+
+.app-shell .unified-document-tab.dirty .unified-tab-close {
+  display: none;
+}
+
+.app-shell .unified-document-tab.dirty:hover .unified-tab-close {
+  display: grid;
+}
+
+.app-shell .unified-document-tab.dirty:hover::after {
+  display: none;
+}

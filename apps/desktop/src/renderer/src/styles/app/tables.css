@@ -1,0 +1,534 @@
+/* Table rules look as they print: thin, near-black lines like a paper exam; content sits in the middle of tall rows. */
+[data-chalklee-table] td {
+  position: relative;
+  padding: 5px 7px;
+  border: 1px solid var(--chalklee-table-rule, #2f3237);
+  vertical-align: middle;
+  transition: background-color 100ms ease, box-shadow 100ms ease;
+}
+
+[data-chalklee-table] td:hover {
+  background: var(--cm-theme-hover-bg);
+}
+
+[data-chalklee-table] td[data-chalklee-active-cell] {
+  background: color-mix(in srgb, var(--cm-theme-selection-surface) 58%, transparent);
+  box-shadow: inset 0 0 0 2px rgb(var(--cm-theme-accent-rgb) / .5);
+}
+
+[data-chalklee-table] td.selectedCell {
+  background: color-mix(in srgb, var(--cm-theme-selection-surface) 82%, transparent);
+  box-shadow: inset 0 0 0 2px rgb(var(--cm-theme-accent-rgb) / .72);
+}
+
+[data-chalklee-table] td.selectedCell::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 2px;
+  border: 1px solid rgb(var(--cm-theme-accent-rgb) / .28);
+  pointer-events: none;
+}
+
+[data-chalklee-table] tr.chalklee-page-repeat-header {
+  pointer-events: none;
+  user-select: none;
+}
+
+[data-chalklee-table] tr.chalklee-page-repeat-header td {
+  transition: none;
+}
+
+[data-chalklee-table] tr.chalklee-page-gap-table {
+  display: table-row;
+  height: var(--chalklee-gap-total, 184px);
+  background: transparent;
+}
+
+[data-chalklee-table] tr.chalklee-page-gap-table > td {
+  position: relative;
+  height: var(--chalklee-gap-total, 184px);
+  padding: 0 !important;
+  border: 0 !important;
+  background: var(--chalklee-page-background, #fff) !important;
+}
+
+.chalklee-page-gap-table-fill {
+  position: relative;
+  display: block;
+  width: calc(100% + var(--chalklee-gap-ml, 0px) + var(--chalklee-gap-mr, 0px));
+  height: var(--chalklee-gap-total, 184px);
+  margin-left: calc(-1 * var(--chalklee-gap-ml, 0px));
+  pointer-events: none;
+  background: var(--chalklee-page-background, #fff);
+}
+
+/* A table sits close to the line that introduces it; the column handles shown on hover fit in the 8px above. */
+.chalklee-table-node {
+  position: relative;
+  margin: 6pt 0 7.5pt;
+}
+
+.chalklee-table-tools-anchor {
+  position: sticky;
+  z-index: 7;
+  top: 43px;
+  height: 0;
+  pointer-events: none;
+}
+
+.chalklee-table-grid {
+  position: relative;
+  width: 100%;
+}
+
+.chalklee-table-grid > table {
+  width: 100%;
+  margin: 0;
+}
+
+.chalklee-table-select-all {
+  position: absolute;
+  z-index: 6;
+  top: -17px;
+  left: -17px;
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 1px solid rgb(var(--cm-theme-shadow-rgb) / .22);
+  border-radius: 3px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 2px 6px rgb(var(--cm-theme-shadow-rgb) / .1);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 100ms ease, color 100ms ease, background-color 100ms ease;
+}
+
+.chalklee-table-node:hover .chalklee-table-select-all,
+.chalklee-table-node:focus-within .chalklee-table-select-all,
+.chalklee-table-select-all.active {
+  opacity: 1;
+}
+
+.chalklee-table-select-all:focus-visible {
+  color: var(--cm-ui-selected-fg);
+  background: var(--cm-theme-selection-surface);
+}
+
+.chalklee-table-select-all.active {
+  color: var(--cm-ui-selected-fg);
+  background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+}
+
+.chalklee-table-select-all:hover {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.chalklee-table-column-selector-layer,
+.chalklee-table-row-selector-layer,
+.chalklee-table-row-resize-layer,
+.chalklee-table-column-resize-layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.chalklee-table-column-selector-layer,
+.chalklee-table-row-selector-layer { z-index: 5; }
+.chalklee-table-row-resize-layer { z-index: 3; }
+.chalklee-table-column-resize-layer { z-index: 4; }
+
+.chalklee-table-column-selector,
+.chalklee-table-row-selector {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.chalklee-table-column-selector {
+  top: -8px;
+  height: 8px;
+}
+
+.chalklee-table-column-selector::before {
+  content: "";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  left: 2px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(var(--cm-theme-accent-rgb) / .42);
+  opacity: 0;
+  transition: opacity 100ms ease, background-color 100ms ease;
+}
+
+.chalklee-table-row-selector {
+  left: -8px;
+  width: 8px;
+}
+
+.chalklee-table-row-selector::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  bottom: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: rgb(var(--cm-theme-accent-rgb) / .42);
+  opacity: 0;
+  transition: opacity 100ms ease, background-color 100ms ease;
+}
+
+.chalklee-table-node:hover .chalklee-table-column-selector::before,
+.chalklee-table-node:hover .chalklee-table-row-selector::before,
+.chalklee-table-column-selector:focus-visible::before,
+.chalklee-table-row-selector:focus-visible::before { opacity: .48; }
+
+.chalklee-table-column-selector:hover::before,
+.chalklee-table-column-selector:focus-visible::before,
+.chalklee-table-column-selector.active::before,
+.chalklee-table-row-selector:hover::before,
+.chalklee-table-row-selector:focus-visible::before,
+.chalklee-table-row-selector.active::before {
+  background: rgb(var(--cm-theme-accent-rgb) / .88);
+  opacity: 1;
+}
+
+.chalklee-table-column-selector:focus-visible,
+.chalklee-table-row-selector:focus-visible,
+.chalklee-table-select-all:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .52);
+  outline-offset: 1px;
+}
+
+.chalklee-table-row-resize-handle {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 10px;
+  margin-top: -5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: row-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.chalklee-table-row-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: -2px;
+  left: -2px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgb(var(--cm-theme-accent-rgb) / .74);
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.chalklee-table-row-resize-handle:hover::before,
+.chalklee-table-row-resize-handle:focus-visible::before,
+.chalklee-table-row-resize-handle.active::before { opacity: 1; }
+
+.chalklee-table-row-resize-handle:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .48);
+  outline-offset: -2px;
+}
+
+.chalklee-table-column-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  margin: 0 0 0 -6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.chalklee-table-column-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 5px;
+  width: 2px;
+  border-radius: 2px;
+  background: rgb(var(--cm-theme-accent-rgb) / .68);
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.chalklee-table-column-resize-handle:hover::before,
+.chalklee-table-column-resize-handle:focus-visible::before,
+.chalklee-table-column-resize-handle.active::before {
+  opacity: 1;
+}
+
+.chalklee-table-column-resize-handle:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .48);
+  outline-offset: -2px;
+}
+
+.chalklee-table-grid.resizing-columns,
+.chalklee-table-grid.resizing-columns * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+.chalklee-table-grid.resizing-rows,
+.chalklee-table-grid.resizing-rows * {
+  cursor: row-resize !important;
+  user-select: none !important;
+}
+
+/* Compact enough to sit in the space reserved above the table rather than on the text before it. */
+.chalklee-table-tools {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 3px);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--cm-ui-border);
+  border-radius: 8px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 5px 16px rgb(var(--cm-theme-shadow-rgb) / .12);
+  color: var(--cm-ui-muted);
+  font-family: var(--cm-ui-font);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(3px) scale(var(--chalklee-editor-inverse-zoom, 1));
+  transform-origin: right bottom;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+/* Only while working in the table, so passing the mouse over it never covers the line above. */
+.chalklee-table-node:has(td[data-chalklee-active-cell]) .chalklee-table-tools,
+.chalklee-table-node.selected .chalklee-table-tools,
+.chalklee-table-node:focus-within .chalklee-table-tools {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(var(--chalklee-editor-inverse-zoom, 1));
+}
+
+.chalklee-table-tools-status {
+  min-width: 0;
+  max-width: 190px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 7px;
+  white-space: nowrap;
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-table-tools-status > strong {
+  flex: none;
+  color: var(--cm-ui-subtle);
+  font-weight: 700;
+}
+
+.chalklee-table-tools-status > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--cm-ui-muted);
+  font-weight: 600;
+}
+
+.chalklee-table-tools-separator {
+  width: 1px;
+  height: 18px;
+  flex: none;
+  margin: 0 1px;
+  background: var(--cm-ui-border);
+}
+
+.chalklee-table-tool-group {
+  position: relative;
+  display: flex;
+  flex: none;
+}
+
+.chalklee-table-tools button {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--cm-ui-subtle);
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+  cursor: pointer;
+}
+
+.chalklee-table-tools button:hover,
+.chalklee-table-tools button:focus-visible {
+  background: var(--cm-theme-hover-bg);
+  color: var(--cm-ui-text);
+}
+
+.chalklee-table-tools button.active {
+  background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+  color: var(--cm-ui-selected-fg);
+}
+
+.chalklee-table-tools button:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .5);
+  outline-offset: 1px;
+}
+
+.chalklee-table-tools button:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+.chalklee-table-tool-trigger.icon-only {
+  width: 29px;
+  padding: 0;
+}
+
+.chalklee-table-tools-menu {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px;
+  border: 1px solid var(--cm-ui-border);
+  border-radius: 8px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 10px 28px rgb(var(--cm-theme-shadow-rgb) / .18);
+  color: var(--cm-ui-text);
+}
+
+.chalklee-table-tool-group.row-menu > .chalklee-table-tools-menu,
+.chalklee-table-tool-group.column-menu > .chalklee-table-tools-menu {
+  right: auto;
+  left: 0;
+}
+
+.chalklee-table-tools-menu > header {
+  height: 25px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+  font-weight: 700;
+}
+
+.chalklee-table-tools-menu > button {
+  width: 100%;
+  min-height: 32px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-table-tools-menu > button > svg { flex: none; }
+.chalklee-table-tools-menu > button > span { flex: 1; }
+
+.chalklee-table-tools-menu-separator {
+  height: 1px;
+  margin: 4px 3px;
+  background: var(--cm-ui-border);
+}
+
+.chalklee-table-delete-confirm {
+  min-width: 205px;
+  display: grid;
+  gap: 5px;
+  padding: 7px;
+}
+
+.chalklee-table-delete-confirm > strong {
+  color: var(--cm-ui-text);
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-table-delete-confirm > span {
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-table-delete-confirm > div {
+  display: flex;
+  gap: 5px;
+  justify-content: flex-end;
+  margin-top: 3px;
+}
+
+.chalklee-table-delete-confirm > div > button { min-height: 28px; }
+
+.chalklee-table-tools button.danger { color: var(--cm-ui-danger); }
+.chalklee-table-tools button.danger.confirm { background: var(--cm-ui-danger-surface); color: var(--cm-ui-danger); }
+.chalklee-table-tools button.danger:hover { background: var(--cm-theme-hover-bg); color: var(--cm-ui-danger); }
+
+.chalklee-table-node.selected > table { outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .22); outline-offset: 2px; }
+
+[data-chalklee-page-break] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px -24px;
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+[data-chalklee-page-break]::before,
+[data-chalklee-page-break]::after {
+  content: "";
+  height: 0;
+  flex: 1;
+  border-top: 1px dashed color-mix(in srgb, var(--cm-ui-muted) 42%, transparent);
+}
+
+[data-chalklee-page-break] > span {
+  padding: 3px 8px;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cm-ui-muted) 8%, var(--cm-ui-surface));
+}
+
+.chalklee-editor-loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+}

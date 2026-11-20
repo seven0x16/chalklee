@@ -1,0 +1,89 @@
+.markdown-editor-pane { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--cm-ui-surface); color: var(--cm-ui-fg); container-type: inline-size; }
+/* The toolbar is the ChalkLee document's (styles/app/toolbar.css); these are the controls only Markdown has. */
+.chalklee-editor-toolbar .markdown-convert-button { width: auto; min-width: 0; margin-left: 2px; padding: 0 9px; }
+.chalklee-toolbar-file-group > .markdown-convert-button > span { display: inline; }
+.chalklee-editor-toolbar .markdown-insert-select { width: auto; flex: none; }
+.chalklee-editor-toolbar .markdown-insert-select > .app-select-trigger { height: var(--chalklee-toolbar-h); padding: 0 7px; border: 0; border-radius: var(--chalklee-toolbar-radius); background: transparent; }
+.chalklee-editor-toolbar .markdown-insert-select > .app-select-trigger:hover:not(:disabled) { background: var(--cm-theme-hover-bg); }
+.chalklee-editor-toolbar .markdown-insert-select > .app-select-trigger[aria-expanded="true"] { background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow); }
+/* A narrow pane keeps the buttons used most: the conversion turns into its icon first, then quote and to-do give way,
+   then undo and redo (⌘Z and ⇧⌘Z stay), then the lists. */
+@container (max-width: 720px) { .chalklee-toolbar-file-group > .markdown-convert-button > span { display: none; } }
+@container (max-width: 620px) { .markdown-toolbar-list-group > button:nth-of-type(n + 3) { display: none; } }
+@container (max-width: 550px) { .chalklee-editor-toolbar .markdown-toolbar-history-group { display: none; } }
+@container (max-width: 470px) { .chalklee-editor-toolbar .markdown-toolbar-list-group { display: none; } }
+.markdown-editor-host { flex: 1; min-height: 0; }
+.markdown-editor-host .cm-editor { height: 100%; font-size: var(--cm-font-size-body); }
+.markdown-editor-host .cm-editor.cm-focused { outline: none; }
+.markdown-editor-host .cm-scroller { overflow: auto; font-family: var(--cm-ui-font); line-height: 1.8; }
+.markdown-editor-host .cm-content { box-sizing: border-box; width: min(100%, 800px); margin: 0 auto; padding: 28px 32px 180px; caret-color: var(--cm-theme-accent); }
+.markdown-editor-host .cm-line { padding: 0; }
+.markdown-editor-host .cm-cursor { border-left-color: var(--cm-theme-accent); }
+.markdown-editor-host .cm-selectionBackground, .markdown-editor-host .cm-focused .cm-selectionBackground, .markdown-editor-host ::selection { background: var(--cm-ui-selected-bg); }
+/* Live preview: lines stay text; markers hide away from the cursor. Lines take padding, never margins, so the editor
+   measures what the teacher sees. */
+.markdown-editor-host .cm-md-heading { line-height: 1.5; padding-top: 0.5em; font-weight: 650; }
+.markdown-editor-host .cm-md-h1 { font-size: 1.75em; }
+.markdown-editor-host .cm-md-h2 { font-size: 1.5em; }
+.markdown-editor-host .cm-md-h3 { font-size: 1.25em; }
+.markdown-editor-host .cm-md-h4, .markdown-editor-host .cm-md-h5, .markdown-editor-host .cm-md-h6 { font-size: 1.1em; }
+.markdown-editor-host .cm-md-quote { padding: 0 16px; background: var(--cm-ui-surface-soft); box-shadow: inset 2px 0 0 var(--cm-neutral-step-7); color: var(--cm-ui-muted); }
+.markdown-editor-host .cm-md-code, .markdown-editor-host .cm-md-source-math { padding: 0 16px; background: var(--cm-ui-fill); font-family: ui-monospace, monospace; font-size: var(--cm-font-size-small); }
+.markdown-editor-host .cm-md-source-properties { padding: 0 16px; background: var(--cm-ui-surface-soft); box-shadow: inset 0.5px 0 0 var(--cm-ui-border), inset -0.5px 0 0 var(--cm-ui-border); font-family: ui-monospace, monospace; font-size: var(--cm-font-size-small); }
+.markdown-editor-host :is(.cm-md-quote, .cm-md-code, .cm-md-source-properties, .cm-md-source-math)[class*="-first"] { padding-top: 8px; border-top-left-radius: 6px; border-top-right-radius: 6px; }
+.markdown-editor-host :is(.cm-md-quote, .cm-md-code, .cm-md-source-properties, .cm-md-source-math)[class*="-last"] { padding-bottom: 8px; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
+.markdown-editor-host .cm-md-source-properties.cm-md-source-properties-first { box-shadow: inset 0.5px 0 0 var(--cm-ui-border), inset -0.5px 0 0 var(--cm-ui-border), inset 0 0.5px 0 var(--cm-ui-border); }
+.markdown-editor-host .cm-md-source-properties.cm-md-source-properties-last { box-shadow: inset 0.5px 0 0 var(--cm-ui-border), inset -0.5px 0 0 var(--cm-ui-border), inset 0 -0.5px 0 var(--cm-ui-border); }
+.markdown-editor-host .cm-md-source-properties.cm-md-source-properties-first.cm-md-source-properties-last { box-shadow: inset 0 0 0 0.5px var(--cm-ui-border); }
+/* Properties are YAML, not Markdown: no heading or emphasis styles while their source shows. */
+.markdown-editor-host .cm-md-source-properties * { font-weight: inherit; font-style: inherit; color: inherit; }
+.markdown-editor-host .cm-md-inline-code { padding: 1px 3px; border-radius: 3px; background: var(--cm-ui-fill); font-family: ui-monospace, monospace; font-size: 0.9em; }
+.markdown-editor-host .cm-md-link { color: var(--cm-theme-accent-ink); text-decoration: underline; }
+.markdown-editor-host .cm-md-indent { font-family: ui-monospace, monospace; }
+.markdown-editor-host .cm-md-bullet { display: inline-block; width: 1.2em; text-align: center; }
+.markdown-editor-host .cm-md-task { margin: 0 0.4em 0 0.15em; vertical-align: -0.15em; accent-color: var(--cm-theme-accent); }
+.markdown-editor-host .cm-md-task-done { color: var(--cm-ui-muted); }
+.markdown-editor-host .cm-md-hr { display: inline-block; width: 100%; vertical-align: middle; border-top: 0.5px solid var(--cm-ui-divider); }
+.markdown-editor-host .cm-md-image, .markdown-editor-host .markdown-image { color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
+.markdown-editor-host .cm-md-block { display: flow-root; padding: 6px 0; white-space: normal; overflow-wrap: anywhere; cursor: text; }
+.markdown-editor-host .cm-md-properties > div { padding: 12px 16px; border: .5px solid var(--cm-ui-border); border-radius: 8px; background: var(--cm-ui-surface-soft); font-family: ui-monospace, monospace; font-size: var(--cm-font-size-small); white-space: pre-wrap; }
+.markdown-editor-host .cm-md-block table { width: 100%; margin: 0; border-collapse: collapse; }
+.markdown-editor-host .cm-md-block th, .markdown-editor-host .cm-md-block td { padding: 6px 10px; border: 0.5px solid var(--cm-ui-border); text-align: left; }
+.markdown-editor-host .cm-md-block th { background: var(--cm-ui-fill); font-weight: 600; }
+.markdown-editor-host .cm-md-block code { padding: 1px 3px; border-radius: 3px; background: var(--cm-ui-fill); font-family: ui-monospace, monospace; font-size: 0.9em; }
+.markdown-editor-host .cm-md-block a { color: var(--cm-theme-accent-ink); }
+.markdown-editor-host .markdown-math-block { overflow-x: auto; padding: 8px 0; text-align: center; }
+/* ⌘F: the ChalkLee find bar (styles/app/find-overlays.css) floats over the text instead of a panel above it. */
+.markdown-editor-host .cm-editor .cm-panels.cm-panels-top { position: absolute; top: 0; left: 0; right: 0; height: 0; border: 0; background: none; }
+.markdown-editor-host .cm-editor .cm-searchMatch { border-radius: 2px; background: rgb(var(--cm-theme-accent-rgb) / .16); }
+.markdown-editor-host .cm-editor .cm-searchMatch-selected { background: rgb(var(--cm-theme-accent-rgb) / .36); box-shadow: 0 0 0 1px rgb(var(--cm-theme-accent-rgb) / .55); }
+
+/* Printing and PDF: the note as it reads on screen, always light, on A4 (output.ts). */
+#chalklee-print-root .markdown-print { color: #1c2024; font-family: var(--cm-ui-font); font-size: 11pt; line-height: 1.75; overflow-wrap: anywhere; }
+.markdown-print > :first-child { margin-top: 0; }
+.markdown-print :is(h1, h2, h3, h4, h5, h6) { margin: 0.9em 0 0.35em; line-height: 1.45; font-weight: 650; break-after: avoid-page; }
+.markdown-print h1 { font-size: 1.75em; }
+.markdown-print h2 { font-size: 1.5em; }
+.markdown-print h3 { font-size: 1.25em; }
+.markdown-print :is(h4, h5, h6) { font-size: 1.1em; }
+.markdown-print :where(p, ul, ol, blockquote, pre, table, .markdown-math-block) { margin: 0 0 0.6em; }
+.markdown-print :is(ul, ol) { padding-left: 1.6em; }
+.markdown-print :is(li > ul, li > ol) { margin-bottom: 0; }
+.markdown-print li > p { margin: 0; }
+.markdown-print li.markdown-task-item { list-style: none; }
+.markdown-print .markdown-task { position: relative; display: inline-block; box-sizing: border-box; width: 0.85em; height: 0.85em; margin: 0 0.45em 0 -1.3em; border: 1px solid #60646c; border-radius: 2px; vertical-align: -0.1em; }
+.markdown-print .markdown-task[data-done]::after { content: "✓"; position: absolute; top: -0.3em; left: 0.05em; font-size: 0.85em; line-height: 1; }
+.markdown-print .markdown-task-done { color: #60646c; }
+.markdown-print blockquote { margin-inline: 0; padding: 0.4em 1em; border-radius: 6px; background: #f0f0f3; color: #60646c; }
+.markdown-print blockquote > :last-child { margin-bottom: 0; }
+.markdown-print code { padding: 1px 3px; border-radius: 3px; background: #f0f0f3; font-family: ui-monospace, monospace; font-size: 0.9em; }
+.markdown-print pre { padding: 0.8em 1em; border-radius: 6px; background: #f0f0f3; white-space: pre-wrap; }
+.markdown-print pre code { padding: 0; background: none; }
+.markdown-print table { width: 100%; border-collapse: collapse; }
+.markdown-print tr { break-inside: avoid; }
+.markdown-print :is(th, td) { padding: 5px 9px; border: 0.5px solid #b9bbc6; text-align: left; vertical-align: top; }
+.markdown-print th { background: #f0f0f3; font-weight: 600; }
+.markdown-print hr { margin: 1em 0; border: 0; border-top: 0.5px solid #b9bbc6; }
+.markdown-print a { color: inherit; }
+.markdown-print .markdown-image { color: #60646c; font-size: 0.9em; }
+.markdown-print .markdown-math-block { padding: 0.3em 0; text-align: center; break-inside: avoid; }

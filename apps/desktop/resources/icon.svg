@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">ChalkLee</title>
+  <desc id="logo-desc">ChalkLee document mark on a white rounded square.</desc>
+  <defs>
+    <linearGradient id="blue-main" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0875ff" />
+      <stop offset="0.55" stop-color="#0869f7" />
+      <stop offset="1" stop-color="#075cf0" />
+    </linearGradient>
+    <linearGradient id="blue-fold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4a9bff" />
+      <stop offset="0.6" stop-color="#2879f5" />
+      <stop offset="1" stop-color="#1362ee" />
+    </linearGradient>
+    <linearGradient id="option-line" gradientUnits="userSpaceOnUse" x1="53" y1="0" x2="91" y2="0">
+      <stop offset="0" stop-color="#89a9ff" />
+      <stop offset="1" stop-color="#718df7" />
+    </linearGradient>
+    <filter id="fold-shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.6" flood-color="#0b4ec5" flood-opacity="0.22" />
+    </filter>
+    <filter id="plate-shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+  <rect id="app-background" x="100" y="100" width="824" height="824" rx="185.4" fill="#fff" filter="url(#plate-shadow)" />
+  <g id="mark" aria-label="ChalkLee document mark" transform="translate(178.86 41.48) scale(5.55)">
+    <g id="mark-frame">
+      <path id="document-frame" pathLength="1" d="M 79 41.5 L 37 41.5 C 28.4 41.5 21.5 48.4 21.5 57 L 21.5 113.5 C 21.5 122.3 28.7 129.5 37.5 129.5 L 78.5 129.5 C 84.5 129.5 88.8 126.4 91.4 121.6" fill="none" stroke="url(#blue-main)" stroke-width="13" stroke-linecap="butt" stroke-linejoin="round" />
+      <path id="fold" fill="url(#blue-fold)" filter="url(#fold-shadow)" d="M78 35H80.2a2.5 2.5 0 0 1 1.77.73l22.2 22.2c1.9 1.9.6 5.1-2.1 5.1H89.4c-6.4 0-11.4-5.1-11.4-11.4Z" />
+    </g>
+    <g id="choice-a" aria-label="choice A">
+      <circle cx="42" cy="70.5" r="6.9" fill="url(#blue-main)" />
+      <path id="choice-a-letter" fill="#fff" d="M43.4 72.95H40.6L40.13 74.3H38.64L41.18 67.22H42.83L45.37 74.3H43.87ZM43.02 71.81 42 68.86 40.98 71.81Z" />
+    </g>
+    <g id="choice-b" aria-label="choice B">
+      <circle cx="42" cy="87.25" r="6.9" fill="url(#blue-main)" />
+      <path id="choice-b-letter" fill="#fff" d="M44.82 89.14Q44.82 89.70 44.54 90.13Q44.27 90.56 43.74 90.80Q43.21 91.05 42.49 91.05H39.45V83.98H42.36Q43.08 83.98 43.6 84.21Q44.12 84.44 44.39 84.86Q44.66 85.27 44.66 85.80Q44.66 86.42 44.32 86.84Q44 87.25 43.45 87.42Q44.05 87.54 44.44 88.02Q44.82 88.50 44.82 89.14ZM40.86 86.89H42.16Q42.67 86.89 42.93 86.66Q43.21 86.44 43.21 86.02Q43.21 85.59 42.93 85.35Q42.67 85.12 42.16 85.12H40.86ZM43.38 88.96Q43.38 88.50 43.08 88.25Q42.77 87.99 42.25 87.99H40.86V89.89H42.29Q42.8 89.89 43.09 89.65Q43.38 89.40 43.38 88.96Z" />
+    </g>
+    <g id="choice-c" aria-label="choice C">
+      <circle cx="42" cy="104" r="6.9" fill="url(#blue-main)" />
+      <path id="choice-c-letter" fill="#fff" d="M42.05 100.64Q43.23 100.64 44.13 101.25Q45.01 101.85 45.37 102.93H43.74Q43.49 102.42 43.06 102.17Q42.62 101.92 42.05 101.92Q41.42 101.92 40.94 102.21Q40.46 102.49 40.19 103.02Q39.93 103.54 39.93 104.25Q39.93 104.95 40.19 105.48Q40.46 106.01 40.94 106.3Q41.42 106.59 42.05 106.59Q42.62 106.59 43.06 106.33Q43.49 106.07 43.74 105.56H45.37Q45.01 106.66 44.13 107.25Q43.24 107.85 42.05 107.85Q41.03 107.85 40.23 107.39Q39.41 106.93 38.94 106.12Q38.47 105.3 38.47 104.25Q38.47 103.21 38.94 102.39Q39.41 101.56 40.23 101.1Q41.03 100.64 42.05 100.64Z" />
+    </g>
+    <g id="choice-lines" fill="none" stroke="url(#option-line)" stroke-width="5" stroke-linecap="round">
+      <path id="choice-line-a" pathLength="1" d="M56.4 70.5H88.5" />
+      <path id="choice-line-b" pathLength="1" d="M56.4 87.25H88.5" />
+      <path id="choice-line-c" pathLength="1" d="M56.4 104H78.5" />
+    </g>
+    <g id="check-badge">
+      <circle cx="95.5" cy="115.5" r="14.4" fill="#fff" />
+      <circle cx="95.5" cy="115.5" r="12.4" fill="url(#blue-main)" />
+    </g>
+    <path id="check-stroke" pathLength="1" d="M89.4 115.2l4.4 4.5 8.1-9" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
+    <g id="sparkles" transform="translate(-9.8 12.2) scale(0.78)">
+      <path id="spark-large" transform="translate(6.8 4)" fill="url(#blue-main)" d="M17 10.5c1.7 8.2 4 10.8 13 12.8-9 2-11.3 4.5-13 13-1.8-8.5-4.2-11-13-13 8.8-2 11.2-4.6 13-12.8Z" />
+      <path id="spark-small" transform="translate(-0.6 2.8)" fill="url(#blue-main)" d="M37 3.5c.8 4.2 2.1 5.5 6.2 6.5-4.1 1-5.4 2.3-6.2 6.4-.9-4.1-2.1-5.4-6.2-6.4 4.1-1 5.3-2.3 6.2-6.5Z" />
+      <path id="spark-purple" fill="#9762ef" d="M47 17.2c1 4.9 2.5 6.4 7.4 7.6-4.9 1.1-6.4 2.6-7.4 7.4-1.1-4.8-2.6-6.3-7.4-7.4 4.8-1.2 6.3-2.7 7.4-7.6Z" />
+    </g>
+  </g>
+</svg>

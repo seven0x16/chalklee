@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chalklee.local/schema/manifest.schema.json",
+  "title": "ChalkLee manifest v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "formatVersion", "mediaType", "documentPath", "documentId", "createdAt", "updatedAt", "assets"],
+  "properties": {
+    "format": { "const": "chalklee" },
+    "formatVersion": { "const": "0.1" },
+    "mediaType": { "const": "application/vnd.chalklee+zip" },
+    "documentPath": { "const": "document.json" },
+    "documentId": { "$ref": "#/$defs/id" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "assets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/asset" }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "mediaType", "byteLength", "sha256"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "path": { "type": "string", "pattern": "^assets/(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$" },
+        "mediaType": { "type": "string", "minLength": 1 },
+        "byteLength": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

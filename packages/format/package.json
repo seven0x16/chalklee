@@ -1,0 +1,25 @@
+{
+  "name": "@chalklee/format",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema/*": "./schema/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "jszip": "^3.10.1",
+    "postcss": "^8.5.30",
+    "postcss-selector-parser": "^7.1.6",
+    "postcss-value-parser": "^4.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "license": "AGPL-3.0-only"
+}

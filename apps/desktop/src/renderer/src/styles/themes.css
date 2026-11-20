@@ -1,0 +1,708 @@
+html {
+  background: var(--cm-theme-shell);
+}
+
+.app-shell {
+  --cm-brand-blue: var(--cm-theme-accent-strong);
+  --cm-blue: var(--cm-theme-accent);
+  --cm-blue-dark: var(--cm-theme-accent-deep);
+  --cm-blue-soft: var(--cm-theme-accent-soft);
+  --cm-purple: var(--cm-theme-accent);
+  --cm-border: var(--cm-ui-border);
+  --cm-text: var(--cm-ui-text);
+  --cm-muted: var(--cm-ui-muted);
+  --cm-selection-fg: var(--cm-ui-selected-fg);
+  --cm-selection-bg: var(--cm-ui-selected-bg);
+  --cm-selection-surface: var(--cm-theme-selection-surface);
+  --cm-selection-border: var(--cm-theme-selection-border);
+  --cm-selection-ring: rgb(var(--cm-theme-shadow-rgb) / .14);
+  --cm-hover-fg: var(--cm-theme-hover-fg);
+  --cm-hover-bg: var(--cm-theme-hover-bg);
+  --cm-hover-border: var(--cm-theme-hover-border);
+  --cm-selection-elevation:
+    inset 0 1px 0 rgba(255, 255, 255, .58),
+    0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .1),
+    0 4px 10px rgb(var(--cm-theme-shadow-rgb) / .09);
+  color: var(--cm-ui-text);
+  background-color: var(--cm-theme-shell);
+}
+
+.app-shell {
+  --cm-canvas-tint: var(--cm-theme-canvas-tint);
+  --cm-canvas: var(--cm-theme-canvas);
+  --cm-shell-logo-glow-x: 66px;
+  --cm-shell-panel-border: rgb(var(--cm-theme-shadow-rgb) / .1);
+  --cm-shell-panel-radius: 12px;
+  --cm-shell-panel-shadow-rgb: var(--cm-theme-shadow-rgb);
+  --cm-shell-control-border: var(--cm-ui-border);
+  --cm-shell-control-focus-border: var(--cm-ui-border-strong);
+  --cm-shell-control-focus-ring-rgb: var(--cm-theme-shadow-rgb);
+  --cm-shell-chrome-gradient:
+    radial-gradient(ellipse 240px 118px at var(--cm-shell-logo-glow-x) 12px, rgb(var(--cm-theme-glow-strong-rgb) / .22) 0%, rgb(var(--cm-theme-glow-soft-rgb) / .1) 44%, transparent 100%);
+  --cm-floating-surface: var(--cm-ui-surface-glass);
+  --cm-floating-border: rgb(var(--cm-theme-accent-rgb) / .18);
+  --cm-floating-shadow:
+    0 2px 8px rgb(var(--cm-theme-shadow-rgb) / .07),
+    0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .05);
+  /* The grey shell already sets the white panels apart, so their lift stays faint and the 8px gutters keep the shell colour. */
+  --cm-island-shadow:
+    0 1px 2px rgb(var(--cm-shell-panel-shadow-rgb) / .04),
+    0 2px 8px rgb(var(--cm-shell-panel-shadow-rgb) / .04);
+  /* "Where you are" cards: current place and open panel, current tab and segment. A hairline edge and a 1px lift are
+     enough on the grey shell; anything softer and longer makes the title bar look heavy. */
+  --cm-current-card-shadow:
+    0 0 0 .5px rgb(var(--cm-theme-shadow-rgb) / .06),
+    0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .1);
+  background-color: var(--cm-theme-shell);
+}
+
+[data-platform="macos"] .app-shell {
+  --cm-shell-logo-glow-x: 138px;
+}
+
+.app-shell .complete-sidebar,
+.unified-document-frame,
+.workspace-inspector,
+.workspace-inspector.composition-basket-panel {
+  border-color: var(--cm-shell-panel-border);
+  border-radius: var(--cm-shell-panel-radius);
+  box-shadow: var(--cm-island-shadow);
+}
+
+.workspace-pane-resizer > span,
+.complete-activity-rail button em,
+.document-tabs .native-dot,
+.source-document-status {
+  background: var(--cm-theme-accent);
+}
+
+.app-sidebar-empty > svg,
+.tree-folder-button > svg:nth-child(2),
+.tree-file svg,
+.tree-file.native svg,
+.unified-document-tab.native > svg:first-child,
+.property-document-card,
+.outline-document-card,
+.unified-tab-menu-file-icon {
+  color: var(--cm-theme-accent-deep);
+}
+
+.document-file-icon.pdf-file-icon {
+  --cm-file-icon-accent: var(--cm-pdf-icon-accent);
+  --cm-file-icon-strong: var(--cm-pdf-icon-strong);
+}
+
+.document-file-icon.docx-file-icon,
+.document-file-icon.doc-file-icon {
+  --cm-file-icon-accent: var(--cm-docx-icon-accent);
+  --cm-file-icon-strong: var(--cm-docx-icon-strong);
+}
+
+.document-file-icon.markdown-file-icon {
+  --cm-file-icon-accent: var(--cm-markdown-icon-accent);
+  --cm-file-icon-strong: var(--cm-markdown-icon-strong);
+}
+
+.document-file-icon.html-file-icon {
+  --cm-file-icon-accent: var(--cm-html-icon-accent);
+  --cm-file-icon-strong: var(--cm-html-icon-strong);
+}
+
+.document-file-icon.tex-file-icon {
+  --cm-file-icon-accent: var(--cm-tex-icon-accent);
+  --cm-file-icon-strong: var(--cm-tex-icon-strong);
+}
+
+.app-shell .unified-tab-menu-trigger.active,
+.complete-theme-trigger.active {
+  color: var(--cm-ui-selected-fg);
+  border-color: transparent;
+  background: var(--cm-ui-selected-bg);
+  box-shadow: var(--cm-ui-selected-shadow);
+}
+
+/* Current place / open panel: a floating card in the tabs' white-card family; the shadow outlines it and the theme colour stays on the icon. */
+:root[data-appearance] .app-shell .app-titlebar .workspace-pane-toggle:is(.active, .is-on) {
+  color: var(--cm-theme-accent-strong);
+  border-color: transparent;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: var(--cm-current-card-shadow);
+}
+
+.document-statebar.readonly,
+.document-statebar.linked,
+.document-statebar.parsing {
+  color: var(--cm-ui-text);
+  border-color: var(--cm-ui-border);
+  background: var(--cm-ui-surface-soft);
+}
+
+.document-statebar.readonly button,
+.document-statebar.linked button,
+.document-statebar.parsing > div i,
+.app-sidebar-empty button,
+.center-state > button,
+.inspector-primary,
+.question-basket-insert:not(:disabled),
+.question-card-basket.selected,
+.question-tag-check:is(.checked, .mixed),
+.question-tag-empty > button,
+.source-conversion-actions button.primary,
+.source-conversion-prompt button.primary,
+.assistant-send:not(.stop, :disabled),
+.assistant-approval-actions button.primary {
+  color: var(--cm-theme-on-accent) !important;
+  background: var(--cm-theme-accent-strong);
+}
+
+.document-statebar.parsing > div {
+  background: rgb(var(--cm-theme-accent-rgb) / .16);
+}
+
+.document-parse-lock {
+  color: var(--cm-ui-text);
+  border-color: var(--cm-ui-border);
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 8px 24px rgb(var(--cm-theme-shadow-rgb) / .14);
+}
+
+.inspector-file-card > span,
+.outline-entry > span:not(.outline-index):not(.outline-label) {
+  background: var(--cm-neutral-step-3);
+}
+
+.unified-tab-menu-search:focus-within {
+  color: var(--cm-ui-selected-fg);
+  border-color: rgb(var(--cm-theme-accent-rgb) / .48);
+  box-shadow: 0 0 0 2px rgb(var(--cm-theme-accent-rgb) / .11);
+}
+
+.unified-tab-menu-row-target:focus-visible,
+.unified-tab-menu-recent-row:focus-visible,
+.unified-tab-menu-row-close:focus-visible,
+.app-global-status-path button:focus-visible {
+  outline-color: rgb(var(--cm-theme-accent-rgb) / .48);
+}
+
+.document-preview-scroll,
+.chalklee-editor-scroll {
+  background-color: var(--cm-theme-canvas);
+  background-image: none;
+}
+
+.loading-spinner {
+  border-color: rgb(var(--cm-theme-accent-rgb) / .2);
+  border-top-color: var(--cm-theme-accent-strong);
+}
+
+.app-global-status-path button:hover,
+.app-global-status-path button:focus-visible,
+.app-global-zoom-controls button:hover:not(:disabled) {
+  color: var(--cm-theme-hover-fg);
+}
+
+.app-global-zoom-controls input[type="range"],
+.app-shell input[type="checkbox"],
+.app-shell input[type="radio"] {
+  accent-color: var(--cm-control-accent);
+}
+
+.complete-theme-menu-anchor {
+  position: relative;
+  z-index: 260;
+  display: grid;
+  place-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.complete-theme-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -36px;
+  width: 248px;
+  max-height: min(420px, calc(100vh - 78px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+  padding: 12px;
+  box-sizing: border-box;
+  color: var(--cm-ui-text);
+  border: .5px solid var(--cm-ui-border);
+  border-radius: 14px;
+  background: var(--cm-ui-menu-surface);
+  box-shadow:
+    0 16px 40px rgb(var(--cm-theme-shadow-rgb) / .16),
+    0 2px 8px rgb(var(--cm-theme-shadow-rgb) / .08);
+  backdrop-filter: blur(18px);
+  cursor: default;
+}
+
+.complete-theme-mode-section,
+.complete-theme-color-section {
+  display: grid;
+  gap: 8px;
+}
+
+.complete-theme-section-header {
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+  color: var(--cm-ui-muted);
+}
+
+.complete-theme-section-header strong {
+  font-size: var(--cm-font-size-small);
+  font-weight: 500;
+}
+
+/* Light / dark / system: a recessed track with the picked mode raised, like the other segmented controls. */
+.complete-theme-mode-options {
+  display: grid;
+  /* Sized by label, so "跟随系统" gets the room it needs and the spare width is shared out. */
+  grid-template-columns: repeat(3, auto);
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--cm-neutral-step-3);
+}
+
+.complete-theme-mode-options > button {
+  min-width: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 6px;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.complete-theme-mode-options > button > svg { flex: none; }
+
+.complete-theme-mode-options > button:focus-visible {
+  outline: 2px solid var(--cm-theme-selection-border);
+  outline-offset: -2px;
+}
+
+.complete-theme-mode-options > button:hover {
+  color: var(--cm-ui-heading);
+  background: var(--cm-theme-hover-bg);
+}
+
+.complete-theme-mode-options > button.active {
+  color: var(--cm-ui-heading);
+  background: var(--cm-ui-surface-raised);
+  font-weight: 500;
+  box-shadow:
+    0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .1),
+    0 1px 4px rgb(var(--cm-theme-shadow-rgb) / .06);
+}
+
+/* Theme colours: two per row, each a small preview of the palette and its name; the current one sits on the selected fill. */
+.complete-theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.complete-theme-options > button {
+  min-width: 0;
+  min-height: 38px;
+  display: grid;
+  /* Centred like the mode segments above, so both columns span the same width without a ragged right side. */
+  grid-template-columns: 34px auto;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  color: var(--cm-ui-text);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.complete-theme-options > button:hover {
+  background: var(--cm-theme-hover-bg);
+}
+
+.complete-theme-options > button:focus-visible {
+  outline: 2px solid var(--cm-theme-selection-border);
+  outline-offset: -2px;
+}
+
+.complete-theme-swatch {
+  width: 34px;
+  height: 24px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: end;
+  gap: 2px;
+  padding: 4px 5px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--cm-theme-preview-surface);
+  box-shadow: inset 0 0 0 .5px rgb(var(--cm-theme-shadow-rgb) / .08);
+}
+
+.complete-theme-swatch[data-appearance="dark"] {
+  background: var(--cm-theme-preview-surface);
+  box-shadow: inset 0 0 0 .5px rgb(255 255 255 / .1);
+}
+
+.complete-theme-swatch i {
+  display: block;
+  border-radius: 2px;
+}
+
+.complete-theme-swatch i:nth-child(1) { height: 8px; background: var(--cm-theme-preview-light); }
+.complete-theme-swatch i:nth-child(2) { height: 14px; background: var(--cm-theme-preview-accent); }
+.complete-theme-swatch i:nth-child(3) { height: 11px; background: var(--cm-theme-preview-deep); }
+
+.complete-theme-option-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--cm-font-size-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.complete-theme-options > button.active {
+  background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+}
+
+.complete-theme-options > button.active .complete-theme-option-name {
+  color: var(--cm-theme-accent-ink);
+  font-weight: 600;
+}
+
+/* Dark appearance restyles the complete application chrome while preserving white document paper. */
+:root[data-appearance="dark"] .app-shell {
+  --cm-selection-elevation:
+    inset 0 1px 0 rgba(255, 255, 255, .08),
+    0 1px 2px rgba(0, 0, 0, .28),
+    0 4px 12px rgba(0, 0, 0, .2);
+}
+
+:root[data-appearance="dark"] .app-shell {
+  --cm-shell-control-border: var(--cm-ui-border);
+  --cm-shell-control-focus-border: var(--cm-ui-border-strong);
+  --cm-shell-control-focus-ring-rgb: 0 0 0;
+  /* The canvas steps below the card surface so the cards read as raised panels. */
+  --cm-shell-pane-bg: var(--cm-theme-shell);
+  --cm-island-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .04),
+    0 1px 2px rgba(0, 0, 0, .24),
+    0 4px 12px rgba(0, 0, 0, .16);
+  /* Shadows barely read on dark surfaces, so a faint neutral edge outlines the "where you are" cards. */
+  --cm-current-card-shadow:
+    inset 0 0 0 .5px rgba(255, 255, 255, .08),
+    0 1px 2px rgba(0, 0, 0, .3);
+}
+
+/* The shell's floating cards keep the same edge as the inspector cards in dark. */
+:root[data-appearance="dark"] .app-shell.app-shell :is(.workspace-left-column, .unified-document-frame, .assistant-sidebar, .right-tool-sidebar) {
+  border-color: var(--cm-ui-border-strong);
+}
+
+:root[data-appearance="dark"] .complete-theme-mode-options > button.active {
+  background: var(--cm-ui-surface-raised);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, .3),
+    0 2px 6px rgba(0, 0, 0, .22);
+}
+
+/* Zero specificity, so controls that set their own colour (filled buttons in particular) keep it. */
+:where(:root[data-appearance="dark"] .app-shell) :is(button, input, select) {
+  color: var(--cm-ui-text);
+}
+
+:root[data-appearance="dark"] .app-shell .complete-activity-rail {
+  color: var(--cm-ui-muted);
+}
+
+:root[data-appearance="dark"] .app-shell .complete-sidebar,
+:root[data-appearance="dark"] .unified-document-frame,
+:root[data-appearance="dark"] .workspace-inspector,
+:root[data-appearance="dark"] .workspace-inspector.composition-basket-panel {
+  color: var(--cm-ui-text);
+  border-color: var(--cm-ui-border-strong);
+  background: var(--cm-ui-surface);
+}
+
+:root[data-appearance="dark"] .app-shell :is(.document-sidebar, .question-library-sidebar, .plugin-center-sidebar) {
+  background: var(--cm-ui-surface);
+}
+
+:root[data-appearance="dark"] .app-shell :is(.document-sidebar-toolbar, .question-tag-tree-header) {
+  background: transparent;
+}
+
+:root[data-appearance="dark"] .document-sidebar-toolbar {
+  border-color: var(--cm-ui-divider);
+}
+
+:root[data-appearance="dark"] :is(.document-sidebar-toolbar, .question-tag-tree-header) button:not(.app-select-option),
+:root[data-appearance="dark"] .inspector-mode-tabs button,
+:root[data-appearance="dark"] .unified-add-tab,
+:root[data-appearance="dark"] .unified-tabbar-menu {
+  color: var(--cm-ui-muted);
+}
+
+:root[data-appearance="dark"] .tree-folder-label,
+:root[data-appearance="dark"] .tree-file,
+:root[data-appearance="dark"] .outline-entry,
+:root[data-appearance="dark"] .property-row,
+:root[data-appearance="dark"] .property-source-copy {
+  color: var(--cm-ui-muted);
+}
+
+:root[data-appearance="dark"] .tree-folder-children::before,
+:root[data-appearance="dark"] .property-group,
+:root[data-appearance="dark"] .document-outline-panel > footer,
+:root[data-appearance="dark"] .unified-tab-menu-section.recent {
+  border-color: var(--cm-ui-divider);
+}
+
+:root[data-appearance="dark"] .tree-file.active.native svg,
+:root[data-appearance="dark"] .unified-document-tab.active,
+:root[data-appearance="dark"] .inspector-mode-tabs button.active {
+  color: var(--cm-ui-selected-fg);
+}
+
+:root[data-appearance="dark"] .unified-document-tab,
+:root[data-appearance="dark"] .unified-document-tab.secondary {
+  color: var(--cm-ui-muted);
+  border-color: transparent;
+  background-color: transparent;
+}
+
+:root[data-appearance="dark"] .unified-document-tab.secondary:hover {
+  color: var(--cm-ui-heading);
+  background-color: var(--cm-theme-hover-bg);
+}
+
+:root[data-appearance="dark"] .unified-document-tab.active {
+  color: var(--cm-theme-accent-ink);
+  border-color: transparent;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: var(--cm-current-card-shadow);
+}
+
+:root[data-appearance="dark"] .unified-document-tab.active > svg:first-child {
+  color: var(--cm-theme-accent-ink);
+}
+
+:root[data-appearance="dark"] .unified-document-tab small,
+:root[data-appearance="dark"] .tree-file > em,
+:root[data-appearance="dark"] .outline-entry small,
+:root[data-appearance="dark"] .outline-document-card small,
+:root[data-appearance="dark"] .property-document-card small,
+:root[data-appearance="dark"] .inspector-tab-content > .sidebar-overlay-scroll-content > header span,
+:root[data-appearance="dark"] .inspector-message p,
+:root[data-appearance="dark"] .inspector-footnote {
+  color: var(--cm-ui-subtle);
+}
+
+:root[data-appearance="dark"] .outline-document-card strong,
+:root[data-appearance="dark"] .property-document-card strong,
+:root[data-appearance="dark"] .property-row em,
+:root[data-appearance="dark"] .inspector-tab-content > .sidebar-overlay-scroll-content > header strong,
+:root[data-appearance="dark"] .traditional-outline .outline-entry.heading-entry.level-1 {
+  color: var(--cm-ui-heading);
+}
+
+:root[data-appearance="dark"] .outline-index {
+  color: var(--cm-ui-subtle);
+  background: transparent;
+}
+
+:root[data-appearance="dark"] .app-shell .chalklee-mixed-outline .outline-entry.question-entry {
+  color: var(--cm-ui-heading);
+  background: var(--cm-ui-surface-raised);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .08),
+    0 1px 2px rgba(0, 0, 0, .3);
+}
+
+:root[data-appearance="dark"] .app-shell .chalklee-mixed-outline .outline-entry.question-entry:active,
+:root[data-appearance="dark"] .app-shell .chalklee-mixed-outline .outline-entry.question-entry:focus-visible {
+  background: var(--cm-theme-selection-surface);
+}
+
+:root[data-appearance="dark"] .app-shell .chalklee-mixed-outline .outline-entry.question-entry:hover {
+  background: var(--cm-theme-hover-bg);
+}
+
+:root[data-appearance="dark"] .chalklee-inspector-segmented {
+  background: var(--cm-neutral-step-3);
+}
+
+/* The condition bar is already a light surface in dark mode, so its track sinks instead. */
+:root[data-appearance="dark"] .question-library-match {
+  background: var(--cm-neutral-step-1);
+}
+
+:root[data-appearance="dark"] .chalklee-paper-overview,
+:root[data-appearance="dark"] .source-file-overview,
+:root[data-appearance="dark"] .chalklee-question-essential,
+:root[data-appearance="dark"] .chalklee-question-tags,
+:root[data-appearance="dark"] .chalklee-question-option-controls,
+:root[data-appearance="dark"] .chalklee-question-region-controls {
+  background: var(--cm-neutral-step-3);
+}
+
+:root[data-appearance="dark"] .chalklee-question-essential .chalklee-question-tags {
+  background: transparent;
+}
+
+:root[data-appearance="dark"] .chalklee-question-option-row {
+  background: var(--cm-neutral-step-3);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+}
+
+:root[data-appearance="dark"] .chalklee-answer-picker-options button {
+  background: var(--cm-neutral-step-3);
+  border-color: var(--cm-ui-border);
+}
+
+:root[data-appearance="dark"] .chalklee-answer-picker-options button.active {
+  border-color: transparent;
+  background: var(--cm-theme-accent-strong);
+  color: var(--cm-theme-on-accent);
+}
+
+:root[data-appearance="dark"] .chalklee-question-basket-mark.selected {
+  color: var(--cm-theme-on-accent);
+}
+
+:root[data-appearance="dark"] .chalklee-question-region-controls button.active {
+  background: var(--cm-neutral-step-3);
+  border-color: var(--cm-ui-border);
+}
+
+:root[data-appearance="dark"] .chalklee-paper-miniature {
+  border-color: var(--cm-ui-border);
+}
+
+:root[data-appearance="dark"] .tag-chip-list button,
+:root[data-appearance="dark"] .property-action,
+:root[data-appearance="dark"] .document-outline-panel > footer button,
+:root[data-appearance="dark"] .inspector-secondary {
+  color: var(--cm-ui-muted);
+  border-color: var(--cm-ui-border);
+  background: var(--cm-ui-surface-soft);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu {
+  color: var(--cm-ui-text);
+  border-color: var(--cm-ui-border-strong);
+  background: var(--cm-ui-menu-surface);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .42), 0 2px 8px rgba(0, 0, 0, .26);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-actions > button,
+:root[data-appearance="dark"] .unified-tab-menu-file-copy strong,
+:root[data-appearance="dark"] .unified-tab-menu-search input {
+  color: var(--cm-ui-text);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-search {
+  background: var(--cm-neutral-step-3);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-row:focus-within {
+  background: var(--cm-ui-surface-soft);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-row:hover,
+:root[data-appearance="dark"] .unified-tab-menu-recent-row:hover {
+  background: var(--cm-theme-hover-bg);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-row.active {
+  background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-file-icon,
+:root[data-appearance="dark"] .unified-tab-menu-file-icon.recent {
+  color: var(--cm-theme-accent-ink);
+  background: var(--cm-ui-surface-raised);
+  box-shadow: none;
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-row.active .unified-tab-menu-file-icon {
+  color: var(--cm-theme-accent-deep);
+  background: var(--cm-ui-surface-raised);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .3);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-section > header,
+:root[data-appearance="dark"] .unified-tab-menu-search,
+:root[data-appearance="dark"] .unified-tab-menu-file-copy small,
+:root[data-appearance="dark"] .unified-tab-menu-empty,
+:root[data-appearance="dark"] .unified-tab-menu-row-close {
+  color: var(--cm-ui-subtle);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-section > header span {
+  background: var(--cm-neutral-step-3);
+}
+
+:root[data-appearance="dark"] .unified-tab-menu-row-close:hover {
+  color: var(--cm-ui-heading);
+  background: var(--cm-theme-hover-bg);
+}
+
+:root[data-appearance="dark"] .center-state strong {
+  color: var(--cm-ui-heading);
+}
+
+:root[data-appearance="dark"] .center-state,
+:root[data-appearance="dark"] .viewer-loading {
+  color: var(--cm-ui-muted);
+}
+
+:root[data-appearance="dark"] .app-global-statusbar,
+:root[data-appearance="dark"] .app-global-zoom-controls button,
+:root[data-appearance="dark"] .app-global-status-path button[aria-current="location"] {
+  color: var(--cm-ui-muted);
+}
+
+:root[data-appearance="dark"] .app-global-status-divider,
+:root[data-appearance="dark"] .chalklee-global-visibility-controls::after,
+:root[data-appearance="dark"] .app-global-zoom-divider {
+  background: var(--cm-ui-border-strong);
+}
+
+:root[data-appearance="dark"] .complete-toast {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .42), 0 1px 3px rgba(0, 0, 0, .28);
+}
+
+:root[data-appearance="dark"] :is(.chalklee-editor-pane, .markdown-editor-pane)[data-scrolled="true"] > .chalklee-editor-toolbar {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .26);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-shell,
+  .workspace-left-column,
+  .complete-sidebar,
+  .unified-document-frame,
+  .workspace-inspector,
+  .unified-tabbar,
+  .complete-theme-menu {
+    transition: color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+}

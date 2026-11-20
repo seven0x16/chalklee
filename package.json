@@ -1,0 +1,42 @@
+{
+  "name": "chalklee",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "overrides": {
+    "linkify-it": "5.0.2",
+    "vite": "6.4.6"
+  },
+  "scripts": {
+    "start": "npm run preview:desktop",
+    "dev": "npm run dev:desktop",
+    "dev:desktop": "npm run dev -w @chalklee/desktop",
+    "preview:desktop": "npm run preview -w @chalklee/desktop",
+    "build": "npm run typecheck && npm run build:desktop",
+    "build:desktop": "npm run build -w @chalklee/desktop",
+    "package:dir": "npm run build && npm run package:dir -w @chalklee/desktop",
+    "package:mac": "npm run build && npm run package:mac -w @chalklee/desktop",
+    "package:win": "npm run build && npm run package:win -w @chalklee/desktop",
+    "typecheck": "npm run typecheck -w @chalklee/format -w @chalklee/word -w @chalklee/desktop",
+    "test:desktop": "npm run test -w @chalklee/desktop",
+    "mcp:config": "node apps/desktop/scripts/chalklee-mcp-config.mjs",
+    "plugin": "tsx apps/desktop/scripts/plugin.ts",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "linkedom": "^0.18.12",
+    "tsx": "^4.22.4",
+    "vitest": "^4.1.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seven0x16/chalklee.git"
+  },
+  "license": "AGPL-3.0-only"
+}

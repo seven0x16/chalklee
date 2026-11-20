@@ -1,0 +1,229 @@
+/* All interactive surfaces use the same fill as a highlighted menu option.
+   Keep this after component and appearance styles so base/selected fills do
+   not replace the hover surface in dark mode or in nested panels. */
+.assistant-web-source:hover, .assistant-web-more:hover { background: var(--cm-theme-hover-bg); }
+:root,
+.chalklee-math-editor math-field {
+  --keycap-background-hover: var(--cm-theme-hover-bg);
+  --keycap-primary-background-hover: var(--cm-theme-hover-bg);
+  --keycap-secondary-background-hover: var(--cm-theme-hover-bg);
+  --keycap-text-hover: var(--cm-theme-hover-fg);
+  --keyboard-toolbar-background-hover: var(--cm-theme-hover-bg);
+  --environment-panel-button-background-hover: var(--cm-theme-hover-bg);
+  --ui-field-bg-hover: var(--cm-theme-hover-bg);
+  --ui-menu-bg-hover: var(--cm-theme-hover-bg);
+  --ui-menu-text-hover: var(--cm-theme-hover-fg);
+}
+
+@media screen {
+  :root[data-appearance] body :where(button, a[href], summary, [role="button"], [role="tab"]):not(:disabled):not([aria-disabled="true"]):hover:not(:where(
+    .chalklee-color-swatch,
+    .chalklee-box-style-save,
+    .chalklee-box-style-ask > button,
+    .chalklee-paper-add,
+    .chalklee-color-swatches button,
+    .chalklee-save-control > button,
+    .chalklee-toolbar-color-control > button,
+    .chalklee-toolbar-split-control > button,
+    .chalklee-toolbar-combo-trigger,
+    .unified-tab-target,
+    .unified-tab-menu-row-target,
+    .settings-switch,
+    .settings-swatch,
+    .assistant-send:not(.stop),
+    .question-tag-row > button,
+    .tag-preset-row > button,
+    .question-basket-body,
+    .assistant-history-item,
+    .conversion-task-file
+  )) {
+    /* Current, pressed and open controls keep their own fill and theme text under the pointer.
+       :where() leaves the specificity unchanged. */
+    &:where(:not(.active, .selected, .is-on, [aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"]))) {
+      background: var(--cm-theme-hover-bg);
+      color: var(--cm-theme-hover-fg);
+    }
+  }
+
+  /* A header or footer on the paper shows it can be selected; selected, it keeps its outline only. */
+  :root[data-appearance] .chalklee-running-line[data-selectable="true"]:not([data-selected="true"]):hover {
+    background: var(--cm-theme-hover-bg);
+  }
+  /* An empty cover, header or footer position offers to add one in light text. */
+  :root[data-appearance] .chalklee-paper-add:hover {
+    color: var(--cm-ui-subtle);
+    background: var(--cm-theme-hover-bg);
+  }
+
+  /* The typed zoom field shows it can be edited; while typing it keeps its field look. */
+  :root[data-appearance] .app-global-zoom-controls .app-global-zoom-value:not(:focus, :disabled):hover {
+    background: var(--cm-theme-hover-bg);
+  }
+
+  /* Insert menu icons take the hovered item's text color. */
+  :root[data-appearance] .chalklee-insert-panel .chalklee-insert-item:not(:disabled):hover > svg {
+    color: inherit;
+  }
+
+  /* Color samples retain their actual color. Split controls and tab targets
+     remain transparent because their enclosing row paints the hover fill. */
+  :root[data-appearance] .chalklee-save-control:not(.active):hover,
+  :root[data-appearance] .chalklee-toolbar-color-control:not(.active):hover,
+  :root[data-appearance] .chalklee-toolbar-split-control:not(.active):hover,
+  :root[data-appearance] .chalklee-toolbar-combo:hover,
+  :root[data-appearance] .unified-tab-menu-row:not(.active):hover,
+  :root[data-appearance] .chalklee-global-visibility-controls > label:not(:has(input:checked)):hover,
+  :root[data-appearance] .complete-version-switcher:hover,
+  :root[data-appearance] .question-tag-row:not(.active):hover,
+  :root[data-appearance] .tag-preset-row:hover,
+  :root[data-appearance] .conversion-task-row:hover,
+  :root[data-appearance] .assistant-history-row:is(:hover, :has(> .assistant-history-item:focus-visible)) {
+    background: var(--cm-theme-hover-bg);
+  }
+  :root[data-appearance] .assistant-history-row:is(:hover, :has(> .assistant-history-item:focus-visible)) > .assistant-history-item { color: var(--cm-theme-hover-fg); }
+
+  /* Selected, pressed and open controls keep the selected fill (Radix step 5)
+     under the pointer, so hovering never makes them look unselected. */
+  :root[data-appearance] body :is(
+    .chalklee-editor-toolbar button.active:not(:where(
+      .chalklee-toolbar-combo-popover > button,
+      .chalklee-line-height-popover > button,
+      .chalklee-save-control > button,
+      .chalklee-toolbar-color-control > button,
+      .chalklee-toolbar-split-control > button
+    )),
+    .unified-tab-menu-trigger.active,
+    .complete-theme-trigger.active,
+    .complete-theme-options > button.active,
+    .chalklee-line-insert-trigger[aria-expanded="true"],
+    .app-global-zoom-controls button[aria-pressed="true"],
+    .chalklee-question-grip[aria-expanded="true"],
+    .chalklee-image-tools button.active,
+    .chalklee-table-select-all.active,
+    .chalklee-table-tools button.active,
+    .pane-sort-select > .app-select-trigger[aria-expanded="true"],
+    .chalklee-block-style-select > .app-select-trigger[aria-expanded="true"],
+    .assistant-model-select > .app-select-trigger[aria-expanded="true"],
+    .assistant-header .question-bank-icon-button.active,
+    .question-library-option[aria-pressed="true"]:not(.is-all),
+    .tag-preset-option.selected,
+    .outline-entry.question-entry[aria-current="true"]
+  ):hover {
+    background: var(--cm-ui-selected-bg);
+  }
+
+  /* The settings "添加" menu keeps its open look, theme text included, under the pointer. */
+  :root[data-appearance] body .settings-add-menu > .app-select > .app-select-trigger[aria-expanded="true"]:hover {
+    color: var(--cm-ui-selected-fg);
+    background: var(--cm-ui-selected-bg);
+  }
+
+  /* Current locations and picked segments stay raised under the pointer. */
+  :root[data-appearance] body :is(
+    .question-library-match > button[aria-pressed="true"],
+    .settings-segmented button.active,
+    .settings-tabs button.active
+  ):hover {
+    background: var(--cm-ui-surface-raised);
+  }
+
+  :root[data-appearance] body .settings-nav button.active:hover {
+    background: var(--settings-current);
+  }
+
+  :root[data-appearance] body .app-shell .app-titlebar .workspace-pane-toggle:is(.active, .is-on):hover {
+    color: var(--cm-theme-accent-strong);
+    background: var(--cm-ui-surface-raised);
+  }
+
+  /* ChalkLee AI keeps its circle under the pointer: one tint deeper while off, the solid gradient while on. */
+  :root[data-appearance] body .app-shell .app-titlebar .workspace-pane-toggle.activity-rail-assistant:not(.active):not(.is-on):hover {
+    background: linear-gradient(135deg, var(--cm-theme-step-2), var(--cm-theme-step-4));
+    box-shadow:
+      inset 0 0 0 1px rgb(var(--cm-theme-accent-rgb) / .3),
+      0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .1);
+  }
+  :root[data-appearance] body .app-shell .app-titlebar .workspace-pane-toggle.activity-rail-assistant:is(.active, .is-on):hover {
+    color: var(--cm-theme-on-accent);
+    background: linear-gradient(135deg, var(--cm-theme-accent), var(--cm-theme-accent-strong));
+  }
+
+  /* Closing the window turns red under the pointer, as the system button does. */
+  :root[data-appearance] body .window-controls > .window-control.is-close:hover {
+    color: var(--cm-ui-on-danger);
+    background: var(--cm-ui-danger-solid);
+  }
+
+  /* Controls resting on the grey fill step up one alpha shade; an open model menu keeps its selected fill. */
+  :root[data-appearance] body .assistant-model-select > .app-select-trigger:not([aria-expanded="true"]):hover:not(:disabled) {
+    background: var(--cm-ui-fill-hover);
+  }
+
+  /* Applied filter conditions and the assistant's attached documents rest on the selected tint and step up one theme shade. */
+  :root[data-appearance] body :is(.question-filter-chip, .assistant-context-chip > button):hover:not(:disabled) {
+    background: var(--cm-theme-step-3);
+  }
+
+  /* Controls that already rest on the grey fill step up one alpha shade. */
+  :root[data-appearance] body :is(.app-crash-recovery button, .assistant-history-delete, .conversion-task-row button:not(.conversion-task-file)):hover:not(:disabled) {
+    background: var(--cm-ui-fill-hover);
+  }
+
+  :root[data-appearance] .chalklee-toolbar-combo { border-radius: var(--chalklee-toolbar-radius); }
+
+  /* Solid fills step from Radix 9 to 10 on hover. */
+  :root[data-appearance] body .start-page-primary:hover:not(:disabled) {
+    color: var(--cm-theme-on-accent);
+    background: var(--cm-theme-step-10);
+  }
+
+  /* These primary actions already force their idle foreground; keep text
+     readable when the hover fill changes to the shared pale surface. */
+  :root[data-appearance] :is(
+    .document-statebar.readonly button,
+    .document-statebar.linked button,
+    .app-sidebar-empty button,
+    .center-state > button,
+    .inspector-primary,
+    .chalklee-question-basket-mark.selected,
+    .question-card-basket.selected,
+    .question-basket-insert,
+    .source-conversion-actions button.primary,
+    .source-conversion-prompt button.primary,
+    .assistant-setup > .assistant-setup-action,
+    .assistant-approval-actions button.danger,
+    .assistant-approval-actions button.primary,
+    .settings-primary,
+    .settings-danger,
+    .tag-preset-footer > button.primary,
+    .question-tag-empty-actions > button.primary
+  ):hover:not(:disabled) {
+    color: var(--cm-theme-hover-fg) !important;
+    background: var(--cm-theme-hover-bg);
+  }
+}
+
+.chalklee-answer-lines-controls button:not(:disabled):hover { background: var(--cm-theme-hover-bg); }
+
+/* Question controls float over the paper's margin: the shared translucent hover fill sits on an opaque
+   raised surface, so a page drawing beneath (a name column in the margin) never shows through. */
+@media screen {
+  :root[data-appearance] body :is(.chalklee-question-grip, .chalklee-question-basket-mark, .chalklee-question-add > button):not(:disabled):hover,
+  :root[data-appearance] body .chalklee-question-object-head > .chalklee-question-basket-mark.selected:not(:disabled):hover {
+    background: linear-gradient(var(--cm-theme-hover-bg), var(--cm-theme-hover-bg)), var(--cm-ui-surface-raised);
+  }
+  /* The part delete button turns red on an opaque fill instead of the shared translucent one,
+     so the question's frame line beside it never shows through. */
+  :root[data-appearance] body .chalklee-part-delete:not(:disabled):not([aria-disabled="true"]):hover {
+    color: var(--cm-ui-danger);
+    border-color: var(--cm-ui-danger-border);
+    background: var(--cm-ui-danger-surface);
+  }
+}
+
+.plugin-center-row:not([aria-current="page"]):hover,
+.plugin-run-approve:hover,
+.plugin-dialog > footer > button:not(.is-primary, .is-danger):hover { background: var(--cm-theme-hover-bg); }
+
+.markdown-editor-toolbar button:hover { background: var(--cm-theme-hover-bg); }
+.markdown-editor-host .cm-button:hover { background: var(--cm-theme-hover-bg); }

@@ -1,0 +1,46 @@
+/* Images participate in document flow; floats are contained by their owning region. */
+[data-chalklee-image][data-image-layout="inline"] { display: inline-block; vertical-align: middle; margin: 0 2pt !important; line-height: normal; }
+[data-chalklee-image][data-image-layout="wrap-left"] { float: left; margin: 0 12pt 6pt 0 !important; clear: both; }
+[data-chalklee-image][data-image-layout="wrap-right"] { float: right; margin: 0 0 6pt 12pt !important; clear: both; }
+.chalklee-editor-content [data-chalklee-region]:has([data-image-layout^="wrap-"]),
+.chalklee-editor-content [data-chalklee-option]:has([data-image-layout^="wrap-"]) { display: flow-root; }
+.chalklee-editor-content > .node-question,
+.chalklee-editor-content > .node-questionGroup,
+.chalklee-editor-content > h1, .chalklee-editor-content > h2, .chalklee-editor-content > h3,
+[data-chalklee-image][data-image-layout="block"], [data-chalklee-image][data-image-layout="auto"], [data-chalklee-table], [data-chalklee-page-break] { clear: both; }
+.chalklee-auto-image-row { display: flex; align-items: flex-end; justify-content: center; gap: 12pt; margin: 6pt 0 12pt; clear: both; break-inside: avoid; }
+.chalklee-auto-image-cell { flex: 0 1 auto; min-width: 0; max-width: 100%; text-align: center; }
+.chalklee-auto-image-cell > [data-chalklee-image] { margin: 0 auto !important; }
+.chalklee-question-object[data-pagination-split="true"],
+.chalklee-group-solution[data-pagination-split="true"] { break-inside: auto !important; }
+.chalklee-image-pair-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18pt; margin: 6pt 0 12pt; clear: both; break-inside: avoid; }
+.chalklee-image-pair-row:has(.chalklee-image-node.selected) { position: relative; z-index: 12; }
+.chalklee-image-pair-cell { min-width: 0; text-align: center; }
+.chalklee-image-pair-slot { min-height: 1px; }
+.chalklee-image-pair-label { margin-top: 5pt; font-size: 9pt; color: inherit; }
+.chalklee-image-pair-row[data-suspended="true"] { display: none; }
+.chalklee-image-drop-hint { position: fixed; z-index: 10000; pointer-events: none; background: var(--cm-theme-accent-strong); color: var(--cm-theme-on-accent); font-size: var(--cm-font-size-small); line-height: 24px; }
+.chalklee-image-drop-hint[data-kind="pair"] { display: flex !important; align-items: center; justify-content: center; box-sizing: border-box; border: 2px dashed var(--cm-theme-accent); border-radius: 6px; background: var(--cm-theme-selection-surface); color: var(--cm-theme-accent-deep); }
+.chalklee-image-drop-hint[style*="display: none"] { display: none !important; }
+.chalklee-image-node img, .chalklee-image-tools button[aria-label="拖动图片"] { cursor: grab; touch-action: none; }
+@media print {
+  .chalklee-image-drop-hint { display: none !important; }
+  .chalklee-print-image-pair { break-inside: avoid; }
+  .chalklee-print-image-wrap { display: flow-root; break-inside: avoid; }
+  #chalklee-print-root [data-chalklee-region]:has([data-image-layout^="wrap-"]) { display: flow-root; }
+}
+
+@media print {
+  #chalklee-print-root .chalklee-question-object:has([data-image-layout^="wrap-"]) { break-inside: avoid; }
+}
+@media print {
+  /* Chromium may defer a float even when its block says break-inside: avoid.
+     A measured short question is an atomic inline box in the print copy. */
+  #chalklee-print-root .chalklee-question-object[data-pagination-keep-together="true"]:has([data-image-layout^="wrap-"]) {
+    display: inline-block; width: 100%; vertical-align: top;
+  }
+}
+@media print {
+  /* A question whose style starts a new page, as on slides; subquestions stay with their group. */
+  #chalklee-print-root .chalklee-question-object:not([data-chalklee-subquestions] *) { break-before: var(--chalklee-break-before, auto); }
+}

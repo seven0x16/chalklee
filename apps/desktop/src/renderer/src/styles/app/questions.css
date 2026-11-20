@@ -1,0 +1,639 @@
+.chalklee-question-object-head {
+  position: absolute;
+  z-index: 4;
+  top: var(--chalklee-question-padding-top);
+  right: var(--chalklee-question-padding-right);
+  left: var(--chalklee-question-padding-left);
+  min-height: 0;
+  height: 0;
+  padding: 0;
+  color: inherit;
+  border: 0;
+  user-select: none;
+}
+
+/* The handle and basket sit in the margin, apart from the question. This transparent strip covers their column and
+   the gap to the question's edge, so moving from the text to a control never leaves the question and they stay shown. */
+.chalklee-question-object-head::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(-40px - var(--chalklee-question-padding-left, 0px));
+  width: 40px;
+  height: 52px;
+}
+#chalklee-print-root .chalklee-question-object-head::before { display: none; }
+
+.chalklee-question-object:hover > .chalklee-question-object-head,
+.chalklee-question-object.selected > .chalklee-question-object-head,
+.chalklee-question-object:focus-within > .chalklee-question-object-head {
+  border: 0;
+}
+
+.chalklee-question-object-head > span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 1em;
+  font-weight: 400;
+  line-height: inherit;
+}
+
+.chalklee-question-object-head > small {
+  position: absolute;
+  top: -19px;
+  right: 138px;
+  color: var(--cm-ui-muted);
+  font-size: 7.5pt;
+  opacity: 0;
+}
+
+.chalklee-question-object.group > .chalklee-question-object-head > span,
+.chalklee-question-object[data-inline-number="true"] > .chalklee-question-object-head > span { display: none; }
+
+.chalklee-question-object[data-linked-placeholder="true"] { display: none; }
+
+.chalklee-question-grip,
+.chalklee-question-basket-mark {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  /* These margin controls scale together with the paper. */
+  left: -40px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 1px solid rgb(var(--cm-theme-shadow-rgb) / .12);
+  border-radius: 7px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .09);
+  opacity: 0;
+  pointer-events: auto;
+  transition: color .12s ease, opacity .12s ease, background-color .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+
+.chalklee-question-grip { cursor: grab; }
+.chalklee-question-grip:active { cursor: grabbing; }
+.chalklee-question-grip { touch-action: none; }
+.chalklee-question-grip[data-dragging="true"] {
+  opacity: 1;
+  color: var(--cm-theme-accent-ink);
+  border-color: rgb(var(--cm-theme-accent-rgb) / .34);
+  background: var(--cm-theme-selection-surface);
+  box-shadow: 0 3px 10px rgb(var(--cm-theme-shadow-rgb) / .16);
+  cursor: grabbing;
+}
+.chalklee-question-object[data-question-drop]::after {
+  content: "";
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--cm-theme-accent-deep);
+  pointer-events: none;
+}
+.chalklee-question-object[data-question-drop="before"]::after { top: -3px; }
+.chalklee-question-object[data-question-drop="after"]::after { bottom: -3px; }
+/* A basket question dragged onto the paper shows the same line, drawn over the paper. */
+.chalklee-basket-drop-line {
+  position: absolute;
+  z-index: 24;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--cm-theme-accent-deep);
+  pointer-events: none;
+}
+
+.chalklee-question-grip[aria-expanded="true"] {
+  opacity: 1;
+  color: var(--cm-ui-selected-fg);
+  border-color: var(--cm-ui-border-strong);
+  background: var(--cm-ui-selected-bg);
+  box-shadow: var(--cm-ui-selected-shadow);
+}
+
+.chalklee-question-grip:hover {
+  opacity: 1;
+  color: var(--cm-theme-hover-fg);
+  border-color: var(--cm-ui-border-strong);
+  background: var(--cm-theme-hover-bg);
+  box-shadow: 0 2px 7px rgb(var(--cm-theme-shadow-rgb) / .12);
+}
+
+.chalklee-question-object:hover > .chalklee-question-object-head > .chalklee-question-grip,
+.chalklee-question-object.selected > .chalklee-question-object-head > .chalklee-question-grip,
+.chalklee-question-object.is-editing > .chalklee-question-object-head > .chalklee-question-grip,
+.chalklee-question-object.menu-open > .chalklee-question-object-head > .chalklee-question-grip,
+.chalklee-question-object:focus-within > .chalklee-question-object-head > .chalklee-question-grip {
+  opacity: 1;
+}
+
+/* Parts the question can still get, in the right margin while it is edited or pointed at. The head spans
+   the question's text; the group starts past the question's edge and its editing frame, so it never sits
+   on a border and never takes up room on the page. Concentric radii: 8px group = 5px button + 3px inset. */
+.chalklee-question-add {
+  position: absolute;
+  z-index: 10;
+  top: -4px;
+  left: calc(100% + var(--chalklee-question-padding-right, 0px) + 14px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  padding: 3px;
+  border: 0.5px solid var(--cm-ui-border);
+  border-radius: 8px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 2px 8px rgb(var(--cm-theme-shadow-rgb) / .08);
+  pointer-events: auto;
+}
+
+.chalklee-question-add > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 9px 0 6px;
+  color: var(--cm-ui-text);
+  font-family: var(--cm-ui-font);
+  font-size: var(--cm-font-size-small);
+  line-height: 1;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.chalklee-question-add > button > svg { flex: none; color: var(--cm-ui-muted); }
+.chalklee-question-add > button:focus-visible { outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .5); outline-offset: -1px; }
+
+/* Where the part under the pointer will be added. */
+.chalklee-question-add-preview {
+  position: absolute;
+  z-index: 3;
+  left: var(--chalklee-question-padding-left, 0px);
+  right: var(--chalklee-question-padding-right, 0px);
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 999px;
+  background: rgb(var(--cm-theme-accent-rgb) / .6);
+  pointer-events: none;
+}
+
+#chalklee-print-root .chalklee-question-add-preview { display: none !important; }
+#chalklee-print-root .chalklee-question-add { display: none !important; }
+
+.chalklee-question-object-actions {
+  position: absolute;
+  z-index: 9;
+  top: 28px;
+  right: auto;
+  left: -40px;
+  width: max-content;
+  min-width: 118px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 38px;
+  padding: 5px;
+  color: var(--cm-ui-muted);
+  font-family: var(--cm-ui-font);
+  border: 1px solid var(--cm-ui-border);
+  border-radius: 10px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 10px 28px rgb(var(--cm-theme-shadow-rgb) / .16), 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+  transform: scale(var(--chalklee-editor-inverse-zoom, 1));
+  transform-origin: left top;
+}
+
+/* An open menu floats above following questions, whose own head would
+   otherwise paint later in the same stacking context. */
+.chalklee-question-object.menu-open > .chalklee-question-object-head {
+  z-index: 12;
+}
+
+/* An editing question is its own stacking context; lift it whole so later
+   questions' margin controls stay under the open menu. */
+.chalklee-question-object.is-editing.menu-open {
+  z-index: 12;
+}
+
+.chalklee-question-object.menu-open > .chalklee-question-object-head .chalklee-question-object-actions {
+  opacity: 1;
+  pointer-events: auto;
+  animation: chalklee-question-actions-in .15s ease;
+}
+
+@keyframes chalklee-question-actions-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--chalklee-editor-inverse-zoom, 1)) translateY(-3px);
+  }
+}
+
+.chalklee-question-object-actions button {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 9px;
+  color: var(--cm-ui-text);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.chalklee-question-object-actions[hidden] { display: none; }
+
+/* ChalkLee AI requests follow the editing actions under a hairline and a small caption. */
+.chalklee-question-assistant-actions {
+  align-self: stretch; display: flex; flex-direction: column; gap: 2px;
+  margin-top: 3px; padding-top: 4px; border-top: 1px solid var(--cm-ui-divider);
+}
+.chalklee-question-assistant-actions > small {
+  padding: 3px 9px 1px; color: var(--cm-ui-subtle); font-size: var(--cm-font-size-small); font-weight: 500; letter-spacing: .02em;
+}
+.chalklee-question-assistant-actions button > svg { color: var(--cm-ui-muted); }
+
+.chalklee-question-object-actions button > svg {
+  color: var(--cm-ui-muted);
+  transition: color .12s ease;
+}
+
+.chalklee-question-object-actions button > span {
+  font-size: var(--cm-font-size-body);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.chalklee-question-object-actions button:hover {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.chalklee-question-object-actions button:hover > svg {
+  color: inherit;
+}
+
+.chalklee-question-object-actions button:disabled {
+  opacity: .32;
+  cursor: default;
+}
+
+.chalklee-question-object-actions button.danger:hover {
+  color: var(--cm-ui-danger);
+  background: var(--cm-theme-hover-bg);
+}
+
+.chalklee-question-object-actions button.danger.confirm {
+  color: var(--cm-ui-on-danger);
+  background: var(--cm-ui-danger-solid);
+}
+
+.chalklee-question-object-actions button.danger.confirm > svg {
+  color: inherit;
+}
+
+.chalklee-question-settings {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 12px;
+  padding: 8px 12px 12px;
+  color: var(--cm-ui-text);
+  background: var(--cm-ui-surface);
+}
+
+.chalklee-question-settings-host { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; overflow: hidden; }
+.chalklee-question-settings-host[hidden] { display: none; }
+.chalklee-question-settings-scroll { overscroll-behavior: contain; }
+.chalklee-property-section { display: flex; flex-direction: column; gap: 8px; }
+.chalklee-question-essential {
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--cm-ui-surface-soft);
+}
+.chalklee-question-essential .chalklee-question-tags {
+  padding: 8px 0 0;
+  border-top: 1px solid var(--cm-ui-divider);
+  border-radius: 0;
+  background: transparent;
+}
+.chalklee-question-settings header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chalklee-question-settings header strong {
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+.chalklee-question-settings header button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.chalklee-question-settings header button:hover {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.chalklee-question-settings label {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-question-settings-row {
+  display: flex;
+  gap: 7px;
+}
+
+.chalklee-question-settings input,
+.chalklee-question-settings select {
+  width: 100%;
+  height: 28px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 7px;
+  color: var(--cm-ui-heading);
+  border: 1px solid var(--cm-ui-border);
+  border-radius: 6px;
+  background: var(--cm-ui-surface);
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-question-option-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--cm-ui-surface-soft);
+}
+
+.chalklee-question-option-controls > header {
+  min-height: 20px;
+  gap: 8px;
+}
+
+.chalklee-question-option-controls > header > span {
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+.chalklee-question-option-controls > header > span > small {
+  margin-left: 3px;
+  font-size: var(--cm-font-size-small);
+  font-weight: 500;
+}
+
+.chalklee-question-option-controls > header > label {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
+.chalklee-question-option-controls > header select {
+  width: 76px;
+  height: 25px;
+}
+
+.chalklee-question-option-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+}
+
+.chalklee-question-option-row {
+  min-height: 32px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--cm-ui-surface);
+  box-shadow: inset 0 0 0 1px var(--cm-ui-border);
+}
+
+.chalklee-question-option-row > strong {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--cm-ui-text);
+  border-radius: 4px;
+  background: var(--cm-ui-fill);
+  font-size: var(--cm-font-size-small);
+  font-weight: 650;
+}
+
+.chalklee-question-option-row > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cm-ui-heading);
+  font-size: var(--cm-font-size-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chalklee-question-option-row > div {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.chalklee-question-option-row button {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.chalklee-question-option-row button:hover:not(:disabled) {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.chalklee-question-option-row button.danger:hover:not(:disabled) {
+  color: var(--cm-ui-danger);
+  background: var(--cm-theme-hover-bg);
+}
+
+.chalklee-question-option-row button:disabled {
+  opacity: .28;
+  cursor: default;
+}
+
+.chalklee-question-settings .chalklee-question-option-add {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--cm-ui-muted);
+  border: 1px dashed var(--cm-ui-border-strong);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-question-option-add:hover:not(:disabled) {
+  border-color: var(--cm-neutral-step-8);
+  background: var(--cm-theme-hover-bg);
+}
+
+.chalklee-question-option-add:disabled { opacity: .42; cursor: default; }
+
+.chalklee-question-region-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.chalklee-question-region-controls button {
+  min-width: 0;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 7px;
+  color: var(--cm-ui-muted);
+  border: 1px dashed var(--cm-ui-border-strong);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+}
+
+.chalklee-question-region-controls button.active {
+  color: var(--cm-ui-muted);
+  border-style: solid;
+  border-color: var(--cm-ui-border);
+  background: var(--cm-ui-surface);
+}
+
+.chalklee-question-region-controls button:hover {
+  color: var(--cm-theme-hover-fg);
+  border-color: var(--cm-neutral-step-8);
+  background: var(--cm-theme-hover-bg);
+}
+
+.chalklee-answer-picker-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chalklee-answer-picker-options button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--cm-ui-border);
+  border-radius: 6px;
+  background: var(--cm-ui-surface-soft);
+  color: var(--cm-ui-heading);
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chalklee-answer-picker-options button:hover {
+  border-color: var(--cm-ui-border-strong);
+  background: var(--cm-theme-hover-bg);
+  color: var(--cm-theme-hover-fg);
+}
+
+.chalklee-answer-picker-options button.active {
+  border-color: transparent;
+  background: var(--cm-theme-accent-strong);
+  color: var(--cm-theme-on-accent);
+  box-shadow: 0 1px 2px rgb(var(--cm-theme-accent-rgb) / .28);
+}
+
+.chalklee-question-object-content {
+  display: block;
+  padding: 0;
+}
+
+/* Delete button for the option, answer or analysis under the pointer, just before it in the margin. */
+.chalklee-part-delete {
+  position: absolute;
+  z-index: 24;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 0.5px solid var(--cm-ui-border);
+  border-radius: 999px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 1px 4px rgb(var(--cm-theme-shadow-rgb) / .08);
+  cursor: pointer;
+}
+
+/* While the pointer is on the delete button, the part it removes is marked. Answers and analyses of a
+   framed question paint the page color over the frame, so the mark takes precedence there too. */
+.chalklee-editor-content [data-delete-preview="true"],
+.chalklee-editor-content .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region][data-delete-preview="true"] {
+  outline: 0.5px solid var(--cm-ui-danger-border);
+  outline-offset: 2px;
+  border-radius: 3px;
+  background: var(--cm-ui-danger-surface);
+}
+
+@media print { .chalklee-part-delete { display: none; } }

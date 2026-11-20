@@ -1,0 +1,302 @@
+.center-state {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 30px;
+  color: var(--cm-ui-subtle);
+  text-align: center;
+}
+
+/* The document area with nothing open: the window's first view and every "+" tab. */
+.start-page {
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  /* Extra room below sits the content a little above centre, where it reads as centred. */
+  padding: 32px 24px 72px;
+  background-color: var(--cm-theme-canvas-tint);
+  background-image: radial-gradient(rgb(var(--cm-theme-shadow-rgb) / .06) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: center;
+}
+
+/* One left-aligned column: every block shares the same edges, so the page reads as a single rectangle. */
+.start-page-panel {
+  width: min(440px, 100%);
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  margin-block: auto;
+}
+
+.start-page-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.start-page-heading {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.start-page-mark {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  flex: none;
+  place-items: center;
+  border: .5px solid var(--cm-ui-border);
+  border-radius: 14px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow:
+    0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .05),
+    0 6px 18px rgb(var(--cm-theme-shadow-rgb) / .06),
+    0 0 0 4px rgb(var(--cm-theme-accent-rgb) / .05);
+}
+
+.start-page-mark .document-file-icon {
+  display: block;
+}
+
+.start-page-header h1 {
+  margin: 0;
+  color: var(--cm-ui-heading);
+  font-size: var(--cm-font-size-title);
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.start-page-header p {
+  margin: 0;
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-body);
+  line-height: 20px;
+}
+
+/* Totals of the open folder as equal tiles across the column. */
+.workspace-overview {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.workspace-overview > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border: .5px solid var(--cm-ui-border);
+  border-radius: 12px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .04);
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out, transform 160ms ease-out;
+}
+
+.workspace-overview > div.is-interactive {
+  padding: 0;
+}
+
+.workspace-overview > div.is-interactive:hover {
+  border-color: var(--cm-ui-border-strong);
+  box-shadow: 0 4px 12px rgb(var(--cm-theme-shadow-rgb) / .07), 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .04);
+  transform: translateY(-1px);
+}
+
+.workspace-overview-button {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 11.5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspace-overview-button:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .48);
+  outline-offset: -2px;
+}
+
+/* Number first, then its name and the recent gain. */
+.workspace-overview dd {
+  margin: 0;
+  color: var(--cm-ui-heading);
+  font-size: var(--cm-font-size-title);
+  font-weight: 600;
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-overview dt {
+  order: 1;
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+  line-height: 18px;
+}
+
+.workspace-overview .workspace-overview-recent {
+  order: 2;
+  color: var(--cm-theme-accent-ink);
+  font-size: var(--cm-font-size-small);
+  font-weight: 500;
+  line-height: 16px;
+}
+
+:root[data-appearance] .start-page-primary {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  color: var(--cm-theme-on-accent);
+  border: 0;
+  border-radius: 10px;
+  background: var(--cm-theme-accent-strong);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .18),
+    0 1px 3px rgb(var(--cm-theme-accent-rgb) / .24);
+  font: inherit;
+  font-size: var(--cm-font-size-body);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.start-page-primary kbd {
+  color: inherit;
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+  font-weight: 400;
+  opacity: .72;
+}
+
+.start-page-primary:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.start-page-primary:focus-visible,
+.start-page-recent-list > button:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .48);
+  outline-offset: 2px;
+}
+
+.start-page-error {
+  margin: -10px 0 0;
+  color: var(--cm-ui-danger);
+  font-size: var(--cm-font-size-small);
+  line-height: 18px;
+}
+
+/* A separate group below the ways to start. */
+.start-page-recent {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.start-page-recent h2 {
+  margin: 0;
+  padding: 0 2px;
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+/* Rows are inset by the list padding, so their radius is the list radius minus it. */
+.start-page-recent-list {
+  display: grid;
+  padding: 4px;
+  border: .5px solid var(--cm-ui-border);
+  border-radius: 12px;
+  background: var(--cm-ui-surface-raised);
+}
+
+.start-page-recent-list > button {
+  min-width: 0;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 4px 8px;
+  color: var(--cm-ui-text);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: var(--cm-font-size-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.start-page-recent-list > button:focus-visible {
+  outline-offset: -2px;
+}
+
+.start-page-recent-list time {
+  margin-left: 6px;
+  color: var(--cm-ui-subtle);
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.start-page-recent-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--cm-theme-icon-surface);
+}
+
+.start-page-recent-icon .document-file-icon {
+  display: block;
+}
+
+.start-page-recent-copy {
+  min-width: 0;
+  display: grid;
+}
+
+.start-page-recent-copy :is(strong, small) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.start-page-recent-copy strong {
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.start-page-recent-copy small {
+  color: var(--cm-ui-subtle);
+  font-size: var(--cm-font-size-small);
+  line-height: 16px;
+}

@@ -1,0 +1,222 @@
+{
+  "source": "学科网",
+  "capturedAt": "2026-10-23",
+  "courses": [
+    {
+      "id": "小学语文",
+      "file": "primary-chinese",
+      "stage": "小学",
+      "subject": "语文",
+      "knowledge": 36,
+      "textbooks": 23,
+      "versions": 3
+    },
+    {
+      "id": "小学数学",
+      "file": "primary-math",
+      "stage": "小学",
+      "subject": "数学",
+      "knowledge": 29,
+      "textbooks": 178,
+      "versions": 17
+    },
+    {
+      "id": "小学英语",
+      "file": "primary-english",
+      "stage": "小学",
+      "subject": "英语",
+      "knowledge": 5,
+      "textbooks": 543,
+      "versions": 68
+    },
+    {
+      "id": "小学科学",
+      "file": "primary-science",
+      "stage": "小学",
+      "subject": "科学",
+      "knowledge": 253,
+      "textbooks": 168,
+      "versions": 16
+    },
+    {
+      "id": "小学道德与法治",
+      "file": "primary-morality-and-law",
+      "stage": "小学",
+      "subject": "道德与法治",
+      "knowledge": 0,
+      "textbooks": 25,
+      "versions": 4
+    },
+    {
+      "id": "初中语文",
+      "file": "junior-chinese",
+      "stage": "初中",
+      "subject": "语文",
+      "knowledge": 59,
+      "textbooks": 13,
+      "versions": 3
+    },
+    {
+      "id": "初中数学",
+      "file": "junior-math",
+      "stage": "初中",
+      "subject": "数学",
+      "knowledge": 441,
+      "textbooks": 127,
+      "versions": 21
+    },
+    {
+      "id": "初中英语",
+      "file": "junior-english",
+      "stage": "初中",
+      "subject": "英语",
+      "knowledge": 97,
+      "textbooks": 110,
+      "versions": 19
+    },
+    {
+      "id": "初中物理",
+      "file": "junior-physics",
+      "stage": "初中",
+      "subject": "物理",
+      "knowledge": 147,
+      "textbooks": 48,
+      "versions": 15
+    },
+    {
+      "id": "初中化学",
+      "file": "junior-chemistry",
+      "stage": "初中",
+      "subject": "化学",
+      "knowledge": 77,
+      "textbooks": 26,
+      "versions": 13
+    },
+    {
+      "id": "初中生物学",
+      "file": "junior-biology",
+      "stage": "初中",
+      "subject": "生物学",
+      "knowledge": 107,
+      "textbooks": 56,
+      "versions": 14
+    },
+    {
+      "id": "初中历史",
+      "file": "junior-history",
+      "stage": "初中",
+      "subject": "历史",
+      "knowledge": 325,
+      "textbooks": 12,
+      "versions": 2
+    },
+    {
+      "id": "初中地理",
+      "file": "junior-geography",
+      "stage": "初中",
+      "subject": "地理",
+      "knowledge": 92,
+      "textbooks": 68,
+      "versions": 17
+    },
+    {
+      "id": "初中道德与法治",
+      "file": "junior-morality-and-law",
+      "stage": "初中",
+      "subject": "道德与法治",
+      "knowledge": 358,
+      "textbooks": 15,
+      "versions": 5
+    },
+    {
+      "id": "初中科学",
+      "file": "junior-science",
+      "stage": "初中",
+      "subject": "科学",
+      "knowledge": 637,
+      "textbooks": 23,
+      "versions": 5
+    },
+    {
+      "id": "高中语文",
+      "file": "senior-chinese",
+      "stage": "高中",
+      "subject": "语文",
+      "knowledge": 44,
+      "textbooks": 10,
+      "versions": 1
+    },
+    {
+      "id": "高中数学",
+      "file": "senior-math",
+      "stage": "高中",
+      "subject": "数学",
+      "knowledge": 186,
+      "textbooks": 31,
+      "versions": 6
+    },
+    {
+      "id": "高中英语",
+      "file": "senior-english",
+      "stage": "高中",
+      "subject": "英语",
+      "knowledge": 183,
+      "textbooks": 62,
+      "versions": 8
+    },
+    {
+      "id": "高中物理",
+      "file": "senior-physics",
+      "stage": "高中",
+      "subject": "物理",
+      "knowledge": 277,
+      "textbooks": 30,
+      "versions": 5
+    },
+    {
+      "id": "高中化学",
+      "file": "senior-chemistry",
+      "stage": "高中",
+      "subject": "化学",
+      "knowledge": 227,
+      "textbooks": 20,
+      "versions": 4
+    },
+    {
+      "id": "高中生物学",
+      "file": "senior-biology",
+      "stage": "高中",
+      "subject": "生物学",
+      "knowledge": 216,
+      "textbooks": 25,
+      "versions": 5
+    },
+    {
+      "id": "高中历史",
+      "file": "senior-history",
+      "stage": "高中",
+      "subject": "历史",
+      "knowledge": 497,
+      "textbooks": 5,
+      "versions": 1
+    },
+    {
+      "id": "高中地理",
+      "file": "senior-geography",
+      "stage": "高中",
+      "subject": "地理",
+      "knowledge": 192,
+      "textbooks": 25,
+      "versions": 5
+    },
+    {
+      "id": "高中思想政治",
+      "file": "senior-politics",
+      "stage": "高中",
+      "subject": "思想政治",
+      "knowledge": 226,
+      "textbooks": 8,
+      "versions": 2
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+/* Editing chrome stays outside the paper and its exported layout. */
+.chalklee-save-menu[data-state="saved"] .chalklee-save-main > svg { color: var(--cm-ui-success); }
+.chalklee-editor-toolbar .chalklee-save-menu[data-state="dirty"] .chalklee-save-main { color: var(--cm-theme-accent-ink); }
+.chalklee-editor-toolbar .chalklee-save-menu[data-state="error"] .chalklee-save-main { color: var(--cm-ui-danger); }
+.chalklee-save-main .loading-spinner { width: 12px; height: 12px; }
+
+/* The notice floats centred above the page and zoom controls, never beneath them. */
+.chalklee-editor-status {
+  height: auto;
+  min-height: 32px;
+  position: absolute;
+  z-index: 48;
+  bottom: 54px;
+  left: 50%;
+  width: max-content;
+  max-width: min(560px, calc(100% - 32px));
+  box-sizing: border-box;
+  transform: translateX(-50%);
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  overflow: visible;
+  font-size: var(--cm-font-size-small);
+  line-height: 1.6;
+  white-space: normal;
+  border: 1px solid var(--cm-ui-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 18px rgb(var(--cm-theme-shadow-rgb) / .08);
+}
+
+
+.chalklee-editor-status > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.chalklee-editor-status[data-state="notice"] { color: var(--cm-ui-text); background: var(--cm-ui-surface-soft); }
+.chalklee-editor-status button {
+  min-height: 24px;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  color: inherit;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.chalklee-editor-status button:hover { background: var(--cm-theme-hover-bg); }
+
+.chalklee-question-settings-panel { gap: 12px; }
+.chalklee-question-settings-panel .chalklee-question-settings-row { gap: 8px; }
+.chalklee-question-settings-panel label { flex: initial; gap: 4px; }
+.chalklee-question-settings-panel .chalklee-question-settings-row > label { flex: 1; }
+.chalklee-question-settings-panel .chalklee-question-region-controls button { min-height: 28px; font-size: var(--cm-font-size-small); }
+.chalklee-question-settings-panel .chalklee-answer-picker-options button { min-width: 24px; height: 28px; font-size: var(--cm-font-size-small); }
+.chalklee-question-settings-panel .chalklee-question-option-controls { padding: 8px; gap: 6px; border: 0; border-radius: 8px; background: var(--cm-ui-surface-soft); }
+.chalklee-question-settings-panel .chalklee-question-option-controls > header select { height: 28px; }

@@ -1,0 +1,31 @@
+/* 标题自动编号：由文档的 headingNumbering 开启，编号不写进标题文字。屏幕与打印共用。
+   从 data-heading-from 级开始，最多三级；设计 CSS 可以给 ::before 设置颜色与间距。 */
+.chalklee-paper[data-heading-numbering] { counter-reset: chalklee-heading-1 chalklee-heading-2 chalklee-heading-3; }
+#chalklee-print-root .chalklee-paper[data-heading-numbering] { counter-reset: chalklee-auto-question chalklee-heading-1 chalklee-heading-2 chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering][data-heading-from="1"] .chalklee-editor-content > h1 { counter-increment: chalklee-heading-1; counter-set: chalklee-heading-2 chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering="decimal"][data-heading-from="1"] .chalklee-editor-content > h1::before { content: counter(chalklee-heading-1); margin-right: .6em; }
+.chalklee-paper[data-heading-numbering="chinese"][data-heading-from="1"] .chalklee-editor-content > h1::before { content: counter(chalklee-heading-1, simp-chinese-informal) "、"; }
+.chalklee-paper[data-heading-numbering][data-heading-from="1"] .chalklee-editor-content > h2 { counter-increment: chalklee-heading-2; counter-set: chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering="decimal"][data-heading-from="1"] .chalklee-editor-content > h2::before { content: counter(chalklee-heading-1) "." counter(chalklee-heading-2); margin-right: .6em; }
+.chalklee-paper[data-heading-numbering="chinese"][data-heading-from="1"] .chalklee-editor-content > h2::before { content: "（" counter(chalklee-heading-2, simp-chinese-informal) "）"; }
+.chalklee-paper[data-heading-numbering][data-heading-from="1"] .chalklee-editor-content > h3 { counter-increment: chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering="decimal"][data-heading-from="1"] .chalklee-editor-content > h3::before { content: counter(chalklee-heading-1) "." counter(chalklee-heading-2) "." counter(chalklee-heading-3); margin-right: .6em; }
+.chalklee-paper[data-heading-numbering="chinese"][data-heading-from="1"] .chalklee-editor-content > h3::before { content: counter(chalklee-heading-3) "."; margin-right: .25em; }
+.chalklee-paper[data-heading-numbering][data-heading-from="2"] .chalklee-editor-content > h2 { counter-increment: chalklee-heading-1; counter-set: chalklee-heading-2 chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering="decimal"][data-heading-from="2"] .chalklee-editor-content > h2::before { content: counter(chalklee-heading-1); margin-right: .6em; }
+.chalklee-paper[data-heading-numbering="chinese"][data-heading-from="2"] .chalklee-editor-content > h2::before { content: counter(chalklee-heading-1, simp-chinese-informal) "、"; }
+.chalklee-paper[data-heading-numbering][data-heading-from="2"] .chalklee-editor-content > h3 { counter-increment: chalklee-heading-2; counter-set: chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering="decimal"][data-heading-from="2"] .chalklee-editor-content > h3::before { content: counter(chalklee-heading-1) "." counter(chalklee-heading-2); margin-right: .6em; }
+.chalklee-paper[data-heading-numbering="chinese"][data-heading-from="2"] .chalklee-editor-content > h3::before { content: "（" counter(chalklee-heading-2, simp-chinese-informal) "）"; }
+.chalklee-paper[data-heading-numbering][data-heading-from="2"] .chalklee-editor-content > h4 { counter-increment: chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering="decimal"][data-heading-from="2"] .chalklee-editor-content > h4::before { content: counter(chalklee-heading-1) "." counter(chalklee-heading-2) "." counter(chalklee-heading-3); margin-right: .6em; }
+.chalklee-paper[data-heading-numbering="chinese"][data-heading-from="2"] .chalklee-editor-content > h4::before { content: counter(chalklee-heading-3) "."; margin-right: .25em; }
+.chalklee-paper[data-heading-numbering][data-heading-from="3"] .chalklee-editor-content > h3 { counter-increment: chalklee-heading-1; counter-set: chalklee-heading-2 chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering="decimal"][data-heading-from="3"] .chalklee-editor-content > h3::before { content: counter(chalklee-heading-1); margin-right: .6em; }
+.chalklee-paper[data-heading-numbering="chinese"][data-heading-from="3"] .chalklee-editor-content > h3::before { content: counter(chalklee-heading-1, simp-chinese-informal) "、"; }
+.chalklee-paper[data-heading-numbering][data-heading-from="3"] .chalklee-editor-content > h4 { counter-increment: chalklee-heading-2; counter-set: chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering="decimal"][data-heading-from="3"] .chalklee-editor-content > h4::before { content: counter(chalklee-heading-1) "." counter(chalklee-heading-2); margin-right: .6em; }
+.chalklee-paper[data-heading-numbering="chinese"][data-heading-from="3"] .chalklee-editor-content > h4::before { content: "（" counter(chalklee-heading-2, simp-chinese-informal) "）"; }
+.chalklee-paper[data-heading-numbering][data-heading-from="3"] .chalklee-editor-content > h5 { counter-increment: chalklee-heading-3; }
+.chalklee-paper[data-heading-numbering="decimal"][data-heading-from="3"] .chalklee-editor-content > h5::before { content: counter(chalklee-heading-1) "." counter(chalklee-heading-2) "." counter(chalklee-heading-3); margin-right: .6em; }
+.chalklee-paper[data-heading-numbering="chinese"][data-heading-from="3"] .chalklee-editor-content > h5::before { content: counter(chalklee-heading-3) "."; margin-right: .25em; }

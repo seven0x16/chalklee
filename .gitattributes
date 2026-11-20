@@ -1,0 +1,5 @@
+# Preserve document archives as binary files.
+*.chalklee binary
+*.docx binary
+*.doc binary
+*.pdf binary

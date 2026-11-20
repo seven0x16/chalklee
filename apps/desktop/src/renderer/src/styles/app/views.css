@@ -1,0 +1,490 @@
+.center-state strong {
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+}
+
+.center-state > span:not(.loading-spinner) {
+  max-width: 480px;
+  font-size: var(--cm-font-size-small);
+  line-height: 1.6;
+}
+
+.center-state.error svg {
+  color: var(--cm-ui-danger);
+}
+
+.loading-spinner {
+  width: 22px;
+  height: 22px;
+  display: inline-block;
+  border: 2px solid var(--cm-theme-step-6);
+  border-top-color: var(--cm-brand-blue);
+  border-radius: 50%;
+  animation: app-spin .8s linear infinite;
+}
+
+.viewer-loading {
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--cm-ui-subtle);
+}
+
+.viewer-loading .loading-spinner {
+  width: 18px;
+  height: 18px;
+}
+
+.app-global-statusbar {
+  height: 26px;
+  min-height: 26px;
+  flex: 0 0 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 8px 0 46px;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  background: transparent;
+  font-size: var(--cm-font-size-small);
+  line-height: 1;
+  -webkit-app-region: no-drag;
+}
+
+.app-global-status-left,
+.app-global-status-actions,
+.app-global-zoom-controls,
+.app-global-status-path,
+.app-global-status-path > span {
+  display: flex;
+  align-items: center;
+}
+
+.app-global-status-left {
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  gap: 10px;
+}
+
+.app-global-status-path {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, max-content);
+  height: 100%;
+  min-width: 0;
+  max-width: min(620px, 55vw);
+  gap: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.app-global-status-path > span {
+  height: 100%;
+  min-width: 0;
+  max-width: 160px;
+  gap: 2px;
+}
+
+.app-global-status-path > span > svg {
+  flex: 0 0 11px;
+  color: var(--cm-ui-subtle);
+}
+
+.workspace-breadcrumb-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-style: normal;
+}
+
+.app-global-status-path em.workspace-breadcrumb-label {
+  padding: 0 4px;
+}
+
+.app-global-status-path button {
+  height: 22px;
+  min-width: 0;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  color: inherit;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  font: inherit;
+}
+
+.app-global-status-path button:hover {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.app-global-status-path button:focus-visible {
+  color: var(--cm-ui-selected-fg);
+  outline: 2px solid var(--cm-theme-selection-border);
+  outline-offset: -1px;
+}
+
+.app-global-status-path button[aria-current="location"] {
+  color: var(--cm-ui-heading);
+  font-weight: 500;
+}
+
+.app-global-status-path button[data-context-open="true"] {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.app-global-status-page,
+.app-global-zoom-value {
+  height: 21px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-global-status-page { gap: 3px; }
+
+.app-global-status-page > button {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.app-global-status-page > button:hover:not(:disabled) {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.app-global-status-page > button:focus-visible {
+  color: var(--cm-ui-selected-fg);
+  outline: 2px solid var(--cm-theme-selection-border);
+  outline-offset: -2px;
+}
+
+.app-global-status-page > button:disabled { opacity: .28; cursor: default; }
+
+.app-global-status-actions {
+  height: 100%;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.chalklee-global-visibility-controls {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* The zoom divider matches the one after 解析. */
+.app-global-zoom-divider {
+  width: .5px;
+  height: 12px;
+  flex: 0 0 .5px;
+  margin: 0 4px 0 3px;
+  background: var(--cm-ui-divider);
+}
+
+.chalklee-global-visibility-controls::after {
+  content: "";
+  width: .5px;
+  height: 12px;
+  flex: 0 0 .5px;
+  margin-left: 7px;
+  background: var(--cm-ui-divider);
+}
+
+.chalklee-global-visibility-controls > label {
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 8px 0 6px;
+  color: var(--cm-ui-muted);
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+  transition: color 120ms ease-out, background-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.chalklee-global-visibility-controls > label:has(input:checked) {
+  color: var(--cm-ui-selected-fg);
+  background: var(--cm-ui-selected-bg);
+  box-shadow: var(--cm-ui-selected-shadow);
+}
+
+.chalklee-global-visibility-controls input {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  margin: 0;
+  appearance: none;
+  border: .75px solid var(--cm-ui-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.chalklee-global-visibility-controls input:checked {
+  border-color: transparent;
+  background: transparent;
+}
+
+.chalklee-global-visibility-controls input:checked::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 3.5px;
+  width: 3.5px;
+  height: 6.5px;
+  border: solid var(--cm-ui-selected-fg);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.chalklee-global-visibility-controls input:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .38);
+  outline-offset: 2px;
+}
+
+.app-global-zoom-controls {
+  height: 100%;
+  gap: 1px;
+}
+
+.app-global-zoom-controls button {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.app-global-zoom-controls button:hover:not(:disabled) {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.app-global-zoom-controls input[type="range"] {
+  width: 72px;
+  height: 14px;
+  margin: 0 2px;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.app-global-zoom-controls input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--cm-theme-accent) 0,
+    var(--cm-theme-accent) var(--zoom-fill, 50%),
+    var(--cm-neutral-step-6) var(--zoom-fill, 50%),
+    var(--cm-neutral-step-6) 100%
+  );
+}
+
+.app-global-zoom-controls input[type="range"]::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  appearance: none;
+  border: .5px solid rgb(var(--cm-theme-shadow-rgb) / .16);
+  border-radius: 50%;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 1px 2.5px rgb(var(--cm-theme-shadow-rgb) / .22);
+}
+
+.app-global-zoom-controls input[type="range"]:focus-visible {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .4);
+  outline-offset: 2px;
+  border-radius: 7px;
+}
+
+.app-global-zoom-controls .app-global-zoom-value {
+  width: 42px;
+  flex: 0 0 42px;
+  box-sizing: border-box;
+  margin: 0 1px;
+  padding: 0 4px;
+  color: inherit;
+  border: 0;
+  border-radius: 999px;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+  text-align: center;
+  cursor: text;
+}
+.app-global-zoom-controls .app-global-zoom-value:focus {
+  color: var(--cm-ui-text);
+  background: var(--cm-ui-surface);
+  box-shadow: inset 0 0 0 0.5px var(--cm-ui-border-strong);
+}
+.app-global-zoom-controls button[aria-pressed="true"] {
+  color: var(--cm-ui-selected-fg);
+  background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+}
+
+.chalklee-dialog-backdrop {
+  position: fixed;
+  z-index: 180;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(var(--cm-theme-shadow-rgb) / .26);
+  backdrop-filter: blur(4px);
+}
+
+.app-shell .complete-toast {
+  bottom: 31px;
+}
+
+.pdf-viewer-shell,
+.pdf-viewer-container {
+  position: absolute;
+  inset: 0;
+}
+
+.pdf-viewer-shell {
+  overflow: hidden;
+}
+
+.pdf-viewer-container {
+  overflow: auto;
+  outline: 0;
+  background: transparent;
+  scrollbar-width: none;
+}
+
+.pdf-viewer-container::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.pdf-overlay-scrollbar {
+  position: absolute;
+  z-index: 3;
+  display: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cm-ui-scrollbar, #C1C1C1);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .42), 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .32);
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+  will-change: transform, width, height;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .14s ease;
+}
+
+.pdf-viewer-shell:hover .pdf-overlay-scrollbar,
+.pdf-viewer-shell:has(.pdf-overlay-scrollbar:active) .pdf-overlay-scrollbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pdf-overlay-scrollbar-y {
+  top: 0;
+  right: 3px;
+  width: 6px;
+  min-height: 36px;
+}
+
+.pdf-overlay-scrollbar-x {
+  bottom: 3px;
+  left: 0;
+  height: 6px;
+  min-width: 36px;
+}
+
+.pdf-viewer-container .pdfViewer {
+  /* pdf.js includes the 96/72 point-to-CSS conversion in --scale-factor.
+     Match the paper-scaled spacing/shadows of the DOCX and ChalkLee surfaces. */
+  --cm-page-effect-scale: calc(var(--scale-factor) * .75);
+  padding: calc(var(--cm-document-page-gap) * var(--cm-page-effect-scale)) 0;
+}
+
+.pdf-viewer-container .pdfViewer .page {
+  margin: 0 auto calc(var(--cm-document-page-gap) * var(--cm-page-effect-scale));
+  border: 0;
+}
+
+.pdf-viewer-container .pdfViewer .page:last-child {
+  margin-bottom: 0;
+}
+
+.html-viewer-shell {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* A LaTeX original shows its source as written: read-only, never compiled. */
+.latex-source-viewer {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  background: var(--cm-ui-surface);
+  color: var(--cm-ui-fg);
+  font-size: var(--cm-font-size-body);
+}
+
+.latex-source-text {
+  box-sizing: border-box;
+  width: min(100%, 880px);
+  margin: 0 auto;
+  padding: 24px 32px 120px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* Pages without their own background read as on paper, in dark mode too. */
+.html-viewer-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--cm-document-paper-bg);
+  color-scheme: light;
+  transform-origin: 0 0;
+}

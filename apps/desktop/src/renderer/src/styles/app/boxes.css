@@ -1,0 +1,273 @@
+/* 盒子：讲义中带标题和边框的内容块。边框、底色和标题沿用题目边框的造型，样式来自文档。 */
+.chalklee-box {
+  --chalklee-question-padding-top: 12pt;
+  --chalklee-question-padding-left: 14pt;
+  --chalklee-question-padding-right: 14pt;
+  --chalklee-question-padding-bottom: 10pt;
+  position: relative;
+  display: block;
+  margin: 12pt 0;
+  padding: 12pt 14pt 10pt;
+  box-sizing: border-box;
+}
+
+.chalklee-box-content > [data-node-view-content-react] > :first-child { margin-top: 0; }
+.chalklee-box-content > [data-node-view-content-react] > :last-child { margin-bottom: 0; }
+
+/* A whole-box selection, as for an image or formula. */
+.chalklee-box.ProseMirror-selectednode,
+.chalklee-box.selected {
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .42);
+  outline-offset: 3px;
+}
+
+/* The box's handle sits in the left margin on its top edge, beside its title, apart from the handles of the
+   questions in it. It shows while the pointer is on the box itself (not on a question in it), while the box is
+   selected and while its menu is open; the transparent strip keeps it shown on the way across. */
+.chalklee-box-head {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  user-select: none;
+}
+.chalklee-box-head::before {
+  content: "";
+  position: absolute;
+  top: -14px;
+  left: -40px;
+  width: 40px;
+  height: 28px;
+}
+.chalklee-box-head > .chalklee-box-grip { top: -12px; left: -40px; cursor: pointer; }
+.chalklee-box:is([data-pointed="true"], .selected, .menu-open) > .chalklee-box-head > .chalklee-box-grip { opacity: 1; }
+.chalklee-box-head > .chalklee-question-object-actions { top: 16px; left: -40px; }
+.chalklee-box.menu-open > .chalklee-box-head { z-index: 12; }
+.chalklee-box.menu-open > .chalklee-box-head > .chalklee-question-object-actions {
+  opacity: 1;
+  pointer-events: auto;
+  animation: chalklee-question-actions-in .15s ease;
+}
+#chalklee-print-root .chalklee-box-head { display: none; }
+
+/* A short box moves to the next sheet as one piece; a long one breaks with closed edges in print. */
+.chalklee-paper:not([data-column-count="1"])[data-column-count] .chalklee-box[data-pagination-keep-together="true"] { break-inside: avoid; }
+
+#chalklee-print-root .chalklee-box { outline: none; }
+#chalklee-print-root .chalklee-box[data-pagination-keep-together="true"] { break-inside: avoid; }
+
+/* 盒子属性中的样式缩略图：与纸面相同的盒子结构和 CSS，按卡片宽度缩小，内容画成几道灰线。 */
+.chalklee-box-style-gallery { --chalklee-page-background: #ffffff; }
+.chalklee-box-style-gallery { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.chalklee-box-style-group + .chalklee-box-style-group { margin-top: 4px; }
+.chalklee-box-style-group > small {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--cm-ui-subtle);
+  font-size: var(--cm-font-size-small);
+}
+/* As many columns as the right pane's width allows: three at its usual width, more when it is widened. */
+.chalklee-box-style-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 6px;
+}
+.chalklee-box-style-thumb {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 5px 5px 4px;
+  color: var(--cm-ui-muted);
+  border: .5px solid var(--cm-ui-border);
+  border-radius: 8px;
+  background: var(--cm-ui-surface-raised);
+  font-family: var(--cm-ui-font);
+  cursor: pointer;
+}
+.chalklee-box-style-thumb[aria-pressed="true"] {
+  color: var(--cm-ui-selected-fg);
+  border-color: transparent;
+  background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+}
+.chalklee-box-style-thumb:focus-visible { outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .5); outline-offset: -1px; }
+.chalklee-box-style-thumb > small {
+  overflow: hidden;
+  font-size: var(--cm-font-size-small);
+  line-height: 1.3;
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Concentric with the card: 8px card = 3px paper + 5px inset. */
+.chalklee-box-style-thumb-paper {
+  position: relative;
+  display: block;
+  height: 54px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #ffffff;
+  container-type: inline-size;
+  pointer-events: none;
+}
+.chalklee-box-style-thumb-paper > .chalklee-box {
+  --chalklee-thumb-scale: .3;
+  position: absolute;
+  top: 13px;
+  left: 6px;
+  width: calc((100cqw - 12px) / var(--chalklee-thumb-scale));
+  min-height: 0 !important;
+  margin: 0 !important;
+  color: #111111;
+  font: 10.5pt/1.75 "Songti SC", "STSong", "SimSun", serif;
+  transform: scale(var(--chalklee-thumb-scale));
+  transform-origin: left top;
+}
+.chalklee-box-style-thumb-paper .chalklee-box-content > i {
+  display: block;
+  height: 7pt;
+  margin: 7pt 0;
+  border-radius: 2pt;
+  background: currentColor;
+  opacity: .16;
+}
+.chalklee-box-style-thumb-paper .chalklee-box-content > i:last-child { width: 62%; }
+/* Each thumbnail sits in a cell with its "…" menu button, shown while the cell is pointed at or focused. */
+.chalklee-box-style-thumb-cell { position: relative; min-width: 0; display: flex; flex-direction: column; }
+.chalklee-box-style-thumb-more {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-ui-muted);
+  border: .5px solid var(--cm-ui-border);
+  border-radius: 5px;
+  background: var(--cm-ui-surface-raised);
+  opacity: 0;
+  cursor: pointer;
+}
+.chalklee-box-style-thumb-cell:is(:hover, :focus-within) > .chalklee-box-style-thumb-more { opacity: 1; }
+.chalklee-box-style-rename {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  left: 4px;
+  height: 20px;
+  min-width: 0;
+  padding: 0 4px;
+  color: var(--cm-ui-text);
+  border: .5px solid var(--cm-theme-accent-strong);
+  border-radius: 4px;
+  background: var(--cm-ui-surface-raised);
+  font: inherit;
+  font-size: var(--cm-font-size-small);
+  text-align: center;
+}
+/* The box style panel: one line to ask ChalkLee AI, then the thumbnails. */
+.chalklee-box-style-panel { gap: 2px; }
+/* Echoes ChalkLee AI's button in the title bar: its gradient star, a hairline running from the spark hue into the
+   accent, a pale theme wash, and a solid theme-gradient round send button. */
+.chalklee-box-style-ask {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 3px 0 10px;
+  border: .5px solid transparent;
+  border-radius: 17px;
+  background:
+    linear-gradient(135deg, var(--cm-ui-surface-raised), var(--cm-theme-step-2)) padding-box,
+    linear-gradient(135deg, var(--cm-theme-spark), var(--cm-theme-accent) 55%, var(--cm-theme-step-7)) border-box;
+  box-shadow: 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06);
+}
+.chalklee-box-style-ask:focus-within { box-shadow: 0 0 0 3px rgb(var(--cm-theme-accent-rgb) / .12); }
+.chalklee-box-style-ask > svg { flex: none; }
+.chalklee-box-style-ask > input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  color: var(--cm-ui-text);
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--cm-font-size-body);
+}
+.chalklee-box-style-ask > input::placeholder { color: var(--cm-ui-muted); }
+/* The field's own border shows focus; the panel's input frame and focus ring stay off this one. */
+.chalklee-question-settings .chalklee-box-style-ask > input,
+.chalklee-question-settings .chalklee-box-style-ask > input:is(:focus, :focus-visible, :hover) {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+/* Concentric with the field: 17px field = 14px button + 3px inset. */
+.chalklee-box-style-ask > button {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--cm-theme-on-accent);
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--cm-theme-accent), var(--cm-theme-accent-strong));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), 0 1px 2px rgb(var(--cm-theme-accent-rgb) / .3);
+  cursor: pointer;
+}
+.chalklee-box-style-ask > button:disabled { opacity: .35; box-shadow: none; cursor: default; }
+
+/* 保存当前, first in 我的样式: the current style with a "+", on the theme's light tint to stand apart. */
+.chalklee-box-style-save {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 5px 5px 4px;
+  color: var(--cm-ui-text);
+  border: .5px solid var(--cm-ui-border-strong);
+  border-radius: 8px;
+  background: var(--cm-ui-surface-raised);
+  font-family: var(--cm-ui-font);
+  cursor: pointer;
+}
+.chalklee-box-style-save:hover { background: var(--cm-theme-hover-bg); }
+.chalklee-box-style-save:focus-visible { outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .5); outline-offset: -1px; }
+.chalklee-box-style-save > small {
+  overflow: hidden;
+  font-size: var(--cm-font-size-small);
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  white-space: nowrap;
+}
+.chalklee-box-style-save-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--cm-theme-on-accent);
+  border-radius: 999px;
+  background: var(--cm-theme-accent-strong);
+  box-shadow: 0 0 0 2px var(--cm-ui-surface-raised);
+}
+
+/* 页眉、页脚的样式缩略图：画成灰线的文字和正文，线条按实际样式画出。 */
+.chalklee-paper-style-thumb-paper > svg { display: block; width: 100%; height: 100%; }

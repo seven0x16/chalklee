@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="510" height="140" viewBox="-10 0 510 140" role="img" aria-labelledby="logo-title logo-desc">
+  <style>
+    @font-face {
+      font-family: "Poppins Embedded";
+      src: url("data:font/woff2;base64,d09GMgABAAAAAAVYAAwAAAAACgwAAAUKAAQBBgAAAAAAAAAAAAAAAAAAAAAAAAAAGyAceAZgAIEECooEh3EBNgIkA0wLKAAEIAWDMAcgGwIICB6FcZtzilCEyncq05ZCPDzc7z33vtf4f69pE67Q8SithSY4gdIJlcHz4d+z/tyk7bbJGiO3HtDZYYmknQX4tQ9eKwu5D3b/AwDXnro0zdklllCwewBbN9+0Xqw2SyjCsYS+tAr+4y+UeaCfB7I3XQ6ZWlMO0e8+LUBvsqnIQVlNC+QkwCCAEYv0octHX1kGNIjYg/1IcVkOoKjJOgr9LKg0GK0ayRAglEShgxwvMwh5CEtSTCe/qiBfqQ7A+fvYuIQmqgBqF+7wuNOLsnpcQCFvOfH/zTCXPkoA+o7coU4CtkhAggJM0IhCS/h/o4XhaHKlKtWq16RFPzMHN+8gdgGMnevndmedcpLouN122marLREaNQZva1iDeAGS8VNqbZYJNohIlIGSHdwNWnqEQjGVVQyWDBk+fJhCPmr4TTXm802sZMzkwabBLUwv2820cR1fPMXCJ0+YwdIha54OO1YY2TWPyaJHDPNW+Il4VgL2PxxmjVytzGFStdrGhIUT+HaHtaxzzepnz8g3TwPFGCn7nuOOFNsLFmOIwdUd11sy0jlpuoPhKNTd3fuRtXaRb5kH8CXZOlJ4hnCMhczM1dJpldpwWQ0zwJSMlCFdbSphJQzZW8rcJ89yNIRNmaUl+Ueonl7EapCWEgfC7AfnyKLzZWex8AzTOqVtnUwbEA/VztbT31X3SZrMojDLbp7tEUyLWKonz0yETCfcwcK77HfrotXrZvwpLr3+wzMbv/YXBYrwO1fbn6c3tNhUpWNFRblFqW3Q5OTXN5HUdRkfq5SfZqx7/G9hukZbmp216a0XEfPd88Zmrt+31x1nWrW9V59f6srNEWprcwRXXml+r377qjjTXpfP+AbX84YVLx/f3sK96nRyL21v8n0ifjKrc9GSmbMWrZgd+C+AM9ydH7t/fDq0e+GJhd04c1zkRWieRJF/9/E79U/eeZcX5/wS8XME4urNXM9mqzUDlfFu6n6Dgrs3VxtLjK68nGAJjtzScqDgl8XR18a0j+XFHxu86YburJI6b+OoPdPm++cXFOQbDP8Wzgf73n2S47lT3Yi5K1kwUFZR2Ke52iDEC03XTNqC8lBFyeLmS4a05urklJTqpLSmzMy01pqUTzD701oyXXesNNjTPmeET4Vm0ShEqBjYebvSqM9wVJcGdFWVdfoGVXVVOv5T/r9LHbF6WO5fmDbtqpk6nzY1vSKej0fM6L+RL97+9ju0dP/1H1/FmU/O1T7FG0qrPtMbcPrO+YfaYtVYlmjX5upbk5RVyhqvyffyxKLyDG1R+iI/yy0OWIqcGXmuyuJgwwJFTYSmSEVeNiRGRo1LASBAGTLL8+cn9g7L+U1e0F8C/GzddQngf6zhzn9f/HdK8a1ED2hQgIA/zdQ9g+C/WheC/CY3jF/JL0TlAKoLKWLzKqpz8B0OObLgTcPBQTPTOsTndkqitKswX04m4RJ6i7IHsQgY24jBQmQpH1egQMuKRkoF4A2gyMRkm8mUoc6RaVnuTEpQshQTMpLM5Bj+TkIwNVJQzMdvFp6DjV1QBA3V3R2hhYEs2ga42s/BS9jqeT5OFibH8kIhQXal5TFtQsDzgvwEWZSUbBz7/iFGaUx8PJSc28o3buZlxptFmXJ2Ygl/81oWZg4hHk0sbELc+vEqtShTL1uEswS7RieNioqOUQaylzttqrakYLeRm8umEgTb3nKLWSL0owGGpQEX") format("woff2");
+      font-style: normal;
+      font-weight: 500;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Poppins Embedded";
+      src: url("data:font/woff2;base64,d09GMgABAAAAAAVwAAwAAAAAChwAAAUiAAQBBgAAAAAAAAAAAAAAAAAAAAAAAAAAGyAceAZgAIEECooIh2oBNgIkA0wLKAAEIAWDPAcgGwcIyC4KbHBHAeet8yREqHytQ3MpPsULntC//s9MchfJ7nsfNCupglChkjT/a+ofswrThRguF8QCyXRvEsEBsCsIOz25+vk8l/tXG2RSNjfIsqVpIGHCUbym3ZiU3RrcAOt5/Q8AnDX/a2em38/ViVWx6H0hipa+Uv5/MxdMkiVIlEqENLGGefK465TEkegs6g10Ktx7MQI4MoBmV41ajgA4iAX4LwAgTjUy7Gk826M4gAC2jGUBE++owC4oJylm+HAuBM56q9mPAIgHPKIQYYUII/091nTTNuwDnTdTAPWnSicgaQCAMI2icLO6LUxu8BVVadh0/zbSww7W4cBP0Hx6HJCFvYACBkjBHsQj7mVIIA0nb38rQk2sOHHjI0CWAgg1Gv8FVV9JZaq/txOwGBTS2dHO1iahMSV3kbmYGQAygqIx0HYYKAZBkRyhulF3P0fEJI1GM/lozMaTJDkRjSRP4unPHR7lbYqMR7vHWrjOvqNr1S7yz2GKfcXFgvh8J+pXp9WR+ZpMVZ27OSHMPP62d/3ey2np9rhunn2FKTjQkekV91dshntNXquo8y7wdz1shNtTfWeO4IgTC3pmZ+uC8QXTxrVTONCx8x8C01R2aiJoA8UmvtV4O6dOFX+LtqXQZCmxajSHrQuceO0FxVsn2+QfeOyqZb3+LakBKifVmakvRpTiZ6fn76syVatXmCK7ljYLxFvxWtTWvk1bE/Z7jW5+zFo/dfX7jWaYkTO4TXYtUifXvLMiyQyeKYL/MCNVwbXVryObuvyK5jvz7MHcgCPt6qdVElEA5phZ79O1SyyBV6DUeD3/m1LvQKcnoSXp2uJiweeNefxCsp3rsPF2u0L/yRCP3GmHeFJlSiKATUZBee6plIag9h18v8eDQQGekbgDg4fM1paxmwgSu+5+UWOH/dKn2nBYrw8njfxGd7aHO/8Ofn04Omzlh5XDwDbDLjhC8UdH2AUXjjz7Hf11YQG77m7IX0yu0KZZ+i5c6iFveS5/N566W4JT+0zVXFoiREwmYTktVqszYhd25xnJSNTg0TqxWpIZG2o6VCLJKIzuhuvsw9TEUV864HF70j7AHF68t86s79sA20+33DGaVQneq9E6feHkYQpSmTpm3UrwBTe3RU+mULQkqgWCqDYdJYRTl4WPj+j2FGXZv8OLvouml5M8R4ruq3yodRWJKnbjDKqmNUllOpMOmn0X/DejikGp//Hs2Y/nzDn2qaGlz/Ksc6/fQD13h18d+KX8mpztz5PjsdyqjZ1rkUN437f3IkQVgLk8MKQQ+GkcK9fZyXbXzy6qF7i5nF2rlqoJDKaWVF21Gi+6Gxd0qA85O7P6NHOmexkAgABWQqsmcw/TJyp8jRjzAsCN7ek8wO1YqY2/r7+P6OVAdQBhFACB/8sePQYQfnYPhfwcj5MvoBeRTqejpoHsegk1NQVGSYXR3JFJkVNbq4LVrcjam1ZCYZHWwQHnH6S9wbELSM4lxBjBfjk3MygQoRd7EBsFNoKdJ2ThLk9J4AzPUIntnRbmBThJ4IbIImmeKEImKYOeJi3GdECAKdMDCwS3D2AJ3JBFkwejtQVCg26xskOTCkXy2AEt/blUpkkHMlG5BHq0TitlcOAAg4DD++Rgk6dJHc49UKIZn65BgQ5jOHL2pskN+CnS/ccQdDSpUcBHEZg+NbJ0sBLAhBs52AjAZwhgw4WLgBwSTtv5oll6wwzsgPdAERZo6tk9pMgYLFn20Cj7f8UA") format("woff2");
+      font-style: normal;
+      font-weight: 600;
+      font-display: block;
+    }
+  </style>
+  <title id="logo-title">ChalkLee</title>
+  <desc id="logo-desc">A blue C-shaped title card that hooks into a completion mark beside the ChalkLee wordmark.</desc>
+  <defs>
+    <linearGradient id="blue-main" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0875ff"/>
+      <stop offset="0.55" stop-color="#0869f7"/>
+      <stop offset="1" stop-color="#075cf0"/>
+    </linearGradient>
+    <linearGradient id="blue-fold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4a9bff"/>
+      <stop offset="0.6" stop-color="#2879f5"/>
+      <stop offset="1" stop-color="#1362ee"/>
+    </linearGradient>
+    <linearGradient id="blue-word" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0874f9"/>
+      <stop offset="1" stop-color="#0762ee"/>
+    </linearGradient>
+    <linearGradient id="navy-word" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#031d50"/>
+      <stop offset="1" stop-color="#00143f"/>
+    </linearGradient>
+    <linearGradient id="option-line" gradientUnits="userSpaceOnUse" x1="53" y1="0" x2="91" y2="0">
+      <stop offset="0" stop-color="#89a9ff"/>
+      <stop offset="1" stop-color="#718df7"/>
+    </linearGradient>
+    <filter id="fold-shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.6" flood-color="#0b4ec5" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <g id="mark" aria-label="ChalkLee document mark">
+    <g id="mark-frame">
+      <path id="document-frame" pathLength="1" d="M 79 41.5 L 37 41.5 C 28.4 41.5 21.5 48.4 21.5 57 L 21.5 113.5 C 21.5 122.3 28.7 129.5 37.5 129.5 L 78.5 129.5 C 84.5 129.5 88.8 126.4 91.4 121.6" fill="none" stroke="url(#blue-main)" stroke-width="13" stroke-linecap="butt" stroke-linejoin="round"/>
+      <path id="fold" fill="url(#blue-fold)" filter="url(#fold-shadow)" d="M78 35H80.2a2.5 2.5 0 0 1 1.77.73l22.2 22.2c1.9 1.9.6 5.1-2.1 5.1H89.4c-6.4 0-11.4-5.1-11.4-11.4Z"/>
+    </g>
+
+    <g id="choice-a" aria-label="choice A">
+      <circle cx="42" cy="70.5" r="6.9" fill="url(#blue-main)"/>
+      <text x="42" y="74.3" text-anchor="middle" fill="#fff" font-family="Poppins Embedded, sans-serif" font-size="10.12" font-weight="600">A</text>
+    </g>
+    <g id="choice-b" aria-label="choice B">
+      <circle cx="42" cy="87.25" r="6.9" fill="url(#blue-main)"/>
+      <text x="42" y="91.05" text-anchor="middle" fill="#fff" font-family="Poppins Embedded, sans-serif" font-size="10.12" font-weight="600">B</text>
+    </g>
+    <g id="choice-c" aria-label="choice C">
+      <circle cx="42" cy="104" r="6.9" fill="url(#blue-main)"/>
+      <text x="42" y="107.8" text-anchor="middle" fill="#fff" font-family="Poppins Embedded, sans-serif" font-size="10.12" font-weight="600">C</text>
+    </g>
+
+    <g id="choice-lines" fill="none" stroke="url(#option-line)" stroke-width="5" stroke-linecap="round">
+      <path id="choice-line-a" pathLength="1" d="M56.4 70.5H88.5"/>
+      <path id="choice-line-b" pathLength="1" d="M56.4 87.25H88.5"/>
+      <path id="choice-line-c" pathLength="1" d="M56.4 104H78.5"/>
+    </g>
+
+    <g id="check-badge">
+      <circle cx="95.5" cy="115.5" r="14.4" fill="#fff"/>
+      <circle cx="95.5" cy="115.5" r="12.4" fill="url(#blue-main)"/>
+    </g>
+    <path id="check-stroke" pathLength="1" d="M89.4 115.2l4.4 4.5 8.1-9" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g id="sparkles" transform="translate(-9.8 12.2) scale(0.78)">
+      <path id="spark-large" transform="translate(6.8 4)" fill="url(#blue-main)" d="M17 10.5c1.7 8.2 4 10.8 13 12.8-9 2-11.3 4.5-13 13-1.8-8.5-4.2-11-13-13 8.8-2 11.2-4.6 13-12.8Z"/>
+      <path id="spark-small" transform="translate(-0.6 2.8)" fill="url(#blue-main)" d="M37 3.5c.8 4.2 2.1 5.5 6.2 6.5-4.1 1-5.4 2.3-6.2 6.4-.9-4.1-2.1-5.4-6.2-6.4 4.1-1 5.3-2.3 6.2-6.5Z"/>
+      <path id="spark-purple" fill="#9762ef" d="M47 17.2c1 4.9 2.5 6.4 7.4 7.6-4.9 1.1-6.4 2.6-7.4 7.4-1.1-4.8-2.6-6.3-7.4-7.4 4.8-1.2 6.3-2.7 7.4-7.6Z"/>
+    </g>
+  </g>
+
+  <g id="wordmark" aria-label="ChalkLee" transform="translate(123 86.8) scale(1.25) translate(-123 -78)">
+    <g id="word-chalk" fill="url(#navy-word)" font-family="Poppins Embedded, sans-serif" font-size="64" font-weight="500">
+      <text id="letter-c" x="0" y="100" transform="matrix(0.93187 0 0 1.00687 123.08859 -2.69149)">C</text>
+      <text id="letter-h" x="0" y="100" transform="matrix(0.88739 0 0 0.92249 167.39338 5.75129)">h</text>
+      <text id="letter-a" x="0" y="100" transform="matrix(0.85854 0 0 0.91967 203.08815 6.11337)">a</text>
+      <text id="letter-l" x="0" y="100" transform="matrix(1.18840 0 0 0.92249 237.24643 5.75129)">l</text>
+      <text id="letter-k" x="0" y="100" transform="matrix(0.94260 0 0 0.92249 252.13531 5.75129)">k</text>
+    </g>
+    <g id="word-lee" fill="url(#blue-word)">
+      <path id="letter-lee-0" d="M189 92H424V0H75V695H189Z" transform="translate(288 98) scale(.064 -.064)"/>
+      <path id="letter-lee-1" d="M576 233H155Q160 167 204.0 127.0Q248 87 312 87Q404 87 442 164H565Q540 88 474.5 39.5Q409 -9 312 -9Q233 -9 170.5 26.5Q108 62 72.5 126.5Q37 191 37 276Q37 361 71.5 425.5Q106 490 168.5 525.0Q231 560 312 560Q390 560 451.0 526.0Q512 492 546.0 430.5Q580 369 580 289Q580 258 576 233ZM461 325Q460 388 416.0 426.0Q372 464 307 464Q248 464 206.0 426.5Q164 389 156 325Z" transform="translate(316.416 98) scale(.064 -.064)"/>
+      <path id="letter-lee-2" d="M576 233H155Q160 167 204.0 127.0Q248 87 312 87Q404 87 442 164H565Q540 88 474.5 39.5Q409 -9 312 -9Q233 -9 170.5 26.5Q108 62 72.5 126.5Q37 191 37 276Q37 361 71.5 425.5Q106 490 168.5 525.0Q231 560 312 560Q390 560 451.0 526.0Q512 492 546.0 430.5Q580 369 580 289Q580 258 576 233ZM461 325Q460 388 416.0 426.0Q372 464 307 464Q248 464 206.0 426.5Q164 389 156 325Z" transform="translate(355.904 98) scale(.064 -.064)"/>
+    </g>
+  </g>
+
+</svg>

@@ -1,0 +1,410 @@
+.workspace-pane-resizer {
+  position: relative;
+  z-index: 30;
+  align-self: stretch;
+  width: 8px;
+  min-width: 8px;
+  flex: 0 0 8px;
+  margin-inline: -8px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.workspace-pane-resizer > span {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 3px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--cm-theme-accent);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .75);
+  opacity: 0;
+  transform: scaleY(.92);
+  transition: opacity 120ms ease, transform 120ms ease;
+  pointer-events: none;
+}
+
+.workspace-pane-resizer:not(.suppress-hover):hover > span,
+.workspace-pane-resizer:focus-visible > span,
+.workspace-pane-resizer.dragging > span {
+  opacity: .82;
+  transform: scaleY(1);
+}
+
+.app-shell.is-resizing-pane::after {
+  content: "";
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  cursor: col-resize;
+}
+
+/* Quiet section titles: a small icon tile, clear type and restrained secondary controls. */
+.app-shell :is(.sidebar-pane-header, .question-pane-header, .inspector-section-heading) {
+  height: var(--cm-workspace-header-height);
+  flex: 0 0 var(--cm-workspace-header-height);
+  margin: 0;
+  box-sizing: border-box;
+  border-bottom: 0;
+}
+
+.app-shell :is(.sidebar-pane-header, .question-pane-header, .inspector-section-toggle) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+.app-shell :is(.sidebar-pane-header, .question-pane-header, .inspector-section-toggle) > svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  padding: 3px;
+  box-sizing: content-box;
+  color: var(--cm-theme-accent-ink);
+}
+
+.app-shell :is(.sidebar-pane-header, .question-pane-header, .inspector-section-toggle) > :is(strong, .inspector-section-title) {
+  font-size: var(--cm-font-size-body);
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--cm-ui-heading);
+  white-space: nowrap;
+}
+
+/* Empty right panes: the pane's icon or a small illustration, a title and at most a short line,
+   centred in the pane's free space and lifted a little, the same way as the ChalkLee AI greeting. */
+.sidebar-overlay-scroll-content:has(> .panel-empty) {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+/* Lists pad their top and bottom unevenly; drop it so every hint shares one centre line. */
+.app-shell :is(.document-outline-tree, .document-properties-tab):has(> .sidebar-overlay-scroll-content > .panel-empty) { padding-block: 0; }
+.panel-empty {
+  flex: 1 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 20px 64px;
+  box-sizing: border-box;
+  color: var(--cm-ui-muted);
+  text-align: center;
+  isolation: isolate;
+}
+/* Two stacked sheets, echoing the original and the ChalkLee page in the conversion guide. */
+.panel-empty-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin: 4px 0 6px;
+  box-sizing: border-box;
+  border: 0.5px solid var(--cm-theme-step-6);
+  border-radius: 11px;
+  color: var(--cm-theme-accent-ink);
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06), 0 6px 16px rgb(var(--cm-theme-shadow-rgb) / .08);
+}
+.panel-empty-icon::before {
+  content: "";
+  position: absolute;
+  inset: -0.5px;
+  z-index: -1;
+  box-sizing: border-box;
+  border: 0.5px solid var(--cm-theme-step-5);
+  border-radius: inherit;
+  background: var(--cm-theme-step-3);
+  transform: translate(-6px, 3px) rotate(-12deg);
+}
+.panel-empty-icon > svg { stroke-width: 1.75; }
+.panel-empty > strong {
+  color: var(--cm-ui-heading);
+  font-size: var(--cm-font-size-body);
+  font-weight: 600;
+  line-height: 20px;
+}
+.panel-empty > p {
+  max-width: 236px;
+  margin: 0;
+  font-size: var(--cm-font-size-small);
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+.panel-empty p > .nowrap { white-space: nowrap; }
+/* A control named in the hint is drawn as a small key. */
+.panel-empty p > svg { box-sizing: content-box; padding: 1px; border: 0.5px solid var(--cm-ui-border); border-radius: 4px; vertical-align: -3px; background: var(--cm-ui-surface-raised); }
+.panel-empty > button { margin-top: 8px; color: var(--cm-ui-text); }
+
+.app-shell .sidebar-pane-header { background: transparent; }
+.app-shell :is(.sidebar-pane-header, .question-pane-header) > strong { flex: none; }
+
+.app-shell .question-pane-header > .question-pane-text-button {
+  height: 24px;
+  padding: 0 7px;
+  font-size: var(--cm-font-size-small);
+}
+
+.app-shell .sidebar-pane-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  opacity: .72;
+  transition: opacity 150ms ease-out;
+}
+
+.app-shell :is(.sidebar-pane-header, .question-pane-header):is(:hover, :focus-within) .sidebar-pane-actions,
+.app-shell .sidebar-pane-actions:has([aria-expanded="true"], .active) {
+  opacity: 1;
+}
+
+.app-shell .sidebar-pane-actions > :is(button, .app-select) {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+
+.app-shell .sidebar-pane-actions button:not(.app-select-option) {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  color: var(--cm-ui-subtle);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.app-shell .sidebar-pane-actions button:not(.app-select-option):disabled {
+  background: transparent;
+}
+
+.app-shell.app-shell {
+  background: var(--cm-theme-shell);
+}
+
+.sidebar-pane-actions button:not(.app-select-option):disabled,
+.app-global-zoom-controls button:disabled,
+.app-global-zoom-controls input:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+.app-sidebar-empty {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+  color: var(--cm-ui-subtle);
+  text-align: center;
+  font-size: var(--cm-font-size-small);
+}
+
+.app-sidebar-empty > svg {
+  color: var(--cm-ui-subtle);
+}
+
+.app-sidebar-empty button,
+.center-state > button {
+  height: 31px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 13px;
+  color: var(--cm-theme-on-accent);
+  border: 0;
+  border-radius: 6px;
+  background: var(--cm-brand-blue);
+  cursor: pointer;
+}
+
+.tree-folder-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tree-folder-button:hover {
+  color: var(--cm-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.tree-folder-button > svg {
+  flex-shrink: 0;
+}
+
+.app-shell .workspace-tree {
+  --cm-sidebar-font-size: var(--cm-font-size-body);
+  padding: 4px 8px 14px;
+}
+
+.app-shell .tree-folder-children::before {
+  background: var(--cm-ui-divider);
+}
+
+.sidebar-overlay-scroll-shell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar-overlay-scroll-area {
+  position: absolute !important;
+  inset: 0;
+  overflow: auto !important;
+  scrollbar-width: none;
+}
+
+.sidebar-overlay-scroll-area::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.sidebar-overlay-scroll-content {
+  min-width: 100%;
+}
+
+.inspector-tab-content > .sidebar-overlay-scroll-content > header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+
+.inspector-tab-content > .sidebar-overlay-scroll-content > header strong {
+  color: var(--cm-ui-heading);
+  font-size: var(--cm-sidebar-font-size);
+  font-weight: 400;
+}
+
+.inspector-tab-content > .sidebar-overlay-scroll-content > header span {
+  color: var(--cm-ui-subtle);
+  font-size: var(--cm-sidebar-meta-font-size);
+}
+
+.app-shell .tree-file,
+.app-shell .tree-folder-label {
+  height: 26px;
+  padding-block: 0;
+  line-height: 26px;
+  border-radius: 7px;
+}
+
+.app-shell .tree-file {
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 6px;
+  padding-left: calc(23px + var(--tree-depth, 0) * 12px);
+}
+
+.app-shell .tree-file.source { padding-left: calc(45px + var(--tree-depth, 0) * 12px); }
+.app-shell .tree-file.source > .document-file-icon { left: calc(23px + var(--tree-depth, 0) * 12px); }
+
+.app-shell .tree-folder-label > strong {
+  margin-left: 2px;
+}
+
+/* The current file, and rows picked with Shift- or ⌘／Ctrl-click, sit on the white card as a pale theme tint lifted by a hairline shadow. */
+.app-shell .workspace-tree .tree-file.active,
+.app-shell .workspace-tree :is(.tree-file, .tree-folder-label).selected {
+  color: var(--cm-ui-selected-fg);
+  background: var(--cm-ui-selected-bg);
+  box-shadow: var(--cm-ui-selected-shadow);
+}
+
+/* Files dragged in from outside, or moved within the tree: the folder they land in. */
+.app-shell .workspace-tree .tree-folder.drop-target {
+  border-radius: 7px;
+  background: var(--cm-theme-step-5);
+}
+
+.app-shell .workspace-tree.drop-target {
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1.5px var(--cm-theme-accent-ink);
+}
+
+.workspace-tree-creation { --workspace-name-error: var(--cm-ui-danger); }
+
+.app-shell .workspace-tree-create-row {
+  width: 100%;
+  color: var(--cm-ui-fg);
+  background: transparent;
+}
+
+.app-shell .workspace-tree-create-row input {
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  border: 1px solid var(--cm-theme-accent-ink);
+  border-radius: 4px;
+  outline: none;
+  background: var(--cm-ui-surface);
+  color: var(--cm-ui-fg);
+  font: inherit;
+  line-height: 22px;
+  user-select: text;
+}
+
+.app-shell .workspace-tree-create-row.tree-folder-label { padding-right: 6px; box-sizing: border-box; }
+.app-shell .workspace-tree-create-row.tree-folder-label input { flex: 1; margin-left: 2px; }
+.app-shell .workspace-tree-create-row input[aria-invalid="true"] { border-color: var(--workspace-name-error); }
+.app-shell .workspace-tree-create-row[aria-busy="true"] { opacity: .65; }
+.workspace-tree-create-error {
+  margin: 2px 5px 5px calc(45px + var(--tree-depth, 0) * 12px);
+  color: var(--workspace-name-error);
+  font-size: var(--cm-font-size-small);
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.complete-icon-tooltip {
+  width: max-content;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.complete-icon-tooltip[data-variant="filename"] {
+  max-width: min(520px, calc(100vw - 32px));
+}
+
+.tree-empty {
+  padding: 22px 16px;
+  color: var(--cm-ui-subtle);
+  text-align: center;
+  font-size: var(--cm-font-size-small);
+}
+
+.unified-document-tab.stale::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  left: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--cm-ui-warning-indicator);
+}

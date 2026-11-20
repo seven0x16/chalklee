@@ -1,0 +1,1010 @@
+{
+  "schemaVersion": "chalklee/0.3",
+  "id": "test-answer-appendix",
+  "metadata": {
+    "title": "结构测试样本",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_1",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "1"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_1_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_1_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_2",
+          "kind": "single-choice",
+          "number": {
+            "mode": "fixed",
+            "label": "2"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_2_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_2_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "optionGroup",
+            "attrs": {
+              "id": "question_2_options",
+              "layout": "auto"
+            },
+            "content": [
+              {
+                "type": "option",
+                "attrs": {
+                  "id": "question_2_option_A",
+                  "label": "A"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "question_2_option_A_p"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "A"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "option",
+                "attrs": {
+                  "id": "question_2_option_B",
+                  "label": "B"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "question_2_option_B_p"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "B"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "option",
+                "attrs": {
+                  "id": "question_2_option_C",
+                  "label": "C"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "question_2_option_C_p"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "C"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "option",
+                "attrs": {
+                  "id": "question_2_option_D",
+                  "label": "D"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "question_2_option_D_p"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "D"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_3",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "3"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_3_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_3_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_4",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "4"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_4_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_4_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_5",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "5"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_5_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_5_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_6",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "6"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_6_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_6_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_7",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "7"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_7_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_7_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_8",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "8"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_8_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_8_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_9",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "9"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_9_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_9_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_10",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "10"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_10_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_10_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_11",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "11"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_11_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_11_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_12",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "12"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_12_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_12_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_13",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "13"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_13_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_13_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_14",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "14"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_14_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_14_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_15",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "15"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_15_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_15_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_16",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "16"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_16_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_16_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_17",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "17"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_17_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_17_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_18",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "18"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_18_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_18_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_19",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "19"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_19_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_19_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "question",
+        "attrs": {
+          "id": "question_20",
+          "kind": "free-response",
+          "number": {
+            "mode": "fixed",
+            "label": "20"
+          },
+          "styleRef": "question.exam"
+        },
+        "content": [
+          {
+            "type": "questionStem",
+            "attrs": {
+              "id": "question_20_stem"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "question_20_body"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "示例题目"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "pageBreak",
+        "attrs": {
+          "id": "appendix-break"
+        }
+      },
+      {
+        "type": "image",
+        "attrs": {
+          "id": "appendix-image",
+          "assetId": "test-answer-image",
+          "alt": "Synthetic answer appendix",
+          "widthPt": 100,
+          "heightPt": 100
+        }
+      }
+    ]
+  },
+  "appearance": {
+    "page": {
+      "size": "A4",
+      "orientation": "portrait",
+      "marginsPt": {
+        "top": 36,
+        "right": 42,
+        "bottom": 42,
+        "left": 42
+      },
+      "background": {
+        "type": "solid",
+        "color": "#ffffff"
+      },
+      "printBackground": true
+    },
+    "body": {
+      "fontFamilies": [
+        "Times New Roman",
+        "Songti SC",
+        "SimSun",
+        "Noto Serif CJK SC",
+        "serif"
+      ],
+      "fontSizePt": 11.5,
+      "lineHeight": 1.8,
+      "color": "#202a30"
+    },
+    "defaults": {
+      "questionStyleRef": "question.exam",
+      "optionStyleRef": "option.default",
+      "answerStyleRef": "answer.default",
+      "analysisStyleRef": "analysis.default"
+    },
+    "questionStyles": {
+      "question.example": {
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#718999"
+        },
+        "borderRadiusPt": 6,
+        "paddingPt": {
+          "top": 12,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "重点例题",
+          "labelPosition": "top-left",
+          "labelStyle": "plain",
+          "accentColor": "#486879"
+        }
+      },
+      "question.practice": {
+        "backgroundColor": "#f0f8f5",
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#66a99a"
+        },
+        "borderRadiusPt": 3,
+        "paddingPt": {
+          "top": 12,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "随堂练习",
+          "labelPosition": "top-left",
+          "labelStyle": "filled",
+          "accentColor": "#2d7b6b"
+        }
+      },
+      "question.warmup": {
+        "backgroundColor": "#fff8ee",
+        "border": {
+          "style": "dashed",
+          "widthPt": 0.8,
+          "color": "#c89c65"
+        },
+        "borderRadiusPt": 5,
+        "paddingPt": {
+          "top": 15,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "温故知新",
+          "labelPosition": "top-center",
+          "labelStyle": "filled",
+          "accentColor": "#9c692f"
+        }
+      },
+      "question.challenge": {
+        "backgroundColor": "#fff7ed",
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#d49b5e"
+        },
+        "borderRadiusPt": 3,
+        "paddingPt": {
+          "top": 16,
+          "right": 16,
+          "bottom": 14,
+          "left": 24
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "巩固提升",
+          "labelPosition": "left",
+          "labelStyle": "filled",
+          "accentColor": "#9c692f"
+        }
+      },
+      "question.application": {
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#7ba29c"
+        },
+        "borderRadiusPt": 5,
+        "paddingPt": {
+          "top": 12,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "实际应用",
+          "labelPosition": "top-left",
+          "labelStyle": "plain",
+          "accentColor": "#397c70"
+        }
+      },
+      "question.exam": {
+        "gapPt": 0,
+        "breakInside": "auto"
+      },
+      "question.example.explained": {
+        "border": {
+          "style": "solid",
+          "widthPt": 0.8,
+          "color": "#718999"
+        },
+        "borderRadiusPt": 6,
+        "paddingPt": {
+          "top": 12,
+          "right": 16,
+          "bottom": 14,
+          "left": 16
+        },
+        "gapPt": 9,
+        "breakInside": "avoid",
+        "spaceBeforePt": 15,
+        "spaceAfterPt": 22,
+        "frame": {
+          "label": "典例精讲",
+          "labelPosition": "top-left",
+          "labelStyle": "plain",
+          "accentColor": "#486879"
+        }
+      }
+    },
+    "optionStyles": {
+      "option.default": {
+        "marker": "label",
+        "layout": "four-column",
+        "columnGapPt": 12,
+        "rowGapPt": 6,
+        "labelGapPt": 4
+      }
+    },
+    "answerStyles": {
+      "answer.default": {
+        "label": "答案"
+      }
+    },
+    "analysisStyles": {
+      "analysis.default": {
+        "label": "解析"
+      }
+    }
+  }
+}

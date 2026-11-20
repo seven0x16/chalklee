@@ -1,0 +1,22 @@
+{
+  "name": "@chalklee/word",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.10.1",
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "linkedom": "^0.18.12",
+    "mathlive": "^0.110.0",
+    "typescript": "^5.8.3"
+  },
+  "license": "AGPL-3.0-only"
+}

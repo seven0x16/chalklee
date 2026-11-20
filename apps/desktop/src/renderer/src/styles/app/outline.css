@@ -1,0 +1,351 @@
+/* The properties fill the right pane under their title. */
+.inspector-section {
+  display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; overflow: hidden;
+}
+.inspector-section-heading {
+  padding: 0; background: transparent; font: inherit;
+}
+.app-shell .inspector-section-toggle {
+  width: 100%; height: 100%;
+  border: 0; border-radius: 6px; background: transparent; color: var(--cm-ui-heading);
+  font: inherit; text-align: left;
+}
+.inspector-section-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inspector-section-detail {
+  flex: 0 1 auto; min-width: 0; margin-left: auto; padding: 0 6px; border-radius: 6px;
+  color: var(--cm-ui-muted); background: var(--cm-ui-surface-soft); font-size: var(--cm-font-size-small); font-weight: 500; line-height: 20px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.inspector-section-content { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.inspector-section-content[hidden] { display: none; }
+/* Previous and next question sit after the number; without a number they keep to the right like other pane actions. */
+.app-shell .inspector-section-detail + .inspector-question-steps { flex: none; margin-left: 2px; }
+
+.app-shell .document-outline-tree,
+.app-shell .traditional-outline {
+  padding: 2px 4px 10px;
+}
+
+.app-shell .chalklee-mixed-outline {
+  padding-inline: 12px;
+}
+
+.app-shell .chalklee-mixed-outline > .sidebar-overlay-scroll-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 28px);
+  column-gap: 4px;
+  row-gap: 4px;
+  align-content: start;
+  justify-content: start;
+  box-sizing: border-box;
+}
+
+.app-shell .traditional-outline .outline-entry {
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 8px;
+  color: var(--cm-ui-muted);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: var(--cm-font-size-small);
+  font-weight: 400;
+  line-height: 1.3;
+  grid-template-columns: none;
+}
+
+.app-shell .traditional-outline .outline-entry:hover {
+  color: var(--cm-hover-fg);
+  background: var(--cm-theme-hover-bg);
+}
+
+.app-shell .traditional-outline .outline-entry:active,
+.app-shell .traditional-outline .outline-entry:focus-visible {
+  outline: 0;
+  color: var(--cm-theme-accent-ink);
+  background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow);
+}
+
+.app-shell .traditional-outline .outline-entry.heading-entry.level-1 {
+  min-height: 24px;
+  margin-top: 2px;
+  color: var(--cm-ui-heading);
+  font-size: var(--cm-font-size-small);
+  font-weight: 600;
+}
+
+.app-shell .chalklee-mixed-outline .outline-entry.heading-entry {
+  grid-column: 1 / -1;
+  padding-inline: 0;
+}
+
+.app-shell .traditional-outline .outline-entry.heading-entry.level-1:first-child {
+  margin-top: 2px;
+}
+
+.app-shell .traditional-outline .outline-entry.heading-entry.level-1:hover {
+  color: var(--cm-hover-fg);
+}
+
+.app-shell .traditional-outline .outline-entry.heading-entry.level-1:active,
+.app-shell .traditional-outline .outline-entry.heading-entry.level-1:focus-visible {
+  color: var(--cm-ui-selected-fg);
+}
+
+.app-shell .traditional-outline .outline-entry.heading-entry.level-2 {
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+  font-weight: 500;
+}
+
+.app-shell .traditional-outline .outline-entry.heading-entry.level-3 {
+  color: var(--cm-ui-muted);
+  font-size: var(--cm-font-size-small);
+  font-weight: 400;
+}
+
+.app-shell .traditional-outline .outline-entry.question-entry + .outline-entry.heading-entry {
+  margin-top: 8px;
+}
+
+.app-shell .outline-label,
+.app-shell .traditional-outline .outline-entry > .outline-label {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  display: block;
+  overflow: hidden;
+  color: inherit;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--cm-font-size-small);
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .traditional-outline .outline-entry.heading-entry > .outline-label {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1.5;
+}
+
+.app-shell .outline-index,
+.app-shell .traditional-outline .outline-entry > .outline-index,
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry > .outline-index {
+  width: auto;
+  min-width: 1.5em;
+  height: auto;
+  flex: 0 0 auto;
+  display: block;
+  color: var(--cm-ui-subtle);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--cm-font-size-small);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry {
+  position: relative;
+  box-sizing: border-box;
+  width: 28px;
+  min-width: 28px;
+  min-height: 0;
+  height: 28px;
+  aspect-ratio: auto;
+  justify-content: center;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  color: var(--cm-ui-heading);
+  border-radius: 7px;
+  background: var(--cm-ui-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--cm-ui-border),
+    0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06);
+  font-variant-numeric: tabular-nums;
+  transition: color .12s ease, background-color .12s ease, box-shadow .12s ease;
+}
+
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry > .outline-index {
+  min-width: 0;
+  color: inherit;
+  font-size: var(--cm-font-size-small);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -.04em;
+  text-align: center;
+}
+
+/* An unnumbered question has no number to show; its dash stays quieter than the numbers. */
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry.is-unnumbered:not(:hover, :focus-visible, [aria-current="true"]) > .outline-index {
+  color: var(--cm-ui-subtle);
+}
+
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry > .outline-label {
+  display: none;
+}
+
+/* Basketed questions carry a small dot on the number box. */
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry > .outline-basket-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cm-theme-accent);
+  box-shadow: 0 0 0 1.5px var(--cm-ui-surface);
+  pointer-events: none;
+}
+
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry:hover {
+  color: var(--cm-theme-hover-fg);
+  background: var(--cm-theme-hover-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--cm-ui-border),
+    0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06);
+}
+
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry:active,
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry:focus-visible,
+.app-shell .chalklee-mixed-outline .outline-entry.question-entry[aria-current="true"] {
+  outline: 0;
+  color: var(--cm-ui-selected-fg);
+  background: var(--cm-ui-selected-bg);
+  box-shadow: var(--cm-ui-selected-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .chalklee-mixed-outline .outline-entry.question-entry {
+    transition: none;
+  }
+}
+
+.property-source-copy {
+  overflow-wrap: anywhere;
+}
+
+@keyframes app-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1060px) {
+  .app-shell .workspace-inspector {
+    display: none;
+  }
+
+  .app-shell.inspector-explicit-open .workspace-inspector { display: flex; }
+  .app-shell.inspector-explicit-open .workspace-left-column { display: none; }
+}
+
+/* The outline rail: short lines on the paper's right edge, the whole outline beside them on pointing. */
+.question-rail {
+  position: absolute;
+  z-index: 6;
+  inset: 0 10px 0 0;
+  pointer-events: none;
+}
+.question-rail-track {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  transform: translateY(-50%);
+  pointer-events: auto;
+  cursor: default;
+}
+.question-rail-track:focus-visible { outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .48); outline-offset: 0; }
+.question-rail.is-open .question-rail-track { visibility: hidden; }
+/* A question's margin controls come first: the rail fades out of their way and lets the pointer through. */
+.question-rail-track { transition: opacity 150ms ease-out; }
+.question-rail[data-yielding]:not(.is-open) .question-rail-track { opacity: 0; pointer-events: none; }
+.question-rail-mark {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 8px;
+  height: var(--question-rail-step);
+  /* The line is drawn centred in its slot so slots can pack tighter than the line is tall. */
+  background: linear-gradient(var(--question-rail-mark-color), var(--question-rail-mark-color)) center / 100% min(2px, var(--question-rail-step)) no-repeat;
+  --question-rail-mark-color: var(--cm-neutral-step-7);
+}
+.question-rail-mark.is-heading { width: 16px; height: calc(var(--question-rail-step) * 1.6); --question-rail-mark-color: var(--cm-neutral-step-8); }
+.question-rail-mark.is-heading.level-2 { width: 13px; }
+.question-rail-mark.is-heading.level-3 { width: 11px; }
+.question-rail-mark[data-in-view] { --question-rail-mark-color: var(--cm-neutral-step-11); }
+.question-rail-mark.is-heading[data-in-view] { --question-rail-mark-color: var(--cm-neutral-step-12); }
+.question-rail-mark.is-current { width: 14px; --question-rail-mark-color: var(--cm-theme-accent); }
+.question-rail-card {
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  width: 272px;
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border: .5px solid var(--cm-ui-border);
+  border-radius: 12px;
+  background: var(--cm-ui-surface-raised);
+  box-shadow: 0 10px 28px rgb(var(--cm-theme-shadow-rgb) / .16), 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .08);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(6px, -50%);
+  transition: opacity 150ms ease-out, transform 150ms ease-out, visibility 0s linear 150ms;
+  pointer-events: auto;
+}
+.question-rail.is-open .question-rail-card {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, -50%);
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+}
+.question-rail-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  flex: none;
+  margin: 0;
+  padding: 0 12px;
+  color: var(--cm-ui-heading);
+  font-size: var(--cm-font-size-body);
+  font-weight: 600;
+  line-height: 20px;
+}
+.question-rail-heading > svg { flex: none; color: var(--cm-theme-accent-ink); }
+/* The card is as tall as its outline, up to the paper's height, then scrolls. */
+.question-rail-card > .sidebar-overlay-scroll-shell { flex: 1 1 auto; display: flex; flex-direction: column; }
+.question-rail-card > .sidebar-overlay-scroll-shell > .sidebar-overlay-scroll-area { position: relative !important; inset: auto; flex: 1 1 auto; min-height: 0; }
+.app-shell .question-rail-card .document-outline-tree { padding-top: 0; padding-bottom: 12px; }
+/* Numbers on screen get a slightly firmer edge than the rest. */
+.app-shell .question-rail-card .chalklee-mixed-outline .outline-entry.question-entry[data-in-view]:not(:hover, :focus-visible, [aria-current="true"]) {
+  box-shadow: inset 0 0 0 1px var(--cm-ui-border-strong), 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .question-rail-track, .question-rail-card, .question-rail.is-open .question-rail-card { transition: none; }
+}
+@media print {
+  .question-rail { display: none; }
+}

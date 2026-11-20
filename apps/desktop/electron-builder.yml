@@ -1,0 +1,79 @@
+appId: com.chalklee.desktop
+productName: ChalkLee
+directories:
+  buildResources: resources
+  output: ../../dist
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+  - '!out/THIRD_PARTY_LICENSES.txt'
+extraResources:
+  - from: ../../LICENSE
+    to: LICENSE.txt
+  - from: ../../NOTICE
+    to: NOTICE.txt
+  - from: out/THIRD_PARTY_LICENSES.txt
+    to: THIRD_PARTY_LICENSES.txt
+asar: true
+electronLanguages:
+  - en
+  - zh-CN
+  - zh-TW
+mac:
+  target:
+    - dmg
+  category: public.app-category.education
+  # Ad-hoc signing keeps the bundle intact, so macOS offers "Open Anyway"
+  # instead of reporting the app as damaged. Hardened runtime is for notarized
+  # builds and would block Electron's ad-hoc signed frameworks from loading.
+  identity: "-"
+  hardenedRuntime: false
+  icon: resources/icon.png
+  extraResources:
+    - from: resources/chalklee-document.icns
+      to: chalklee-document.icns
+  extendInfo:
+    CFBundleDocumentTypes:
+      - CFBundleTypeName: ChalkLee 文档
+        CFBundleTypeRole: Editor
+        CFBundleTypeExtensions:
+          - chalklee
+        CFBundleTypeIconFile: chalklee-document.icns
+        LSHandlerRank: Owner
+        LSItemContentTypes:
+          - com.chalklee.document
+    UTExportedTypeDeclarations:
+      - UTTypeIdentifier: com.chalklee.document
+        UTTypeDescription: ChalkLee 文档
+        UTTypeIconFile: chalklee-document.icns
+        UTTypeConformsTo:
+          - public.data
+        UTTypeTagSpecification:
+          public.filename-extension:
+            - chalklee
+          public.mime-type: application/vnd.chalklee+zip
+dmg:
+  background: dmg-background.png
+  iconSize: 96
+  contents:
+    - x: 220
+      y: 96
+      type: file
+    - x: 460
+      y: 96
+      type: link
+      path: /Applications
+win:
+  target:
+    - nsis
+  icon: resources/icon-windows.png
+  fileAssociations:
+    - ext: chalklee
+      name: ChalkLee.Document
+      description: ChalkLee 文档
+      icon: chalklee-document.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
