@@ -4,7 +4,7 @@
 
 <p><strong>开源的本地题库与备课工具</strong>——把电脑里的 PDF 和 Word 变成可编辑、可搜题、可交给 AI 直接修改的试卷与讲义。</p>
 
-<a href="https://github.com/seven0x16/chalklee/releases/latest"><img src="https://img.shields.io/github/v/release/seven0x16/chalklee?label=Release&amp;color=3574f0&amp;style=flat-square" alt="Latest release"></a>
+<a href="https://github.com/seven0x16/chalklee/releases/latest"><img src="https://img.shields.io/github/v/release/seven0x16/chalklee?label=Release&amp;color=114837&amp;style=flat-square" alt="Latest release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_3.0-114837?style=flat-square" alt="License: AGPL 3.0"></a>
 <a href="#下载安装"><img src="https://img.shields.io/badge/Platform-macOS_%7C_Windows-114837?style=flat-square" alt="Platform: macOS and Windows"></a>
 <a href="#交流与反馈"><img src="https://img.shields.io/badge/QQ%E7%BE%A4-1135963910-114837?style=flat-square" alt="QQ 群 1135963910"></a>
