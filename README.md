@@ -103,7 +103,9 @@ ChalkLee 不绑定某一家 AI，也不用注册账号。转换和对话用的�
 
 ## 下载安装
 
-**[前往 Releases 下载最新版本](https://github.com/seven0x16/chalklee/releases/latest)**
+- **GitHub Releases**：[前往下载最新版本](https://github.com/seven0x16/chalklee/releases/latest)
+- **百度网盘**：[点此下载（v0.1.0）](https://pan.baidu.com/s/13gsD0gfH682c4CehH2K46Q?pwd=rwmh)，提取码 `rwmh`
+- **QQ 群文件**：加入交流群 **1135963910**（[扫码进群](#交流与反馈)），在群文件里下载
 
 | 电脑 | 安装包 |
 | --- | --- |
@@ -154,7 +156,7 @@ ChalkLee 本身开源免费，不用注册账号，也不收会员费。只有�
 
 ## 交流与反馈
 
-使用中遇到问题，或想分享教学场景、提出建议，欢迎加入 QQ 群 **1135963910**，也可以在 [Issues](https://github.com/seven0x16/chalklee/issues) 里反馈。
+使用中遇到问题，或想分享教学场景、提出建议，欢迎加入 QQ 群 **1135963910**（群文件同步提供安装包），也可以在 [Issues](https://github.com/seven0x16/chalklee/issues) 里反馈。
 
 <p align="left">
   <img src=".github/assets/qq-group.webp" width="168" alt="ChalkLee 交流群的 QQ 二维码，群号 1135963910">
