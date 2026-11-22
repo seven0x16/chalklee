@@ -39,6 +39,13 @@ function separateTableProse(source: string): string {
   }
   return result.join("\n");
 }
+// A printed "x² − 9 = ____" comes back as `$x^2 - 9 = $____`. The shared math rule reads a space before the closing $
+// as money ("$5 和 $10") and would print this formula raw, so an expression left open for a blank gets its edge closed.
+const OPEN_EXPRESSION = /(?:[=+\-−×÷<>≈≠≤≥]|\\(?:times|div|cdot|approx|neq?|leq?|geq?|pm|mp))\s+$/;
+function closeFormulasBeforeBlanks(source: string): string {
+  return source.replace(/(?<!\\)\$\$[\s\S]*?\$\$|(?<!\\)\$([^$\n]+?)(?<!\\)\$/g, (whole, latex: string | undefined, offset: number) =>
+    latex && OPEN_EXPRESSION.test(latex) && !/\d/.test(source[offset + whole.length] ?? "") ? `$${latex.trim()}$` : whole);
+}
 markdown.inline.ruler.before("emphasis", "pdf_blank", (state, silent) => {
   const match = state.src.slice(state.pos).match(/^_{2,}(\d{1,3})_{2,}|^_{3,}/);
   if (!match) return false;
@@ -98,7 +105,7 @@ export function pdfTranscriptReferences(unit: ImportUnit, transcript: ImportTran
   const blocks: any[] = [];
   let paragraph: any, table: any, row: any, cell: any;
   const add = (block: any) => (cell ? cell.content : blocks).push(block);
-  for (const token of markdown.parse(separateTableProse(transcript.markdown), {})) {
+  for (const token of markdown.parse(separateTableProse(closeFormulasBeforeBlanks(transcript.markdown)), {})) {
     switch (token.type) {
       case "paragraph_open": case "heading_open":
         paragraph = { type: token.type === "heading_open" ? "heading" : "paragraph", attrs: { id: id(), ...(token.type === "heading_open" ? { level: Number(token.tag.slice(1)) } : {}) }, content: [] };

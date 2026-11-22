@@ -28,6 +28,13 @@ import { parseTranscript } from "./transcript";
 const image = (id: string) => ({ id, dataUrl: "data:image/png;base64,cGFnZQ==", widthPt: 600, heightPt: 800 });
 const unit = (page: number): ImportUnit => ({ id: `page_${page}`, label: `第${page}页`, page, blocks: [], images: [image(`page_${page}`)] });
 const transcript = (markdown: string) => ({ markdown, figures: [], uncertainties: [], warnings: [] });
+it("keeps a formula that ends at a printed blank as a formula, and money as text", () => {
+  const nodes = (markdown: string) => (pdfTranscriptReferences(unit(1), transcript(markdown)).blocks[0] as any).content.map((node: any) => node.type === "text" ? node.text : node.type === "mathInline" ? `[${node.attrs.latex}]` : node.type);
+  expect(nodes("分解因式：$x^2 - 9 = $____。")).toEqual(["分解因式：", "[x^2 - 9 =]", "blank", "。"]);
+  expect(nodes("则 $k = $ ____，$a \\times $ ____")).toEqual(["则 ", "[k =]", " ", "blank", "，", "[a \\times]", " ", "blank"]);
+  expect(nodes("It costs $5 and $10.").join("")).toBe("It costs $5 and $10.");
+  expect(nodes("Change $5 = $10 today.").join("")).toBe("Change $5 = $10 today.");
+});
 it("preserves bold bracket labels next to Chinese prose without printing markup", () => {
   const result = pdfTranscriptReferences(unit(1), transcript("**【活动准备】**准备量尺。\n**【活动地点】**操场。"));
   expect(result.blocks[0]).toMatchObject({ content: [{ type: "text", text: "【活动准备】", marks: [{ type: "bold" }] }, { type: "text", text: "准备量尺。" }] });
