@@ -331,8 +331,8 @@
   border: 1px solid transparent; border-radius: 6px; color: var(--cm-ui-text); background: var(--cm-ui-fill); font: inherit; font-size: var(--cm-font-size-small); cursor: pointer;
 }
 .question-card-solutions {
-  height: 24px; display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 0 8px;
-  border: 0; border-radius: 6px; color: var(--cm-ui-muted); background: transparent; font: inherit; font-size: var(--cm-font-size-small); cursor: pointer;
+  flex: none; height: 24px; display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 0 8px;
+  border: 0; border-radius: 6px; color: var(--cm-ui-muted); background: transparent; font: inherit; font-size: var(--cm-font-size-small); white-space: nowrap; cursor: pointer;
 }
 .question-card-solutions > svg { transition: transform .14s ease; }
 .question-card-solutions > svg.open { transform: rotate(180deg); }

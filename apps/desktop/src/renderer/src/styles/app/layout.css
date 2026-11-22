@@ -364,7 +364,10 @@
 }
 
 .app-shell:not(.document-only-shell) .workspace-view-controls .chalklee-global-visibility-controls::after { content: none; }
-.app-shell:not(.document-only-shell) .workspace-view-controls .app-global-zoom-controls input[type="range"] { width: 72px; }
+/* In the narrowest document area the zoom slider gives way so the bar stays inside the card. */
+.app-shell:not(.document-only-shell) .workspace-view-controls { max-width: calc(100% - 26px); }
+.app-shell:not(.document-only-shell) .workspace-view-controls .app-global-zoom-controls { flex: 0 1 auto; min-width: 0; }
+.app-shell:not(.document-only-shell) .workspace-view-controls .app-global-zoom-controls input[type="range"] { flex: 0 1 72px; width: 72px; min-width: 40px; }
 .workspace-view-controls .app-global-status-page-label { min-width: 38px; text-align: center; }
 
 @media print {

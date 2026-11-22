@@ -214,12 +214,14 @@
 }
 
 .chalklee-global-visibility-controls > label {
+  flex: none;
   height: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
   padding: 0 8px 0 6px;
+  white-space: nowrap;
   color: var(--cm-ui-muted);
   border-radius: 999px;
   cursor: pointer;

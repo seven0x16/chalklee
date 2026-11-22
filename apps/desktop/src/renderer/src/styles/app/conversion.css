@@ -33,8 +33,8 @@
 
 /* Source previews use the toolbar row for their conversion banner. */
 .source-conversion-banner {
-  display: flex; flex: none; align-items: center; gap: 10px; height: var(--cm-document-toolbar-height); box-sizing: border-box;
-  padding: 0 12px; border-bottom: 1px solid var(--cm-ui-divider);
+  display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: var(--cm-document-toolbar-height); box-sizing: border-box;
+  padding: 6px 12px; border-bottom: 1px solid var(--cm-ui-divider);
   background: var(--cm-ui-surface-soft);
   color: var(--cm-ui-text);
 }
@@ -54,7 +54,8 @@
 /* No progress for a while: still running, but no longer shown as a confident spinner. */
 .source-conversion-banner.is-stalled .source-conversion-symbol, .conversion-task-row.is-stalled .conversion-task-symbol { color: var(--cm-ui-warning); }
 .source-conversion-banner.is-stalled .source-conversion-symbol { box-shadow: inset 0 0 0 1px var(--cm-ui-warning-border), 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06); }
-.source-conversion-copy { display: flex; align-items: baseline; flex: 1; gap: 10px; min-width: 0; font-size: var(--cm-font-size-small); line-height: 1.5; }
+/* In a narrow document area the buttons drop to a second row, so the status text is never squeezed away. */
+.source-conversion-copy { display: flex; align-items: baseline; flex: 1 1 340px; gap: 10px; min-width: 0; font-size: var(--cm-font-size-small); line-height: 1.5; }
 .source-conversion-copy > * { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .source-conversion-copy strong { flex: none; color: var(--cm-ui-heading); font-weight: 600; }
 .source-conversion-copy > span { color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
@@ -81,7 +82,7 @@
 .source-conversion-prompt footer button:disabled { opacity: .6; cursor: default; }
 .source-conversion-prompt footer button:focus-visible { outline: 2px solid var(--cm-theme-accent-deep); outline-offset: 2px; }
 .source-conversion-link:focus-visible { outline: 2px solid var(--cm-theme-accent-deep); outline-offset: 1px; }
-.source-conversion-actions { display: flex; flex: none; gap: 8px; }
+.source-conversion-actions { display: flex; flex: none; gap: 8px; margin-left: auto; }
 .source-conversion-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 28px; padding: 0 12px; border: 1px solid var(--cm-ui-divider); border-radius: 6px; font: inherit; font-size: var(--cm-font-size-small); font-weight: 500; background: var(--cm-ui-surface); color: var(--cm-ui-text); cursor: pointer; white-space: nowrap; }
 .source-conversion-actions button.primary { border-color: transparent; background: var(--cm-theme-accent-strong); color: var(--cm-theme-on-accent); box-shadow: 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .14); }
 .source-conversion-actions button:hover:not(:disabled) { border-color: var(--cm-theme-hover-border); background: var(--cm-theme-hover-bg); }
