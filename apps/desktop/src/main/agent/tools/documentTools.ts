@@ -1,4 +1,4 @@
-import { isConvertibleKind, isHtmlKind } from "../../../shared/document/kinds";
+import { isConvertibleKind, isHtmlKind, isMarkdownKind } from "../../../shared/document/kinds";
 import { SKILLS_FOLDER, isSkillsFolder } from "../../../shared/skills";
 import type { ImageContent } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
@@ -17,6 +17,30 @@ import {
 const Revision = Type.String({ pattern: "^sha256:[a-f0-9]{64}$" });
 /** Enough source for any page an agent writes, without flooding a turn with an oversized one. */
 const HTML_PREVIEW_CHARS = 200_000;
+/** ChalkLee AI's tool results stop at 24,000 characters once encoded, so its longer pages and notes are read in parts. */
+const ASSISTANT_SOURCE_CHARS = 18_000;
+
+/** One part of a page's or note's source, at most `limit` characters as JSON, ending on a line so a later edit can quote it exactly. */
+function sourcePart(source: string, offset: number, limit: number) {
+  if (offset > source.length) throw new Error(`sourceOffset 超出原文长度（${source.length}）。`);
+  let end = offset, used = 0;
+  while (end < source.length && used < limit) {
+    const code = source.charCodeAt(end++);
+    used += code === 34 || code === 92 || code === 9 || code === 10 || code === 13 ? 2 : code < 32 ? 6 : 1;
+  }
+  if (end < source.length) {
+    const line = source.lastIndexOf("\n", end - 1);
+    if (line >= offset) end = line + 1;
+    else if (end - offset > 1 && source.charCodeAt(end - 1) >= 0xd800 && source.charCodeAt(end - 1) <= 0xdbff) end--;
+  }
+  return {
+    part: source.slice(offset, end),
+    paging: {
+      ...(offset || end < source.length ? { length: source.length, sourceOffset: offset } : {}),
+      ...(end < source.length ? { truncated: true, nextSourceOffset: end } : {})
+    }
+  };
+}
 const Color = Type.String({ pattern: "^#[0-9A-Fa-f]{6}$" });
 const Spacing = Type.Object({ top: Type.Number({ minimum: 0 }), right: Type.Number({ minimum: 0 }), bottom: Type.Number({ minimum: 0 }), left: Type.Number({ minimum: 0 }) }, strict);
 const BoxStyle = Type.Object({
@@ -385,11 +409,12 @@ export const DOCUMENT_TOOLS: ChalkLeeTool[] = [
   }),
   defineTool({
     name: "document_preview", label: "查看页面", surfaces: BOTH, kind: "read",
-    description: "查看文档页面，每次最多 3 页，页码从 1 开始，省略 pages 查看前 3 页。ChalkLee：用真实编辑器和打印链路渲染，返回页面截图、真实总页数、核对 audit 和全部页面的分页报告 layout（used 为每页正文用了多少，0～1；split 为从一页延续到下一页的题目和盒子，fitsOnPage 表示一页放得下；strandedHeadings 为落在页底、与下文分开的标题；tooWide 为超出正文宽度的图片和表格）；unmatchedCss 列出文档 CSS 中在卷面上一个元素也没选中的选择器，改了样式页面却没变时先看它，按 html:true 返回的实际结构换写法。用于检查排版、分页和题目是否完整；包含已打开编辑器中未保存的修改，不写文件；html:true 另外返回实际卷面 HTML，便于选择 CSS 目标（不用于替换内容）；可传 expectedRevision 保证预览的版本；“技能”文件夹中的 ChalkLee 另返回全文 text。PDF 原稿：返回页面截图和页面文字（扫描件没有文字时看截图），用于判断是哪份试卷、核对转换结果。DOC、DOCX 原稿：返回正文文字（不分页，最多 8000 字）。Markdown：返回完整原文和 revision，含未保存内容，用 html_update 修改。HTML 网页：在 1280×800 的屏幕上运行后截图，pages 指第几屏（默认第 1 屏），返回总屏数 screenCount、页面报错 errors（脚本错误、加载失败的图片和脚本）和 revision（html_update 修改时传入）；html:true 另外返回完整源码，修改前用它读取；steps 在截图前依次点击（click 写选择器或按钮文字，clickAt 写坐标）、填写、按键、等待，用于检查点击后的效果，某步做不到时停在那里并写入 errors。",
+    description: "查看文档页面，每次最多 3 页，页码从 1 开始，省略 pages 查看前 3 页。ChalkLee：用真实编辑器和打印链路渲染，返回页面截图、真实总页数、核对 audit 和全部页面的分页报告 layout（used 为每页正文用了多少，0～1；split 为从一页延续到下一页的题目和盒子，fitsOnPage 表示一页放得下；strandedHeadings 为落在页底、与下文分开的标题；tooWide 为超出正文宽度的图片和表格）；unmatchedCss 列出文档 CSS 中在卷面上一个元素也没选中的选择器，改了样式页面却没变时先看它，按 html:true 返回的实际结构换写法。用于检查排版、分页和题目是否完整；包含已打开编辑器中未保存的修改，不写文件；html:true 另外返回实际卷面 HTML，便于选择 CSS 目标（不用于替换内容）；可传 expectedRevision 保证预览的版本；“技能”文件夹中的 ChalkLee 另返回全文 text。PDF 原稿：返回页面截图和页面文字（扫描件没有文字时看截图），用于判断是哪份试卷、核对转换结果。DOC、DOCX 原稿：返回正文文字（不分页，最多 8000 字）。Markdown：返回原文和 revision，含未保存内容，用 html_update 修改；原文较长时分段返回，读法同网页源码。HTML 网页：在 1280×800 的屏幕上运行后截图，pages 指第几屏（默认第 1 屏），返回总屏数 screenCount、页面报错 errors（脚本错误、加载失败的图片和脚本）和 revision（html_update 修改时传入）；html:true 另外返回源码，修改前用它读取；源码较长时分段返回，有 nextSourceOffset 就把它作为 sourceOffset 再调用一次读下一段（这时只读源码，不截图），要改的地方读到为止；steps 在截图前依次点击（click 写选择器或按钮文字，clickAt 写坐标）、填写、按键、等待，用于检查点击后的效果，某步做不到时停在那里并写入 errors。",
     notes: { mcp: "无需本地命令、浏览器调试或转换会话。" },
     parameters: Type.Object({
       path: PathParam, expectedRevision: Type.Optional(Revision), pages: Type.Optional(Type.Array(Type.Integer({ minimum: 1 }), { minItems: 1, maxItems: 3 })),
       html: Type.Optional(Type.Boolean({ default: false })),
+      sourceOffset: Type.Optional(Type.Integer({ minimum: 0, description: "HTML 网页和 Markdown：从原文的这个位置继续读，取上次返回的 nextSourceOffset" })),
       steps: Type.Optional(Type.Array(Type.Union([
         Type.Object({ click: Type.String({ minLength: 1, maxLength: 300, description: "CSS 选择器，或按钮、链接等控件上的文字" }) }, strict),
         Type.Object({ clickAt: Type.Object({ x: Type.Number({ minimum: 0, maximum: 1280 }), y: Type.Number({ minimum: 0, maximum: 800 }) }, strict) }, strict),
@@ -398,20 +423,23 @@ export const DOCUMENT_TOOLS: ChalkLeeTool[] = [
         Type.Object({ wait: Type.Integer({ minimum: 0, maximum: 5000, description: "等待毫秒数" }) }, strict)
       ]), { minItems: 1, maxItems: HTML_PAGE_MAX_STEPS }))
     }, strict),
-    execute: async ({ path: candidate, pages, expectedRevision, html, steps }, host, signal) => {
+    execute: async ({ path: candidate, pages, expectedRevision, html, sourceOffset, steps }, host, signal) => {
       const info = await host.documents.info(candidate);
       if (isHtmlKind(info.kind)) {
-        const page = await host.documents.previewPage(info.path, pages, steps);
+        if (sourceOffset && steps) throw new Error("sourceOffset 只读源码，不能和 steps 同时使用。");
+        // Later parts of the source need no new screenshots.
+        const page = sourceOffset ? { ...await host.documents.readPage(info.path), shots: null } : await host.documents.previewPage(info.path, pages, steps);
         signal?.throwIfAborted();
-        const shots = page.shots, truncated = page.html.length > HTML_PREVIEW_CHARS;
+        const shots = page.shots;
         return output({
           path: relative(host.root, page.path), kind: info.kind, revision: page.revision,
           ...(shots ? { title: shots.title, viewport: shots.viewport, screenCount: shots.screenCount, screens: shots.images.map(image => image.screen), errors: shots.errors,
-            ...(shots.loadProblem ? { loadProblem: shots.loadProblem } : {}) } : { note: "当前环境无法渲染网页，只返回源码。" }),
-          ...(html || !shots ? { html: page.html.slice(0, HTML_PREVIEW_CHARS), ...(truncated ? { truncated, length: page.html.length } : {}) } : {})
+            ...(shots.loadProblem ? { loadProblem: shots.loadProblem } : {}) } : sourceOffset ? {} : { note: "当前环境无法渲染网页，只返回源码。" }),
+          ...(html || sourceOffset || !shots ? (({ part, paging }) => ({ html: part, ...paging }))(sourcePart(page.html, sourceOffset ?? 0, host.surface === "mcp" ? HTML_PREVIEW_CHARS : ASSISTANT_SOURCE_CHARS)) : {})
         }, { documents: [documentRef(page.path)] }, (shots?.images ?? []).flatMap(image => dataImage(image.dataUrl)));
       }
       if (steps) throw new Error("steps 只用于 HTML 网页。");
+      if (sourceOffset && !isMarkdownKind(info.kind)) throw new Error("sourceOffset 只用于 HTML 网页和 Markdown。");
       if (isConvertibleKind(info.kind)) {
         const source = await host.documents.previewSource(info.path, pages, signal);
         signal?.throwIfAborted();
@@ -419,7 +447,9 @@ export const DOCUMENT_TOOLS: ChalkLeeTool[] = [
         return output({
           path: relative(host.root, source.path), kind: source.kind,
           ...("pageCount" in source ? { pageCount: source.pageCount, pages: shots.map(shot => ({ page: shot.page, text: shot.text || "（本页没有文字层，可能是扫描件，请看截图）" })) } : {}),
-          ...("text" in source ? { paragraphs: source.paragraphs, text: source.text, truncated: source.truncated } : {}),
+          ...("text" in source ? { paragraphs: source.paragraphs, ...(isMarkdownKind(source.kind)
+            ? (({ part, paging }) => ({ text: part, truncated: false, ...paging }))(sourcePart(source.text ?? "", sourceOffset ?? 0, host.surface === "mcp" ? Number.POSITIVE_INFINITY : ASSISTANT_SOURCE_CHARS))
+            : { text: source.text, truncated: source.truncated }) } : {}),
           ...("revision" in source ? { revision: source.revision } : {})
         }, { documents: [documentRef(source.path)] }, shots.flatMap(shot => dataImage(shot.dataUrl)));
       }
@@ -440,7 +470,7 @@ export const DOCUMENT_TOOLS: ChalkLeeTool[] = [
   }),
   defineTool({
     name: "html_update", label: "修改网页或笔记", surfaces: BOTH, kind: "write",
-    description: "修改工作区中的 HTML 网页或 Markdown 文档。先用 document_preview 读取全文和 revision（HTML 加 html:true）；Markdown 用 markdown 传完整原文或 edits 逐处替换，已打开的笔记保留未保存内容并可撤销。小改动用 edits 逐处替换（find 按源码原样复制且只出现一次），大改动用 html 传入完整新源码，二者选一。网页已被其他人修改时拒绝写入，需重新读取。已打开的网页会自动刷新。改完用 document_preview 看效果和 errors；返回的新 revision 可直接用于下一次修改。",
+    description: "修改工作区中的 HTML 网页或 Markdown 文档。先用 document_preview 读取全文和 revision（HTML 加 html:true，返回 nextSourceOffset 时继续读到要改的地方；没读完全文时只用 edits，不要整篇替换）；Markdown 用 markdown 传完整原文或 edits 逐处替换，已打开的笔记保留未保存内容并可撤销。小改动用 edits 逐处替换（find 按源码原样复制且只出现一次），大改动用 html 传入完整新源码，二者选一。网页已被其他人修改时拒绝写入，需重新读取。已打开的网页会自动刷新。改完用 document_preview 看效果和 errors；返回的新 revision 可直接用于下一次修改。",
     notes: { assistant: "老师的一次请求中改过的网页和笔记可用回复下方的“撤销这次修改”恢复。" },
     parameters: Type.Object({
       path: PathParam, revision: Type.String({ pattern: "^[a-f0-9]{16}$", description: "document_preview 返回的 revision" }),
