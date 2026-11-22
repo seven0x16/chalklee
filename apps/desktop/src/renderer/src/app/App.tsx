@@ -867,12 +867,13 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
     setWorkspace(await window.chalkLee.setOriginalConversionNeeded(path, needed));
   }
 
-  async function refreshWorkspace() {
+  /** Only a refresh the teacher asked for says so; the catch-up after a file operation keeps that operation's message. */
+  async function refreshWorkspace({ announce = false } = {}) {
     if (!workspace) return;
     try {
       const snapshot = await window.chalkLee.refreshWorkspace();
       setWorkspace(snapshot);
-      notify("目录已刷新");
+      if (announce) notify("目录已刷新");
     } catch (error) {
       setWorkspaceError(errorMessage(error));
     }
@@ -1781,7 +1782,7 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
     },
     onOpen: (file, newTab) => { void openFileInCurrentTab(file, newTab); },
     onCreate: startTreeCreation,
-    onRefresh: () => { void refreshWorkspace(); },
+    onRefresh: () => { void refreshWorkspace({ announce: true }); },
     onSwitchWorkspace: () => { void chooseWorkspace(); },
     onReveal: path => { void window.chalkLee.revealWorkspaceEntry(path).catch(error => notify(errorMessage(error))); },
     onCopyPath: (path, relative) => { void window.chalkLee.copyWorkspacePath(path, relative).then(() => notify(relative ? "相对路径已复制" : "路径已复制")).catch(error => notify(errorMessage(error))); },
