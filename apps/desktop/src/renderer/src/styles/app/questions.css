@@ -190,11 +190,9 @@
 #chalklee-print-root .chalklee-question-add { display: none !important; }
 
 .chalklee-question-object-actions {
-  position: absolute;
-  z-index: 9;
-  top: 28px;
-  right: auto;
-  left: -40px;
+  position: fixed;
+  inset: auto;
+  margin: 0;
   width: max-content;
   min-width: 118px;
   box-sizing: border-box;
@@ -204,8 +202,12 @@
   gap: 2px;
   min-height: 38px;
   padding: 5px;
+  overflow-y: auto;
   color: var(--cm-ui-muted);
   font-family: var(--cm-ui-font);
+  line-height: 1.4;
+  text-align: left;
+  text-indent: 0;
   border: 1px solid var(--cm-ui-border);
   border-radius: 10px;
   background: var(--cm-ui-surface-raised);
@@ -213,8 +215,6 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity .12s ease;
-  transform: scale(var(--chalklee-editor-inverse-zoom, 1));
-  transform-origin: left top;
 }
 
 /* An open menu floats above following questions, whose own head would
@@ -238,7 +238,7 @@
 @keyframes chalklee-question-actions-in {
   from {
     opacity: 0;
-    transform: scale(var(--chalklee-editor-inverse-zoom, 1)) translateY(-3px);
+    transform: translateY(-3px);
   }
 }
 

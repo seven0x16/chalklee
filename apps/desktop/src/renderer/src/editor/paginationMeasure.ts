@@ -7,7 +7,7 @@ import { DOCUMENT_PAGE_GAP_PX } from "../viewers/pageAppearance";
 import { setChalkLeeColumnPageBreaks, type ChalkLeePageGapSpec } from "./extensions/pageGaps";
 import { chalkLeeColumnLayout, chalkLeeColumnPageCount, chalkLeeColumnsRemaining, chalkLeeNodeEndPositionAt, chalkLeeNodeStartPositionAt, keepChalkLeeHeadingsWithNext, keepChalkLeeOptionMarkersWithContent, keepChalkLeeShortGroupsTogether, measureChalkLeeGapHeightAbove, mergeChalkLeeFlowLines, paginateChalkLeeFlow, syncChalkLeeMatchingPaginationLayout, tableRowBreakAvailability, type ChalkLeePaginationFlowItem, type ChalkLeeRepeatedTableHeader } from "./pagination";
 import { pageSizePx, pageContentHeightPx } from "./pageView";
-import { keepChalkLeeFrameEdges, keepChalkLeeFrameOpeningsTogether } from "./pagination";
+import { keepChalkLeeFrameEdges, keepChalkLeeFrameOpeningsTogether, keepChalkLeeQuestionStartsTogether } from "./pagination";
 import { chalkLeeEditedTopLevelStem, keepChalkLeeQuestionOpeningsTogether, measureWithoutChalkLeePageGaps, replaceChalkLeeFlowRanges } from "./pagination";
 
 const PAGINATION_TEXT_EXCLUSIONS = [
@@ -735,7 +735,18 @@ function chalkLeeFlowItems(
       topInsetPx: (parseFloat(style.paddingTop) || 0) + (parseFloat(style.borderTopWidth) || 0),
       bottomInsetPx: (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0) }];
   });
-  return keepChalkLeeFrameEdges(keepChalkLeeHeadingsWithNext(lines, [...headings, ...closings], contentHeight), frames);
+  const questionStarts = Array.from(content.querySelectorAll<HTMLElement>(".chalklee-question-object")).flatMap(question => {
+    if (question.dataset.linkedPlaceholder === "true" || question.dataset.paginationKeepTogether === "true" || !question.getClientRects().length) return [];
+    const from = chalkLeeNodeStartPosition(editor, question, question.classList.contains("group") ? "questionGroup" : "question");
+    const node = from == null ? undefined : editor.state.doc.nodeAt(from);
+    if (from == null || !node) return [];
+    const rect = (question.parentElement?.dataset.frameRoom === "true" ? question.parentElement : question).getBoundingClientRect();
+    return [{ from, to: from + node.nodeSize, top: (rect.top - contentTop - gapHeightAbove(rect.top)) / scale }];
+  });
+  return keepChalkLeeQuestionStartsTogether(
+    keepChalkLeeFrameEdges(keepChalkLeeHeadingsWithNext(lines, [...headings, ...closings], contentHeight), frames),
+    questionStarts
+  );
 }
 
 function chalkLeeRepeatedTableHeader(

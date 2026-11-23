@@ -6,7 +6,7 @@ import { parseHTML } from "linkedom";
 import { chalkLeeLongTables, discardChalkLeeFlowMeasurements, measureChalkLeePagination } from "./paginationMeasure";
 import { createEmptyChalkLeeDocument } from "../../../shared/document/newDocument";
 import { ChalkLeePaginationGapsExtension, chalkLeePaginationGapsKey, setChalkLeeColumnPageBreaks, setChalkLeePageGaps } from "./extensions/pageGaps";
-import { chalkLeeEditedTopLevelStem, createChalkLeePaginationSettler, keepChalkLeeQuestionOpeningsTogether, measureWithoutChalkLeePageGaps, replaceChalkLeeFlowRanges } from "./pagination";
+import { chalkLeeEditedTopLevelStem, createChalkLeePaginationSettler, keepChalkLeeQuestionOpeningsTogether, keepChalkLeeQuestionStartsTogether, measureWithoutChalkLeePageGaps, replaceChalkLeeFlowRanges } from "./pagination";
 import { keepChalkLeeFrameEdges } from "./pagination";
 import { chalkLeeColumnPageCount, chalkLeeColumnsRemaining, chalkLeeNodeEndPositionAt, chalkLeeNodeStartPositionAt, currentChalkLeeViewportPage, keepChalkLeeHeadingsWithNext, keepChalkLeeOptionMarkersWithContent, keepChalkLeeShortGroupsTogether, measureChalkLeeGapHeightAbove, mergeChalkLeeFlowLines, paginateChalkLeeFlow, tableRowBreakAvailability, type ChalkLeePaginationFlowItem } from "./pagination";
 
@@ -40,6 +40,36 @@ describe("ChalkLee pagination", () => {
     // Content of the question measured above the paragraph keeps its own break.
     const leading = [flow[0], { pos: 10.5, top: 90, bottom: 92 }, ...flow.slice(1)];
     expect(keepChalkLeeQuestionOpeningsTogether(leading, [opening], 100)[2]).toMatchObject({ pos: 12 });
+  });
+  it("moves a page break at a question's first content before the question so its handle never stays behind", () => {
+    // A passage starting with a centered title or an image/table has its first flow item inside the question.
+    const flow = [
+      { pos: 1, top: 0, bottom: 85 },
+      { pos: 14, top: 88, bottom: 112 },
+      { pos: 30, top: 112, bottom: 180 }
+    ];
+    const started = keepChalkLeeQuestionStartsTogether(flow, [{ from: 10, to: 60, top: 86 }]);
+    expect(paginateChalkLeeFlow(started, 100)).toMatchObject([{ pos: 10, startPx: 86 }]);
+    // Later lines inside the question still paginate normally when the first line fits.
+    const split = keepChalkLeeQuestionStartsTogether([
+      { pos: 14, top: 70, bottom: 92 },
+      { pos: 30, top: 92, bottom: 118 }
+    ], [{ from: 10, to: 60, top: 68 }]);
+    expect(paginateChalkLeeFlow(split, 100)).toMatchObject([{ pos: 30, startPx: 92 }]);
+    // A heading already merged before the question keeps its heading start.
+    const withHeading = keepChalkLeeQuestionStartsTogether([
+      { pos: 5, top: 76, bottom: 112 },
+      { pos: 30, top: 112, bottom: 180 }
+    ], [{ from: 10, to: 60, top: 88 }]);
+    expect(withHeading[0]).toMatchObject({ pos: 5, top: 76 });
+    expect(withHeading[1]).toMatchObject({ pos: 30, top: 112 });
+    // A long table opening a question moves the whole question when breaking at the table's opening.
+    const withTable = keepChalkLeeQuestionStartsTogether([
+      { pos: 1, top: 0, bottom: 80 },
+      { pos: 15, top: 84, bottom: 110, kind: "table", tableGroup: "t1", tableStart: 12 },
+      { pos: 25, top: 110, bottom: 150, kind: "table", tableGroup: "t1" }
+    ], [{ from: 10, to: 60, top: 82 }]);
+    expect(paginateChalkLeeFlow(withTable, 100)).toMatchObject([{ pos: 10, startPx: 82 }]);
   });
   it("moves a tall inline formula with its prefix and punctuation instead of splitting the line", () => {
     const lines = mergeChalkLeeFlowLines([

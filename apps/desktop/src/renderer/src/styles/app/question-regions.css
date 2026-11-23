@@ -132,8 +132,7 @@
 [data-frame-design="line"] > .chalklee-question-frame-label { letter-spacing: .05em; }
 
 [data-question-frame] > .chalklee-question-object-head > .chalklee-question-grip,
-[data-question-frame] > .chalklee-question-object-head > .chalklee-question-basket-mark,
-[data-question-frame] > .chalklee-question-object-head > .chalklee-question-object-actions {
+[data-question-frame] > .chalklee-question-object-head > .chalklee-question-basket-mark {
   left: calc(-40px - var(--chalklee-question-padding-left));
 }
 

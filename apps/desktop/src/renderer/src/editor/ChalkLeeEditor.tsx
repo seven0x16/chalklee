@@ -1780,7 +1780,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
   useLayoutEffect(() => {
     if (!active) return;
     const inverse = String(100 / zoom);
-    paperRef.current?.querySelectorAll<HTMLElement>(".chalklee-question-object-actions, .chalklee-table-tools")
+    paperRef.current?.querySelectorAll<HTMLElement>(".chalklee-table-tools")
       .forEach((control) => {
         if (control.style.getPropertyValue("--chalklee-editor-inverse-zoom") !== inverse) {
           control.style.setProperty("--chalklee-editor-inverse-zoom", inverse);

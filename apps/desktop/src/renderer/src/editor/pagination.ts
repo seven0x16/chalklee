@@ -428,6 +428,45 @@ export function keepChalkLeeQuestionOpeningsTogether(items: ChalkLeePaginationFl
   return result;
 }
 
+/**
+ * A page break at the first flow item inside a question or group must move the whole question
+ * so its number and six-dot handle are not left behind on the previous page.
+ */
+export function keepChalkLeeQuestionStartsTogether(
+  items: ChalkLeePaginationFlowItem[],
+  questions: readonly { from: number; to: number; top: number }[]
+): ChalkLeePaginationFlowItem[] {
+  if (!questions.length) return items;
+  const result = items.map(item => ({ ...item }));
+  // Apply inner subquestions before their enclosing group so a group opening with a subquestion moves whole.
+  const ordered = [...questions].sort((a, b) => (a.to - a.from) - (b.to - b.from));
+  for (const question of ordered) {
+    // An earlier heading/lead-in already merged with the opening of this question keeps its earlier position.
+    if (result.some(item => item.pos < question.from && item.bottom > question.top + .5)) continue;
+    let first: ChalkLeePaginationFlowItem | undefined;
+    for (const item of result) {
+      if (item.pos < question.from || item.pos >= question.to) continue;
+      if (!first || item.top < first.top - .5 || (Math.abs(item.top - first.top) <= .5 && item.pos < first.pos)) {
+        first = item;
+      }
+    }
+    if (!first || first.forced || first.pos === question.from) continue;
+    if (first.tableStart != null) {
+      const original = first.tableStart;
+      for (const item of result) {
+        if (item.tableStart === original) {
+          item.tableStart = question.from;
+          if (item === first) item.top = Math.min(item.top, question.top);
+        }
+      }
+      continue;
+    }
+    first.pos = question.from;
+    first.top = Math.min(first.top, question.top);
+  }
+  return result;
+}
+
 /** Keep a heading and the next measured line/block on the same sheet. Operate
  * after question/image grouping, so their own keep-together rules still apply. */
 export function keepChalkLeeHeadingsWithNext(items: ChalkLeePaginationFlowItem[], headings: { from: number; to: number }[], contentHeight: number): ChalkLeePaginationFlowItem[] {

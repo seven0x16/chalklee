@@ -154,7 +154,7 @@ function BoxNodeView({ editor, node, getPos, selected }: NodeViewProps) {
             setConfirmDelete(false);
             setMenuOpen(value => !value);
           }}><GripVertical size={15} /></button>
-        {menuOpen ? <ChalkLeeObjectActions label="盒子操作">
+        {menuOpen ? <ChalkLeeObjectActions label="盒子操作" onClose={close}>
           {inspector.propertiesAvailable !== false && !inspector.propertiesVisible ? <button type="button" title="盒子样式" aria-label="盒子样式"
             onClick={run(() => { selectBox(); inspector.showProperties(); })}><Palette size={14} /><span>样式</span></button> : null}
           {confirmDelete ? <>

@@ -266,7 +266,7 @@ export function QuestionNodeView({ editor, node, getPos, selected, decorations }
               onClick={run(() => addPart(part))}><Plus size={13} strokeWidth={2.2} /><span>{addLabel(part, label)}</span></button>
           ))}
         </div> : null}
-        {actionsOpen ? <ChalkLeeObjectActions label={`${questionLabel}操作`}>
+        {actionsOpen ? <ChalkLeeObjectActions label={`${questionLabel}操作`} onClose={() => { setActionsOpen(false); setConfirmDelete(false); }}>
           {inspector.propertiesAvailable !== false && !inspector.propertiesVisible ? <button
             type="button"
             title="题目属性"

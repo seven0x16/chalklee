@@ -43,7 +43,6 @@
 }
 .chalklee-box-head > .chalklee-box-grip { top: -12px; left: -40px; cursor: pointer; }
 .chalklee-box:is([data-pointed="true"], .selected, .menu-open) > .chalklee-box-head > .chalklee-box-grip { opacity: 1; }
-.chalklee-box-head > .chalklee-question-object-actions { top: 16px; left: -40px; }
 .chalklee-box.menu-open > .chalklee-box-head { z-index: 12; }
 .chalklee-box.menu-open > .chalklee-box-head > .chalklee-question-object-actions {
   opacity: 1;
