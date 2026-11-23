@@ -86,7 +86,9 @@ export function SearchForm({ view, config, provider: initialProvider, jobs, leav
   const pricing = <a className="settings-inline-link" href={docsUrl} target="_blank" rel="noreferrer">计费说明<ExternalLink size={12} aria-hidden="true" /></a>;
   return <div className="settings-form settings-search-form">
     <SettingsBackLink label="ChalkLee AI" onClick={onBack} />
-    <SettingsPageHeader title={config ? "修改联网搜索配置" : "添加联网搜索配置"} description={searchProviderHasFetch(provider) ? "让 ChalkLee AI 上网找原题、找资料和阅读网页。" : `让 ChalkLee AI 用${SEARCH_SERVICE_LABELS[provider]}上网找原题和资料。`} />
+    <SettingsPageHeader title={config ? "修改联网搜索配置" : "添加联网搜索配置"} description={searchProviderHasFetch(provider)
+      ? "独立的搜索服务，可搭配任意对话模型上网找原题、找资料和阅读网页。"
+      : `独立的搜索服务，可搭配任意对话模型用${SEARCH_SERVICE_LABELS[provider]}上网找原题和资料。`} />
     {/* Billing stays in sight under the key; 高级 is folded. */}
     <SettingsGroup footnote={<>{provider === "doubao" ? "读取网页请使用按量后付费的 API Key。" : `按次计费，由 ${company} 收取。`}{" "}{pricing}</>}>
       <SettingsRow id="search-provider" label="提供商">

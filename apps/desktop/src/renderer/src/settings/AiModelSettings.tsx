@@ -1,14 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
-import { AlertCircle, Check, ChevronRight, CircleOff, ExternalLink, Eye, EyeOff, LoaderCircle, Plus, Sparkles, X } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, CircleOff, ExternalLink, Eye, EyeOff, Globe, LoaderCircle, Plus, Sparkles, X } from "lucide-react";
 import {
   AI_API_STYLES, AI_CLI_DEFAULT_MODEL, AI_PROVIDER_PRESETS, AI_PROXY_MODES, aiModelMeta, aiProviderPreset, aiProviderRegion, aiServiceReady, defaultAiRegion, defaultAiServiceName,
   isAiCliProvider, presetBaseUrl, presetModels, usesPresetAddress,
   type AiApiStyle, type AiProviderId, type AiProxyMode, type AiServiceDraft, type AiServicesView, type AiServiceView
 } from "../../../shared/settings/aiProviders";
-import { isDeepSeekService, uniqueName } from "../../../shared/settings/addedServices";
+import { isDeepSeekService, isZhipuCnService, uniqueName } from "../../../shared/settings/addedServices";
 import { OCR_NONE, ocrProvider, type OcrProviderId, type OcrSettingsView } from "../../../shared/settings/ocr";
 import {
-  DEFAULT_SEARCH_PROVIDER, SEARCH_BUILT_IN_LABELS, SEARCH_NONE, SEARCH_SERVICE_LABELS, type SearchProviderId, type SearchSettingsView
+  DEFAULT_SEARCH_PROVIDER, SEARCH_BUILT_IN_LABELS, SEARCH_CHAT_MODEL, SEARCH_NONE, SEARCH_SERVICE_LABELS, supportsBuiltInWebSearch, type SearchProviderId, type SearchSettingsView
 } from "../../../shared/settings/webSearch";
 import { AppSelect } from "../ui/AppSelect";
 import { AiProviderLogo } from "../ui/AiProviderLogo";
@@ -74,7 +74,12 @@ export function AiModelSettings({ services, loadError, route, conversionGuide = 
   const jobsOf = (kind: "model" | "ocr" | "search", id: string): Job[] => {
     if (kind === "ocr") return ocr?.choice === id ? ["ocr"] : [];
     if (kind === "search") return search?.choice === id ? ["search"] : [];
-    const jobs: (Job | false)[] = [services?.current?.serviceId === id && "chat", services?.conversion?.serviceId === id && "conversion"];
+    const model = services?.services.find(item => item.id === id);
+    const jobs: (Job | false)[] = [
+      services?.current?.serviceId === id && "chat",
+      services?.current?.serviceId === id && search?.choice === SEARCH_CHAT_MODEL && supportsBuiltInWebSearch(model) && "search",
+      services?.conversion?.serviceId === id && "conversion"
+    ];
     return jobs.filter((job): job is Job => Boolean(job));
   };
   const navigate = (next: AiRoute) => { setSaveNotice(null); onRoute(next); };
@@ -172,14 +177,24 @@ function Overview({ services, ocr, search, errors, conversionGuide, saveNotice, 
   const set = (kind: "ocr" | "search" | "tags", message = "") => setChooseError(value => ({ ...value, [kind]: message }));
   const chooseOcr = (choice: string) => { set("ocr"); window.chalkLee.chooseOcr(choice).then(onOcr, error => set("ocr", settingsErrorMessage(error))); };
   const chooseSearch = (choice: string) => { set("search"); window.chalkLee.chooseSearch(choice).then(onSearch, error => set("search", settingsErrorMessage(error))); };
+  const chatModel = services.services.find(item => item.id === services.current?.serviceId);
   const conversionModel = services.services.find(item => item.id === services.conversion?.serviceId);
+  const chatSupportsSearch = supportsBuiltInWebSearch(chatModel);
+  const chatSearchSelected = search?.choice === SEARCH_CHAT_MODEL;
+  const chatSearchExtra = chatSupportsSearch && chatModel
+    ? [{ value: SEARCH_CHAT_MODEL, label: chatModel.name, meta: "自带搜索，另计费", title: "使用当前对话模型自带的联网搜索，按服务商标准另计费", icon: <AiProviderLogo provider={chatModel.provider} /> }]
+    : chatSearchSelected
+      ? [{ value: SEARCH_CHAT_MODEL, label: "模型自带搜索", meta: "当前模型不支持", title: "当前对话模型不支持自带联网搜索，请切换到其他搜索服务", icon: <Globe size={14} /> }]
+      : [];
   // Search belongs to conversations and OCR to converting, so each sits under its job; the switch for tags too.
   return <>
     <SettingsPageHeader title="ChalkLee AI" description={description} />
     <SettingsGroup id="ai-chat" title="对话">
       <ModelRow id="ai-chat-model" name="对话模型" purpose="chat" services={services} onServices={onServices} onAdd={() => add()} />
-      <ChoiceRow id="ai-search" label="联网搜索" view={search} prefix={SEARCH_PREFIX} addLabel="添加联网搜索…" error={chooseError.search || errors.search}
+      <ChoiceRow id="ai-search" label="联网搜索" view={search} prefix={SEARCH_PREFIX} addLabel="添加联网搜索…"
+        configMeta={chatSearchExtra.length ? SERVICE_TYPE_LABELS.search : undefined} error={chooseError.search || errors.search}
         none={{ value: SEARCH_NONE, label: SEARCH_BUILT_IN_LABELS[SEARCH_NONE], icon: <CircleOff size={14} /> }}
+        extra={chatSearchExtra}
         onChoose={chooseSearch} onAdd={() => add(`${SEARCH_PREFIX}${DEFAULT_SEARCH_PROVIDER}`)} />
     </SettingsGroup>
     <SettingsGroup id="ai-conversion" title="转换原稿">
@@ -409,8 +424,12 @@ function ConfigForm({ service, services, initialProvider, conversionGuide, jobs,
       setStatus({ kind: "error", title: view.title.replace("请在 ChalkLee AI 设置中", "请"), detail: view.detail && view.detail !== view.title ? view.detail : undefined });
     } finally { setBusy(null); }
   };
-  const completionNotice = apiKey.trim() && isDeepSeekService(form.baseUrl) && !(service?.hasApiKey && isDeepSeekService(service.baseUrl))
-    ? "已保存 DeepSeek 大模型，并自动补齐 DeepSeek OCR 和 DeepSeek 搜索。" : null;
+  const addsDeepSeekCompanions = Boolean(apiKey.trim() && isDeepSeekService(form.baseUrl) && !(service?.hasApiKey && isDeepSeekService(service.baseUrl)));
+  const addsZhipuCompanions = Boolean(apiKey.trim() && isZhipuCnService(form.baseUrl) && !(service?.hasApiKey && isZhipuCnService(service.baseUrl)));
+  const completionNotice = addsDeepSeekCompanions
+    ? "已保存 DeepSeek 大模型，并自动补齐 DeepSeek OCR 和 DeepSeek 搜索。"
+    : addsZhipuCompanions
+      ? "已保存智谱大模型，并自动补齐智谱 GLM-OCR 和智谱联网搜索。" : null;
   const save = () => run("save", async () => {
     setStatus(null);
     const result = await window.chalkLee.saveAiService(draft());
@@ -491,7 +510,10 @@ function ConfigForm({ service, services, initialProvider, conversionGuide, jobs,
   return <div className="settings-form">
     <SettingsBackLink label="ChalkLee AI" onClick={onBack} />
     <SettingsPageHeader title={service ? "修改 AI 大模型配置" : "添加 AI 大模型配置"} description={conversionGuide ? CONVERSION_GUIDE : undefined} />
-    <SettingsGroup footnote={!service && form.provider === "deepseek" ? "保存后会自动补齐 DeepSeek OCR 和 DeepSeek 搜索，可在“模型和服务”中分别修改或删除。" : undefined}>
+    <SettingsGroup footnote={!service && isDeepSeekService(form.baseUrl)
+      ? "保存后会自动补齐 DeepSeek OCR 和 DeepSeek 搜索，可在“模型和服务”中分别修改或删除。"
+      : !service && isZhipuCnService(form.baseUrl)
+        ? "保存后会自动补齐智谱 GLM-OCR 和智谱联网搜索，可在“模型和服务”中分别修改或删除。" : undefined}>
       <SettingsRow id="ai-provider" label="提供商">
         <AppSelect className="settings-select" label="提供商" value={providerOption} options={providerOptions("model")} menuWidth={260}
           renderOptionIcon={option => <ServiceIcon value={option.value} />}

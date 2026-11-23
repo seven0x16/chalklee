@@ -25,8 +25,17 @@ export const searchQueryLimit = (provider: SearchProviderId) => provider === "do
 
 /** Web search turned off. */
 export const SEARCH_NONE = "off";
+/** Built-in web search provided by the active conversation model (e.g., OpenAI Responses). */
+export const SEARCH_CHAT_MODEL = "chat-model";
 /** Names of the built-in choices; an added service cannot take one. */
-export const SEARCH_BUILT_IN_LABELS: Record<string, string> = { [SEARCH_NONE]: "关闭" };
+export const SEARCH_BUILT_IN_LABELS: Record<string, string> = {
+  [SEARCH_NONE]: "关闭",
+  [SEARCH_CHAT_MODEL]: "AI 大模型"
+};
+/** Conversation models whose own API includes a hosted web search tool. */
+export function supportsBuiltInWebSearch(service: { provider?: string; api?: string } | undefined): boolean {
+  return service?.provider === "openai" && service.api === "openai-responses";
+}
 
 export interface SearchConfigView {
   id: string;
@@ -59,6 +68,8 @@ export interface WebSearchSource {
 }
 export interface WebSearchResult {
   query?: string;
+  /** Synthesized search findings when returned by a model's built-in web search. */
+  summary?: string;
   sources: Array<WebSearchSource & { content: string; truncated: boolean; nextOffset?: number }>;
 }
 export const DEEPSEEK_SEARCH_KEY_URL = "https://platform.deepseek.com/api_keys";

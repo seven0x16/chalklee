@@ -92,6 +92,20 @@ describe("AI service settings", () => {
     expect(await revealSearchKey(search.configs[0].id)).toBe("sk-deepseek");
   });
 
+  it("adds Zhipu GLM-OCR and search only for the China Mainland site, not Z.AI", async () => {
+    const { getOcrSettings, revealOcrKey } = await import("./ocr");
+    const { getSearchSettings, revealSearchKey } = await import("./search");
+    await saveAiService(draft({ provider: "zhipu", name: "glm-global", baseUrl: "https://api.z.ai/api/paas/v4", apiKey: "sk-zai" }));
+    expect((await getOcrSettings()).configs).toEqual([]);
+    expect((await getSearchSettings()).configs).toEqual([]);
+    await saveAiService(draft({ provider: "zhipu", name: "glm-cn", baseUrl: "https://open.bigmodel.cn/api/paas/v4", apiKey: "sk-zhipu-cn" }));
+    const [ocr, search] = [await getOcrSettings(), await getSearchSettings()];
+    expect(ocr.configs).toMatchObject([{ name: "智谱 GLM-OCR", provider: "glm-ocr" }]);
+    expect(search.configs).toMatchObject([{ name: "智谱联网搜索", provider: "zhipu" }]);
+    expect(await revealOcrKey(ocr.configs[0].id, "apiKey")).toBe("sk-zhipu-cn");
+    expect(await revealSearchKey(search.configs[0].id)).toBe("sk-zhipu-cn");
+  });
+
   it("thinks as much as chosen in the AI panel, only in conversations", async () => {
     await saveAiService(draft({ apiKey: "sk", models: ["deepseek-flash"] }));
     // By default the service thinks as it usually does: no level, and thinking is not switched off.

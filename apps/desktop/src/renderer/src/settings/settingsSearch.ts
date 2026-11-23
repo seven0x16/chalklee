@@ -52,7 +52,7 @@ export const SETTINGS_SEARCH_ITEMS: readonly SettingsSearchItem[] = [
   ai("ai-chat-model", "对话模型", "ChalkLee AI 对话使用的模型，也可在输入框左下角切换", ["对话", "聊天", "模型", "对话模型", "大模型", "助手"]),
   ai("ai-conversion-model", "转换模型", "转换 PDF、Word、LaTeX 原稿和 Markdown 使用的模型，需支持图片输入", ["转换", "原稿", "模型", "转换模型", "大模型", "转换原稿", "pdf", "word", "docx", "latex", "tex", "markdown", "md", "识图", "图像", "视觉", "内置"]),
   ai("ai-conversion-ocr", "文字识别（OCR）", "转换扫描件、图片版 PDF 时，由 AI 大模型或添加的 OCR 模型识别", ["ocr", "文字识别", "图片识别", "扫描", "扫描件", "图片版", "识别", "deepseek", "自定义", "百度", "paddleocr", "mineru", "本地部署", "转换"]),
-  ai("ai-search", "联网搜索", "让 ChalkLee AI 上网找原题、找资料和阅读网页", ["联网", "搜题", "试卷", "资料", "搜索", "网页", "DeepSeek", "search", "开关", "开启", "关闭", "停用"]),
+  ai("ai-search", "联网搜索", "让 ChalkLee AI 上网找原题、找资料和阅读网页", ["联网", "搜题", "试卷", "资料", "搜索", "网页", "DeepSeek", "OpenAI", "自带", "search", "开关", "开启", "关闭", "停用"]),
   ai("ai-conversion-tags", "自动打知识点标签", "转换原稿时为题目打知识点标签", ["标签", "知识点", "转换", "tag"]),
   // Opens an empty AI model configuration at its provider dropdown.
   { ...ai("ai-provider", "添加 AI 大模型配置", "DeepSeek、Kimi、智谱、MiniMax、OpenAI 等 AI 大模型", ["添加配置", "新增", "新建", "类型", "AI 大模型", "AI 模型", "大模型", "服务商", "provider", "OCR", "百度", "Claude", "GLM", "兼容服务", "命令行", "cli", ...AI_PROVIDER_PRESETS.map(preset => preset.label)], "new"), id: "ai-add" },

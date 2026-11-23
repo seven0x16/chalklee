@@ -98,7 +98,7 @@ function startDiagnostics(): void {
 }
 
 let mainWindow: BrowserWindow | null = null;
-const webSearch = new WebSearchService(searchCredentials);
+const webSearch = new WebSearchService(() => searchCredentials(() => getAiCredentials("assistant")));
 let workspaceRoot: string | null = null;
 const htmlPages = createHtmlPageServer(() => workspaceRoot);
 const pluginServer: PluginServer = createPluginServer(id => pluginStore.root(id));

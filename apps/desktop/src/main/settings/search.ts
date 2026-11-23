@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { activeChoice, uniqueName } from "../../shared/settings/addedServices";
 import {
-  DEFAULT_FETCH_BASE_URL, DEFAULT_SEARCH_BASE_URL, DEFAULT_SEARCH_PROVIDER, isSearchProvider, SEARCH_BUILT_IN_LABELS, SEARCH_NONE, SEARCH_PROVIDER_LABELS, SEARCH_SERVICE_LABELS,
-  searchProviderEndpoints, searchProviderHasFetch,
+  DEFAULT_SEARCH_PROVIDER, isSearchProvider, SEARCH_BUILT_IN_LABELS, SEARCH_CHAT_MODEL, SEARCH_NONE, SEARCH_PROVIDER_LABELS, SEARCH_SERVICE_LABELS,
+  searchProviderEndpoints, searchProviderHasFetch, supportsBuiltInWebSearch,
   type SearchConfigDraft, type SearchConfigView, type SearchProviderId, type SearchSettingsView
 } from "../../shared/settings/webSearch";
+import type { ImportCredentials } from "../conversion/model";
 import { draftKey, draftName, readSettingsFile, seal, serializer, settingsFile, textField, unseal, writeSettingsFile } from "./addedServices";
 import { searchEndpointUrl, WebSearchError } from "../agent/webSearch";
 
@@ -15,7 +16,9 @@ interface StoredSearchSettings {
   choice?: string;
   configs: StoredSearchConfig[];
 }
-export interface SearchCredentials { provider: SearchProviderId; apiKey: string; searchBaseUrl: string; fetchBaseUrl: string }
+export interface ProviderSearchCredentials { provider: SearchProviderId; apiKey: string; searchBaseUrl: string; fetchBaseUrl: string }
+export interface ChatModelSearchCredentials { provider: "openai-responses"; apiKey: string; baseUrl: string; model: string; fetch?: typeof fetch }
+export type SearchCredentials = ProviderSearchCredentials | ChatModelSearchCredentials;
 const FILE = "search-settings.json";
 const serialized = serializer();
 const keyLabel = (provider: SearchProviderId) => `${SEARCH_PROVIDER_LABELS[provider]} API Key`;
@@ -54,11 +57,12 @@ async function save(settings: StoredSearchSettings) {
 }
 const configView = ({ encryptedApiKey, ...item }: StoredSearchConfig): SearchConfigView => ({ ...item, hasApiKey: Boolean(encryptedApiKey) });
 const view = (settings: StoredSearchSettings): SearchSettingsView => ({
-  choice: activeChoice(settings.choice, { none: SEARCH_NONE, ids: settings.configs.map(item => item.id) }),
+  choice: activeChoice(settings.choice, { none: SEARCH_NONE, ids: [SEARCH_CHAT_MODEL, ...settings.configs.map(item => item.id)] }),
   configs: settings.configs.map(configView)
 });
 /** Keeps a choice the person made, or a service that is still there; otherwise the new service takes over. */
-const keepsChoice = (settings: StoredSearchSettings) => settings.choice === SEARCH_NONE || settings.configs.some(item => item.id === settings.choice);
+const keepsChoice = (settings: StoredSearchSettings) =>
+  settings.choice === SEARCH_NONE || settings.choice === SEARCH_CHAT_MODEL || settings.configs.some(item => item.id === settings.choice);
 function savedConfig(settings: StoredSearchSettings, id: string): StoredSearchConfig {
   const config = settings.configs.find(item => item.id === id);
   if (!config) throw new Error("这个搜索服务已被删除，请重新添加。");
@@ -79,7 +83,7 @@ export function revealSearchKey(id: string): Promise<string> {
 }
 
 /** The service being edited, with the saved key where the form leaves it unchanged. */
-export function searchDraftCredentials(draft: SearchConfigDraft): Promise<SearchCredentials> {
+export function searchDraftCredentials(draft: SearchConfigDraft): Promise<ProviderSearchCredentials> {
   return serialized(async () => {
     const saved = draft.id === undefined ? undefined : savedConfig(await load(), draft.id);
     const provider = draft.provider ?? saved?.provider ?? DEFAULT_SEARCH_PROVIDER;
@@ -93,7 +97,7 @@ export function searchDraftCredentials(draft: SearchConfigDraft): Promise<Search
 export function chooseSearch(choice: string): Promise<SearchSettingsView> {
   return serialized(async () => {
     const settings = await load();
-    if (choice !== SEARCH_NONE) savedConfig(settings, choice);
+    if (choice !== SEARCH_NONE && choice !== SEARCH_CHAT_MODEL) savedConfig(settings, choice);
     const next = { ...settings, choice };
     await save(next);
     return view(next);
@@ -125,20 +129,23 @@ export function saveSearchConfig(draft: SearchConfigDraft): Promise<SearchSettin
 }
 
 /**
- * DeepSeek search with a copy of the key of a DeepSeek model configuration just added, unless there is one already.
- * It becomes the choice unless the person chose something that is still there.
+ * Companion search (DeepSeek or Zhipu) with a copy of the key of a model configuration just added, unless there is
+ * one already. It becomes the choice unless the person chose something that is still there.
  */
-export function addDeepSeekSearch(apiKey: string): Promise<void> {
+export function addCompanionSearch(provider: "deepseek" | "zhipu", apiKey: string): Promise<void> {
   return serialized(async () => {
     const settings = await load();
-    if (settings.configs.some(item => item.provider === "deepseek")) return;
+    if (settings.configs.some(item => item.provider === provider)) return;
+    const defaults = searchProviderEndpoints(provider);
     const config: StoredSearchConfig = {
-      id: randomUUID(), name: uniqueName(SEARCH_SERVICE_LABELS.deepseek, [...settings.configs.map(item => item.name), ...BUILT_IN_NAMES]), provider: "deepseek",
-      encryptedApiKey: seal(apiKey), searchBaseUrl: DEFAULT_SEARCH_BASE_URL, fetchBaseUrl: DEFAULT_FETCH_BASE_URL
+      id: randomUUID(), name: uniqueName(SEARCH_SERVICE_LABELS[provider], [...settings.configs.map(item => item.name), ...BUILT_IN_NAMES]), provider,
+      encryptedApiKey: seal(apiKey), searchBaseUrl: defaults.searchBaseUrl, fetchBaseUrl: defaults.fetchBaseUrl
     };
     await save({ choice: keepsChoice(settings) ? settings.choice : config.id, configs: [...settings.configs, config] });
   });
 }
+
+export function addDeepSeekSearch(apiKey: string): Promise<void> { return addCompanionSearch("deepseek", apiKey); }
 
 /** Removes a service and its key; when it was the choice, search is turned off. */
 export function deleteSearchConfig(id: string): Promise<SearchSettingsView> {
@@ -154,11 +161,19 @@ export function deleteSearchConfig(id: string): Promise<SearchSettingsView> {
 }
 
 /** What ChalkLee AI searches with; anything missing is reported with a way to the settings. */
-export function searchCredentials(): Promise<SearchCredentials> {
+export function searchCredentials(assistantCredentials?: () => Promise<ImportCredentials>): Promise<SearchCredentials> {
   return serialized(async () => {
     try {
       const settings = await load();
-      const config = settings.configs.find(item => item.id === view(settings).choice);
+      const choice = view(settings).choice;
+      if (choice === SEARCH_CHAT_MODEL) {
+        const ai = assistantCredentials ? await assistantCredentials().catch(() => null) : null;
+        if (!ai || !supportsBuiltInWebSearch(ai)) {
+          throw new WebSearchError("当前对话模型不支持自带联网搜索，请在设置中切换到其他搜索服务，或改用支持自带搜索的对话模型。", true);
+        }
+        return { provider: "openai-responses", apiKey: ai.apiKey, baseUrl: ai.baseUrl, model: ai.model, ...(ai.fetch ? { fetch: ai.fetch } : {}) };
+      }
+      const config = settings.configs.find(item => item.id === choice);
       if (config) return { provider: config.provider, searchBaseUrl: config.searchBaseUrl, fetchBaseUrl: config.fetchBaseUrl, apiKey: unseal(config.encryptedApiKey, keyLabel(config.provider)) };
       throw new WebSearchError(settings.configs.length ? "联网搜索已关闭，请在设置中选择搜索服务后继续。" : "还没有配置联网搜索。在设置中添加搜索服务后，就能让 ChalkLee AI 上网找题、找资料。", true);
     } catch (error) {

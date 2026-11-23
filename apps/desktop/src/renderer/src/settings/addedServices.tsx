@@ -65,10 +65,13 @@ export function deleteQuestion(name: string, jobs: readonly Job[], hasKey: boole
 /** OCR and search choices: the built-in option, then every service in the list by its name. */
 export interface ChoiceView { choice: string; configs: { id: string; name: string; provider: string }[] }
 export const ADD_CHOICE = "\u0000add";
-export function ChoiceRow({ id, label, view, none, prefix, addLabel, configMeta, error, onChoose, onAdd }: {
+export interface BuiltInChoiceOption { value: string; label: string; meta?: string; title?: string; icon: ReactNode }
+export function ChoiceRow({ id, label, view, none, extra = [], prefix, addLabel, configMeta, error, onChoose, onAdd }: {
   id: string; label: string; view: ChoiceView | null;
   /** Who does the job without a service, or nobody; every option has an icon, so none looks unfinished. */
-  none: { value: string; label: string; meta?: string; icon: ReactNode };
+  none: BuiltInChoiceOption;
+  /** Additional built-in choices (such as a conversation model's own web search) shown after `none`. */
+  extra?: readonly BuiltInChoiceOption[];
   /** OCR_PREFIX or SEARCH_PREFIX, for the services' icons. */
   prefix: string;
   addLabel: string;
@@ -78,8 +81,9 @@ export function ChoiceRow({ id, label, view, none, prefix, addLabel, configMeta,
   onChoose(choice: string): void;
   onAdd(): void;
 }) {
+  const builtIns = [none, ...extra];
   const options: AppSelectOption[] = view ? [
-    { value: none.value, label: none.label, ...(none.meta ? { meta: none.meta } : {}) },
+    ...builtIns.map(item => ({ value: item.value, label: item.label, ...(item.meta ? { meta: item.meta } : {}), ...(item.title ? { title: item.title } : {}) })),
     ...view.configs.map(config => ({ value: config.id, label: config.name, ...(configMeta ? { meta: configMeta } : {}) })),
     { value: ADD_CHOICE, label: addLabel, group: "", action: true }
   ] : [];
@@ -87,7 +91,11 @@ export function ChoiceRow({ id, label, view, none, prefix, addLabel, configMeta,
   return <SettingsRow id={id} label={label} error={error || undefined}>
     <AppSelect className="settings-select compact" label={label} value={view?.choice ?? ""} placeholder={error && !view ? "无法读取" : "正在读取…"} options={options} disabled={!view}
       menuWidth="fit" menuAlign="end"
-      renderOptionIcon={option => option.value === ADD_CHOICE ? <Plus size={14} /> : option.value === none.value ? none.icon : <ServiceIcon value={`${prefix}${providerOf(option.value)}`} />}
+      renderOptionIcon={option => {
+        if (option.value === ADD_CHOICE) return <Plus size={14} />;
+        const builtIn = builtIns.find(item => item.value === option.value);
+        return builtIn ? builtIn.icon : <ServiceIcon value={`${prefix}${providerOf(option.value)}`} />;
+      }}
       onChange={value => value === ADD_CHOICE ? onAdd() : onChoose(value)} />
   </SettingsRow>;
 }

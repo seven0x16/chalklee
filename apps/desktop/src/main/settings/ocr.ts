@@ -212,18 +212,20 @@ export function saveOcrConfig(draft: OcrConfigDraft): Promise<OcrSettingsView> {
 }
 
 /**
- * DeepSeek OCR with a copy of the key of a DeepSeek model configuration just added, unless there is one already.
- * It becomes the choice unless the person chose something that is still there.
+ * Companion OCR (DeepSeek OCR or Zhipu GLM-OCR) with a copy of the key of a model configuration just added,
+ * unless there is one already. It becomes the choice unless the person chose something that is still there.
  */
-export function addDeepSeekOcr(apiKey: string): Promise<void> {
+export function addCompanionOcr(provider: "deepseek" | "glm-ocr", apiKey: string): Promise<void> {
   return serialized(async () => {
     const settings = await readSettings();
-    if (settings.configs.some(item => item.provider === "deepseek")) return;
-    const name = uniqueName(ocrProvider("deepseek").label, [...settings.configs.map(item => item.name), ...Object.values(OCR_BUILT_IN_LABELS)]);
-    const config: StoredOcrConfig = { id: randomUUID(), name, provider: "deepseek", encryptedApiKey: seal(apiKey) };
+    if (settings.configs.some(item => item.provider === provider)) return;
+    const name = uniqueName(ocrProvider(provider).label, [...settings.configs.map(item => item.name), ...Object.values(OCR_BUILT_IN_LABELS)]);
+    const config: StoredOcrConfig = { id: randomUUID(), name, provider, encryptedApiKey: seal(apiKey) };
     await save({ choice: keepsChoice(settings) ? settings.choice : config.id, configs: [...settings.configs, config] });
   });
 }
+
+export function addDeepSeekOcr(apiKey: string): Promise<void> { return addCompanionOcr("deepseek", apiKey); }
 
 /** Removes a model and its keys; when it was the choice, the conversion model takes over. */
 export function deleteOcrConfig(id: string): Promise<OcrSettingsView> {

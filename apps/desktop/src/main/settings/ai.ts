@@ -9,9 +9,9 @@ import {
 } from "../../shared/settings/aiProviders";
 import type { ImportCredentials } from "../conversion/model";
 import { effectiveThinking, modelThinking } from "../agent/modelThinking";
-import { isDeepSeekService } from "../../shared/settings/addedServices";
-import { addDeepSeekOcr } from "./ocr";
-import { addDeepSeekSearch } from "./search";
+import { isDeepSeekService, isZhipuCnService } from "../../shared/settings/addedServices";
+import { addCompanionOcr } from "./ocr";
+import { addCompanionSearch } from "./search";
 
 type StoredService = AiServiceConfig & { encryptedApiKey?: string };
 /**
@@ -250,9 +250,11 @@ export function saveAiService(draft: AiServiceDraft): Promise<AiServicesView & {
     // The first usable service serves both the AI panel and conversion until the teacher chooses otherwise.
     const next = withCurrent({ ...settings, services, ...(settings.activeId ? {} : { activeId: service.id }), ...(settings.conversionId ? {} : { conversionId: service.id }) });
     await writeSettings(next);
-    // A DeepSeek model added with its key also adds DeepSeek OCR and search, each keeping its own copy of the key.
+    // A DeepSeek or Zhipu (China Mainland) model added with its key also adds its companion OCR and search services.
     const addsDeepSeek = apiKey && isDeepSeekService(service.baseUrl) && !(previous?.encryptedApiKey && isDeepSeekService(previous.baseUrl));
-    if (addsDeepSeek) await Promise.allSettled([addDeepSeekOcr(apiKey), addDeepSeekSearch(apiKey)]);
+    if (addsDeepSeek) await Promise.allSettled([addCompanionOcr("deepseek", apiKey), addCompanionSearch("deepseek", apiKey)]);
+    const addsZhipu = apiKey && isZhipuCnService(service.baseUrl) && !(previous?.encryptedApiKey && isZhipuCnService(previous.baseUrl));
+    if (addsZhipu) await Promise.allSettled([addCompanionOcr("glm-ocr", apiKey), addCompanionSearch("zhipu", apiKey)]);
     return { ...await view(next), savedId: service.id };
   });
 }

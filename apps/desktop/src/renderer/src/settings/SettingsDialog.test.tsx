@@ -34,7 +34,7 @@ function addedServices(deepSeek: boolean) {
     configs: deepSeek ? [{ id: "search-deepseek", name: "DeepSeek 搜索", provider: "deepseek" as const, hasApiKey: true, searchBaseUrl: DEFAULT_SEARCH_BASE_URL, fetchBaseUrl: DEFAULT_FETCH_BASE_URL }] : [] as SearchConfigView[]
   };
   const ocrView = (): OcrSettingsView => ({ choice: activeChoice(ocr.choice, { none: "conversion", ids: ocr.configs.map(item => item.id) }), configs: ocr.configs });
-  const searchView = (): SearchSettingsView => ({ choice: activeChoice(search.choice, { none: "off", ids: search.configs.map(item => item.id) }), configs: search.configs });
+  const searchView = (): SearchSettingsView => ({ choice: activeChoice(search.choice, { none: "off", ids: ["chat-model", ...search.configs.map(item => item.id)] }), configs: search.configs });
   return {
     getOcrSettings: vi.fn(async () => ocrView()),
     chooseOcr: vi.fn(async (choice: string) => { ocr.choice = choice; return ocrView(); }),
@@ -625,6 +625,36 @@ describe("settings window", () => {
     expect(notice.previousElementSibling?.getAttribute("data-setting-id")).toBe("ai-services");
     await click(container.querySelector(".settings-save-notice button")!);
     expect(container.querySelector(".settings-save-notice")).toBeNull();
+  });
+
+  it("offers OpenAI Responses built-in search, clarifies independent search forms, and confirms Zhipu CN companions", async () => {
+    const openaiServices: AiServicesView = {
+      ...services, current: { serviceId: "s-openai", model: "gpt-6.1-sol" }, conversion: { serviceId: "s-openai", model: "gpt-6.1-sol" },
+      services: [{ id: "s-openai", name: "gpt-6.1-sol", provider: "openai", baseUrl: "https://api.openai.com/v1", api: "openai-responses", models: ["gpt-6.1-sol"], hasApiKey: true, proxy: "direct" }]
+    };
+    const mock = { ...api(true), listAiServices: vi.fn(async () => openaiServices), saveAiService: vi.fn(async () => ({ ...openaiServices, savedId: "s-zhipu" })) };
+    await mount(mock);
+    expect(await menu("ai-search")).toEqual(["关闭", "gpt-6.1-sol自带搜索，另计费", "DeepSeek 搜索联网搜索", "添加联网搜索…"]);
+    await pick("gpt-6.1-sol自带搜索，另计费");
+    expect(mock.chooseSearch).toHaveBeenLastCalledWith("chat-model");
+    expect(trigger("ai-search").textContent).toBe("gpt-6.1-sol");
+    await menu("ai-search");
+    await pick("添加联网搜索…");
+    expect(container.querySelector(".settings-page-header p")?.textContent).toContain("独立的搜索服务，可搭配任意对话模型");
+    await click(container.querySelector(".settings-back")!);
+    await addFromMenu();
+    await click(trigger("ai-provider"));
+    await pick("智谱");
+    await click(trigger("ai-region"));
+    await pick("国际（Z.AI）");
+    expect(container.querySelector(".settings-footnote")).toBeNull();
+    await click(trigger("ai-region"));
+    await pick("中国大陆");
+    expect(container.querySelector(".settings-footnote")?.textContent).toBe("保存后会自动补齐智谱 GLM-OCR 和智谱联网搜索，可在“模型和服务”中分别修改或删除。");
+    await type(container.querySelector<HTMLInputElement>('[data-setting-id="ai-key"] input')!, "sk-zhipu");
+    await click(button("保存"));
+    await flush();
+    expect(container.querySelector(".settings-save-notice")?.textContent).toBe("已保存智谱大模型，并自动补齐智谱 GLM-OCR 和智谱联网搜索。");
   });
 
   it("switches Bailian plans with the selected region and saves the plan's endpoint and model", async () => {

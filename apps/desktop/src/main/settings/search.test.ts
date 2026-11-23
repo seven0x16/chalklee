@@ -8,7 +8,7 @@ vi.mock("electron", () => ({
   app: { getPath: () => state.directory },
   safeStorage: { isEncryptionAvailable: () => state.available, getSelectedStorageBackend: () => "keychain", encryptString: (key: string) => Buffer.from(`sealed:${key}`), decryptString: (buffer: Buffer) => buffer.toString().replace(/^sealed:/, "") }
 }));
-const { addDeepSeekSearch, chooseSearch, deleteSearchConfig, getSearchSettings, revealSearchKey, saveSearchConfig, searchCredentials, searchDraftCredentials } = await import("./search");
+const { addCompanionSearch, addDeepSeekSearch, chooseSearch, deleteSearchConfig, getSearchSettings, revealSearchKey, saveSearchConfig, searchCredentials, searchDraftCredentials } = await import("./search");
 const file = () => path.join(state.directory, "search-settings.json");
 const stored = () => readFile(file(), "utf8");
 const sealed = (key: string) => Buffer.from(`sealed:${key}`).toString("base64");
@@ -97,6 +97,19 @@ describe("search settings and credentials", () => {
     await deleteSearchConfig(view.configs[0].id);
     await addDeepSeekSearch("sk-model");
     expect((await getSearchSettings()).choice).toBe("off");
+  });
+  it("supports the conversation model's built-in OpenAI Responses search and preserves that choice when companion services are added", async () => {
+    expect(await chooseSearch("chat-model")).toEqual({ choice: "chat-model", configs: [] });
+    expect(await searchCredentials(async () => ({
+      provider: "openai", api: "openai-responses", baseUrl: "https://api.openai.com/v1", model: "gpt-6.1-sol", apiKey: "sk-openai"
+    }))).toEqual({ provider: "openai-responses", baseUrl: "https://api.openai.com/v1", model: "gpt-6.1-sol", apiKey: "sk-openai" });
+    await expect(searchCredentials(async () => ({
+      provider: "deepseek", api: "openai-completions", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-flash", apiKey: "sk-ds"
+    }))).rejects.toMatchObject({ settings: true, message: expect.stringContaining("不支持自带联网搜索") });
+    await addCompanionSearch("zhipu", "sk-zhipu");
+    const view = await getSearchSettings();
+    expect(view.choice).toBe("chat-model");
+    expect(view.configs).toMatchObject([{ name: "智谱联网搜索", provider: "zhipu", hasApiKey: true, searchBaseUrl: "https://open.bigmodel.cn/api/paas/v4/web_search", fetchBaseUrl: "" }]);
   });
 });
 
