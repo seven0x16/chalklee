@@ -25,7 +25,7 @@ export interface ReferencePlan {
 const PART_SIZE = 110;
 const MAX_PARTS = 6;
 
-const startsSection = (entry: PlanEntry) => entry.role === "heading" || Boolean(importSectionLabel(entry.text)) || isImportAnswerHeading(entry.text);
+const startsSection = (entry: PlanEntry) => entry.role === "heading" || Boolean(importSectionLabel(entry.text)) || entry.role !== "answer" && isImportAnswerHeading(entry.text);
 const startsQuestion = (entry: PlanEntry, previous: PlanEntry | undefined) =>
   entry.role === "body" && entry.questionNumber !== undefined && entry.questionNumber !== previous?.questionNumber;
 

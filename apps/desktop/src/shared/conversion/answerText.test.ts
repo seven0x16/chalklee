@@ -201,6 +201,19 @@ describe("source-only compact answers", () => {
     expect(expandWordAnswerSources(key).map(wordSourceText)).toEqual(["【答案】", "1. B", "2. D"]);
   });
 
+  it("keeps later questions as questions when one answer sits on the line below a bare label", () => {
+    const blocks = (texts: string[]) => texts.map((text, i) => ({ type: "paragraph", attrs: { id: `s${i}` }, content: [{ type: "text", text }] })) as ChalkLeeBlockNode[];
+    const entries = (texts: string[]) => wordSourceEntries(expandWordAnswerSources(blocks(texts))).map(entry => [entry.text, entry.role, entry.questionNumber]);
+    expect(entries(["16. 求边长。", "【答案】12", "【解析】", "解：略。", "17. 求角度。", "【答案】", "（1）5°", "【解析】", "解：略。", "18. 求比值。", "【答案】", "8"])).toEqual([
+      ["16. 求边长。", "body", "16"], ["【答案】12", "answer", "16"], ["【解析】", "analysis", "16"], ["解：略。", "analysis", "16"],
+      ["17. 求角度。", "body", "17"], ["【答案】", "answer", "17"], ["（1）5°", "answer", "17"], ["【解析】", "analysis", "17"], ["解：略。", "analysis", "17"],
+      ["18. 求比值。", "body", "18"], ["【答案】", "answer", "18"], ["8", "answer", "18"]
+    ]);
+    // A title over a key still opens the answer section, whether the key is numbered or not.
+    expect(entries(["1. 第一题。", "2. 第二题。", "【答案】", "1. B", "2. D"]).slice(2)).toEqual([["【答案】", "heading", undefined], ["1. B", "answer", "1"], ["2. D", "answer", "2"]]);
+    expect(entries(["1. 第一题。", "2. 第二题。", "【答案】", "BD"])[2]).toEqual(["【答案】", "heading", undefined]);
+  });
+
   it("reads per-question labels with a space or a range as answer and analysis labels", () => {
     const entries = (texts: string[]) => wordSourceEntries(texts.map((text, i) => ({ type: "paragraph", attrs: { id: `s${i}` }, content: [{ type: "text", text }] })) as any)
       .map(entry => [entry.role, entry.questionNumber]);

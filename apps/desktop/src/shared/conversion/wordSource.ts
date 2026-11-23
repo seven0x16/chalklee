@@ -441,15 +441,47 @@ function printedQuestionNumbers(blocks: ChalkLeeBlockNode[], scopes: number[]): 
   return plain.map((number, index) => number ?? (sequence.has(index) ? parenthesized[index] : undefined));
 }
 
+/**
+ * "【答案】" alone on its line with one question's answer below it, as opposed to the title of an answer section.
+ * A key would follow the label with its own numbers and start them over; here the numbering runs on to the next
+ * question (17 → 18). After the last question there is no next number, so the paper must already answer question by question.
+ */
+export function wordQuestionAnswerLabels(blocks: ChalkLeeBlockNode[]): Set<string> {
+  const texts = blocks.map(wordSourceText);
+  const plain = texts.map(text => importQuestionAnchors(text).find(match => match.index === 0)?.[1]);
+  const startsPart = (index: number) => blocks[index].type === "heading" || !!importSectionLabel(texts[index]);
+  const labels = new Set<string>();
+  let question: number | undefined, newPart = false, answered = false;
+  texts.forEach((text, index) => {
+    if (startsPart(index)) newPart = true;
+    const number = plain[index] ? Number(plain[index]) : undefined;
+    // An excerpt may open at any number; after that only the next one, or a part's restart, is a question.
+    if (number !== undefined && (question === undefined || number === question + 1 || newPart && number <= question)) { question = number; newPart = false; }
+    if (question === undefined || !wordAnswerLabel.test(text)) return;
+    if (wordBareLabel.test(text) && isImportAnswerHeading(text)) {
+      const below = texts.findIndex((line, at) => at > index && line.trim());
+      if (below < 0 || plain[below] || startsPart(below)) return;
+      const after = plain.findIndex((number, at) => at > index && (Number(number) > question! || startsPart(at)));
+      const next = after < 0 ? undefined : plain[after];
+      if (next ? Number(next) !== question + 1 : !answered) return;
+      labels.add(blocks[index].attrs.id);
+    }
+    answered = true;
+  });
+  return labels;
+}
+
 export function wordSourceEntries(blocks: ChalkLeeBlockNode[], roles?: Record<string, "body" | "heading" | "answer" | "analysis">, numbers?: Record<string, string>, answerStarts = new Set<string>()) {
   let role: "answer" | "analysis" | "body" = "body";
   let answerSection = false;
   let scoringSection = false;
   let questionNumber: string | undefined;
   let scope = 0;
+  const questionAnswers = wordQuestionAnswerLabels(blocks);
+  const answerTitle = (block: ChalkLeeBlockNode, text: string) => isImportAnswerHeading(text) && !questionAnswers.has(block.attrs.id);
   const scopes = blocks.map(block => {
     const text = wordSourceText(block);
-    if (isImportAnswerHeading(text) || importSectionLabel(text)) scope++;
+    if (answerTitle(block, text) || importSectionLabel(text)) scope++;
     return scope;
   });
   const numbered = printedQuestionNumbers(blocks, scopes);
@@ -466,7 +498,7 @@ export function wordSourceEntries(blocks: ChalkLeeBlockNode[], roles?: Record<st
   const end = () => { solving = false; asked = new Set(); explained = new Set(); labels = []; pendingKnowledge = []; };
   blocks.forEach((block, index) => {
     const text = wordSourceText(block);
-    if (block.type === "heading" || isImportAnswerHeading(text) || importSectionLabel(text)) { end(); return; }
+    if (block.type === "heading" || answerTitle(block, text) || importSectionLabel(text)) { end(); return; }
     const answerLabel = text.match(wordAnswerLabel)?.[0];
     if (answerLabel || wordAnalysisLabel.test(text)) {
       // A key after another group's restated solution starts a new one.
@@ -501,7 +533,7 @@ export function wordSourceEntries(blocks: ChalkLeeBlockNode[], roles?: Record<st
     const items: number[] = [];
     for (let at = index + 1; at < blocks.length; at++) {
       const line = wordSourceText(blocks[at]);
-      if (blocks[at].type === "heading" || isImportAnswerHeading(line) || importSectionLabel(line)) break;
+      if (blocks[at].type === "heading" || answerTitle(blocks[at], line) || importSectionLabel(line)) break;
       if (wordAnswerLabel.test(line) || wordAnalysisLabel.test(line)) return [];
       if (!numbered[at]) { if (!items.length) break; continue; }
       if (numbered[at] !== String(items.length + 1) || numbered[at] === String(Number(owner) + 1)) break;
@@ -513,7 +545,7 @@ export function wordSourceEntries(blocks: ChalkLeeBlockNode[], roles?: Record<st
   return blocks.map((block, index) => {
     if (answerStarts.has(block.attrs.id)) { answerSection = true; scoringSection = false; }
     const text = wordSourceText(block);
-    const answerHeading = isImportAnswerHeading(text);
+    const answerHeading = answerTitle(block, text);
     const exampleHeading = answerSection && isImportSampleHeading(text);
     const scoringHeading = answerSection && isImportScoringSection(text);
     const answerNote = isImportSubsectionHeading(text) || answerSection && (/^(?:评分标准|阅卷说明)\s*[:：]/.test(text.trim())
@@ -565,7 +597,7 @@ export function chunkWordSourceBlocks(blocks: ChalkLeeBlockNode[], maxSize = 140
   while (start < blocks.length) {
     let end = start, size = 0, boundary = start;
     while (end < blocks.length) {
-      if (end > start && isImportAnswerHeading(entries[end].text)) break;
+      if (end > start && entries[end].role === "heading" && isImportAnswerHeading(entries[end].text)) break;
       const next = JSON.stringify(entries[end]).length;
       const canStart = entries[end].role === "heading" || importQuestionAnchors(entries[end].text).some(match => match.index === 0);
       if (canStart && end > start) boundary = end;

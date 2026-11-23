@@ -1,6 +1,6 @@
 import type { ChalkLeeBlockNode, ChalkLeeInlineNode } from "@chalklee/format";
 import { importSectionLabel, isImportAnswerHeading, isImportSampleHeading, isImportScoringSection } from "./answerSource";
-import { sliceInlineContent, wordAnswerLabel, wordAnalysisLabel, wordSourceText } from "./wordSource";
+import { sliceInlineContent, wordAnswerLabel, wordAnalysisLabel, wordQuestionAnswerLabels, wordSourceText } from "./wordSource";
 
 export interface ImportAnswerSpan { number: string; text: string; start: number; end: number }
 
@@ -133,8 +133,10 @@ function expandAnswerGrids(blocks: ChalkLeeBlockNode[], expanded?: (ref: string,
 export function expandWordAnswerSources(blocks: ChalkLeeBlockNode[], expanded?: (ref: string, number?: string) => void, answerStarts = new Set<string>()): ChalkLeeBlockNode[] {
   let answerSection = false, answerRows = false;
   let scoringSection = false;
-  return expandAnswerGrids(blocks, expanded).flatMap<ChalkLeeBlockNode>(block => {
+  const rows = expandAnswerGrids(blocks, expanded), questionAnswers = wordQuestionAnswerLabels(rows);
+  return rows.flatMap<ChalkLeeBlockNode>(block => {
     if (answerStarts.has(block.attrs.id)) { answerSection = true; scoringSection = false; }
+    if (questionAnswers.has(block.attrs.id)) { answerRows = false; return [block]; }
     if (block.type !== "paragraph" && block.type !== "heading") return [block];
     const content = block.content ?? [];
     if (content.some(node => !["text", "mathInline", "imageInline"].includes(node.type))) return [block];
