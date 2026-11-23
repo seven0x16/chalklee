@@ -9,7 +9,7 @@ const texts = (context: Partial<AssistantUiContext>, hints = {}) => assistantSug
 describe("assistant suggestions", () => {
   it("starts with what the caret is in, then the paper", () => {
     const question = texts({ activeDocument: paper, selectedQuestion: { id: "q3", label: "3" } });
-    expect(question[0]).toBe("给第 3 题出 2 道相似题，插在原题后面");
+    expect(question[0]).toBe("给第 3 题出 1 道相似题，插在原题后面");
     expect(question).toHaveLength(4);
     expect(texts({ activeDocument: paper, pointedAt: { kind: "box", id: "b1", label: "注意" } })[0]).toBe("精简“注意”盒子里的文字，意思不变");
     expect(texts({ activeDocument: paper, pointedAt: { kind: "text" } })[0]).toBe("润色选中的内容，意思不变");

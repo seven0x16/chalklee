@@ -7,13 +7,18 @@ export type QuestionAssistantAction = "similar" | "easier" | "harder" | "solutio
 
 /** The teacher's own words, as they appear in the conversation. */
 export const QUESTION_ASSISTANT_PROMPTS: Record<QuestionAssistantAction, string> = {
-  similar: "给这道题出 2 道相似题，难度相当，插在原题后面",
+  similar: "给这道题出 1 道相似题，难度相当，插在原题后面",
   easier: "降低这道题的难度，直接改写原题，答案和解析一起改",
   harder: "提高这道题的难度，直接改写原题，答案和解析一起改",
   solution: "给这道题写答案与解析，已有的先核对",
   answer: "给这道题写答案，不用写解析",
   analysis: "给这道题写解析，已有答案的先核对"
 };
+
+/** Open-ended generation waits in the message box so the teacher can adjust count or destination before sending. */
+export function questionAssistantUsesDraft(action: QuestionAssistantAction): boolean {
+  return action === "similar";
+}
 
 export interface QuestionAssistantRequest {
   filePath: string;

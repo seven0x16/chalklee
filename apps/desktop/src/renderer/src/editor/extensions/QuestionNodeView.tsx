@@ -167,7 +167,7 @@ export function QuestionNodeView({ editor, node, getPos, selected, decorations }
     editor.view.focus();
     dispatchChalkLeeFreeAuthoringStatus(editor.view, part === "optionGroup" ? "options-added" : part === "questionAnswer" ? "answer-created" : "analysis-entered");
   };
-  const run = (action: () => void, dismiss = false) => (event: React.MouseEvent) => {
+  const run = (action: () => void, dismiss = false, focusEditor = dismiss) => (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     if (dismiss) {
@@ -175,7 +175,7 @@ export function QuestionNodeView({ editor, node, getPos, selected, decorations }
       setConfirmDelete(false);
     }
     action();
-    if (dismiss) window.requestAnimationFrame(() => { if (!editor.isDestroyed) editor.view.focus(); });
+    if (focusEditor) window.requestAnimationFrame(() => { if (!editor.isDestroyed) editor.view.focus(); });
   };
 
   return (
@@ -303,7 +303,7 @@ export function QuestionNodeView({ editor, node, getPos, selected, decorations }
                 ["solution", PenLine, "写答案与解析"]
               ] as const).map(([action, Icon, label]) => (
                 <button key={action} type="button" title={`用 ChalkLee AI ${label}`} aria-label={`用 ChalkLee AI ${label}`}
-                  onClick={run(() => askAssistant({ id: String(node.attrs.id), label: findChalkLeeQuestionContext(editor.state.doc, String(node.attrs.id))?.label ?? null }, action as QuestionAssistantAction), true)}>
+                  onClick={run(() => askAssistant({ id: String(node.attrs.id), label: findChalkLeeQuestionContext(editor.state.doc, String(node.attrs.id))?.label ?? null }, action as QuestionAssistantAction), true, false)}>
                   <Icon size={14} /><span>{label}</span>
                 </button>
               ))}

@@ -18,7 +18,7 @@ import { useAssistantActivity } from "../assistant/useAssistant";
 import type { AssistantQuestionSearch, AssistantUiAction, AssistantUiContext, OrganizeRecord } from "../../../shared/agent/assistant";
 import { joinWorkspacePath, type QuestionAttributePatch, type QuestionBankLocation, type QuestionBankResult, type QuestionBasketItem, type QuestionBasketReference } from "../../../shared/questionBank/search";
 import { QuestionBasketContext, type QuestionBasketControls } from "../editor/questionBasket";
-import { IMAGE_ASSISTANT_PROMPT, QUESTION_ASSISTANT_PROMPTS, QuestionAssistantContext, type PaperAssistantRequest } from "../editor/questionAssistant";
+import { IMAGE_ASSISTANT_PROMPT, QUESTION_ASSISTANT_PROMPTS, QuestionAssistantContext, questionAssistantUsesDraft, type PaperAssistantRequest } from "../editor/questionAssistant";
 import { Inspector } from "../inspector/Inspector";
 import { PaneResizer } from "../ui/PaneResizer";
 import { WorkspaceTree } from "../workspace/WorkspaceTree";
@@ -1498,14 +1498,14 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
     showRightPane();
   }
 
-  /** A question's or picture's ChalkLee AI request: the conversation shows beside the paper and the request goes out at once. */
+  /** A question's or picture's ChalkLee AI request: open-ended actions wait in the message box, direct actions send at once. */
   const askQuestionAssistant = useCallback((request: PaperAssistantRequest) => {
     setRightPanel("assistant");
     setInspectorOpen(true);
     setInspectorExplicitOpen(true);
     setAssistantRequest(current => ({ id: (current?.id ?? 0) + 1, activeDocument: request.filePath, ...("image" in request
       ? { text: IMAGE_ASSISTANT_PROMPT, image: request.image, selection: request.selection }
-      : { text: QUESTION_ASSISTANT_PROMPTS[request.action], question: request.question }) }));
+      : { text: QUESTION_ASSISTANT_PROMPTS[request.action], question: request.question, draft: questionAssistantUsesDraft(request.action) }) }));
   }, []);
 
   /**

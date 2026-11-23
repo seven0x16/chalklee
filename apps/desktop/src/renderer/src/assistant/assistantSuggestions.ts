@@ -47,7 +47,7 @@ export function assistantSuggestions(context: AssistantUiContext, hints: Assista
     const question = context.selectedQuestion, pointed = context.pointedAt;
     if (question) {
       const name = question.label ? assistantQuestionLabel(question.label) : "这道题";
-      add(ListPlus, `给${name}出 2 道相似题，插在原题后面`);
+      add(ListPlus, `给${name}出 1 道相似题，插在原题后面`);
       add(ListChecks, `核对${name}的答案，补上分步解析`);
       add(TrendingUp, `把${name}改编得难一些，插在原题后面`);
     } else if (pointed?.kind === "box") {

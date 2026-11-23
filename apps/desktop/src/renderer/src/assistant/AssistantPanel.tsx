@@ -147,9 +147,9 @@ export function AssistantPanel({ active, workspaceRoot, skillFolders = NO_SKILL_
     // Wait for the model status, so an unconfigured app keeps the words instead of failing.
     if (!active || !request || request.id === handledRequest.current || (!status && !disabledReason)) return;
     handledRequest.current = request.id;
-    // Without a model the words, and the picture, wait in the message box for after setup.
+    // Without a model, or for open-ended drafts, the words and picture wait in the message box.
     if (request.draft || disabledReason || !configured) {
-      composerRef.current?.fill(request.text);
+      composerRef.current?.fill(request.text, { includeContext: Boolean(request.activeDocument || request.question) });
       if (request.image && !disabledReason) composerRef.current?.attach([], [request.image]);
       return;
     }
@@ -689,7 +689,7 @@ function AssistantHistory({ conversations, currentId, anchor, onSelect, onDelete
 
 /* ---------- composer ---------- */
 
-interface ComposerHandle { focus(): void; fill(text: string): void; attach(files: AssistantDocumentRef[], images: File[]): void }
+interface ComposerHandle { focus(): void; fill(text: string, options?: { includeContext?: boolean }): void; attach(files: AssistantDocumentRef[], images: File[]): void }
 interface ComposerAttachments { files: AssistantDocumentRef[]; images: AssistantImageAttachment[] }
 const NO_ATTACHMENTS: ComposerAttachments = { files: [], images: [] };
 
@@ -788,8 +788,9 @@ const AssistantComposer = memo(forwardRef<ComposerHandle, {
     }
     inputRef.current?.focus();
   }, [onNotice, activePath]);
-  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus(), fill: value => {
+  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus(), fill: (value, options) => {
     setText(value);
+    if (options?.includeContext) setInclude({ document: true, question: true });
     // The caret goes after the words, ready for the teacher to go on typing.
     requestAnimationFrame(() => { const input = inputRef.current; input?.focus(); input?.setSelectionRange(value.length, value.length); });
   }, attach }), [attach]);
