@@ -176,6 +176,14 @@ export function normalizeWordImportPlan(value: any, unit?: ImportUnit): any {
         return normalize(concise);
       }
     }
+    // A question shows only its stem and a group only its material: what is written under the other would vanish from
+    // the paper while still counting as placed. It belongs to the one that shows, in printed order.
+    const [shown, other] = value.type === "questionGroup" ? ["material", "stem"] : ["stem", "material"];
+    if (["question", "questionGroup"].includes(value.type) && Array.isArray(value[other]) && value[other].length) {
+      const { [other]: stray, ...rest } = value;
+      const at = (item: any): number => item?.ref ? order.get(item.ref) ?? Infinity : Math.min(Infinity, ...(item && typeof item === "object" ? Object.values(item).flat(3).map(at) : []));
+      value = { ...rest, [shown]: [...(Array.isArray(value[shown]) ? value[shown] : []), ...stray].sort((a, b) => at(a) - at(b)) };
+    }
     if (value.type === "option" && value.attrs?.label && Array.isArray(value.content) && Object.keys(value.attrs).every(key => ["id", "label"].includes(key))) return normalize({ label: value.attrs.label, content: value.content });
     if (wrappers.includes(value.type) && value.ref && Object.keys(value).every(key => ["type", "ref", "stripPrefix"].includes(key))) {
       const { type: _type, ...reference } = value;

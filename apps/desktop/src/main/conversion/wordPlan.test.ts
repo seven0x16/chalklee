@@ -17,6 +17,17 @@ it("keeps a numbered child introduction and its figure with the child's circled 
   expect(normalizeWordImportPlan(plan, source)).toEqual(plan);
 });
 
+it("keeps what is written under the field a question or group does not show", () => {
+  const paragraph = (id: string, text: string) => ({ type: "paragraph", attrs: { id }, content: [{ type: "text", text }] });
+  const source: any = { id: "part", label: "原稿", images: [], nativeReferences: true, blocks: [paragraph("stem", "7. 下列正确的是（）"), { type: "paragraph", attrs: { id: "figure" }, content: [{ type: "imageInline", attrs: { id: "picture", assetId: "plot" } }] }, paragraph("note", "据图回答。"), paragraph("part", "（1）求值。")] };
+  const [question] = normalizeWordImportPlan([{ type: "question", number: "7", kind: "free-response", stem: [{ ref: "stem", stripPrefix: "7." }, { ref: "note" }], material: [{ ref: "figure" }] }], source);
+  expect(question.material).toBeUndefined();
+  expect(question.stem.map((item: any) => item.ref)).toEqual(["stem", "figure", "note"]);
+  const [group] = normalizeWordImportPlan([{ type: "questionGroup", number: "7", kind: "composite", stem: [{ ref: "figure" }], material: [{ ref: "stem", stripPrefix: "7." }, { ref: "note" }], questions: [{ type: "question", number: "(1)", stem: [{ ref: "part", stripPrefix: "（1）" }] }] }], source);
+  expect(group.stem).toBeUndefined();
+  expect(group.material.map((item: any) => item.ref)).toEqual(["stem", "figure", "note"]);
+});
+
 it("preserves exercise numbers after a Word line break and times beside answer lines", () => {
   let id = 0;
   const content = normalizeNumberedBlanks([{ type: "text", text: "5. First exercise ____?" }, { type: "hardBreak" },

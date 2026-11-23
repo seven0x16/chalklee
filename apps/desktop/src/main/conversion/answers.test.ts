@@ -45,6 +45,14 @@ describe("whole-document answer association", () => {
     expect(document.content.content.map(node => node.attrs.id)).toEqual(["q1", "q2", "open", "loose", "note", "section", "q3"]);
     expect(result.redundantIds).toEqual(["label", "first", "second"]);
   });
+  it("keeps the section titles of the next part after a key printed under a question group", () => {
+    const heading = (id: string, text: string) => ({ ...p(id, text), type: "heading", attrs: { id, level: 2 } });
+    const document = doc([heading("first", "Ⅰ．完形填空"), q("q1", "1"), p("label", "【答案】"), a("a1", "1", "B"),
+      heading("second", "Ⅱ．阅读理解"), p("directions", "阅读下列短文。"), q("q2", "2"), p("label2", "【答案】"), a("a2", "2", "C"),
+      heading("part", "第二部分非选择题"), heading("third", "Ⅲ．语法填空"), p("passage", "阅读下面短文。"), q("q3", "3")]);
+    reconcileImportAnswers(document, [entry("a1"), entry("a2")]);
+    expect(document.content.content.map(node => node.attrs.id)).toEqual(["first", "q1", "second", "directions", "q2", "part", "third", "passage", "q3"]);
+  });
   it("removes a reprinted masthead and section titles left empty after per-question answer labels", () => {
     const h = (id: string, text: string, level: 1 | 2) => ({ ...p(id, text), type: "heading", attrs: { id, level } });
     const document = doc([h("title", "2025年普通高中学业水平选择性考试(江苏卷) 地理", 1), p("note", "本试卷满分 100 分，考试时间 75 分钟。"),

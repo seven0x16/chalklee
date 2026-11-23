@@ -164,6 +164,8 @@ export function reconcileImportAnswers(document: ChalkLeeDocument, entries: Impo
     if (!["paragraph", "heading"].includes(block.type) || !isImportAnswerHeading(importText(block))) continue;
     let end = start + 1;
     while (end < blocks.length && (byId.has(blocks[end].attrs.id) || (["heading", "paragraph"].includes(blocks[end].type) && (!!importSectionLabel(importText(blocks[end])) || isImportSubsectionHeading(importText(blocks[end])))))) end++;
+    // With more of the paper after it, a section title past the last answer opens that part: it is not the key's.
+    if (end < blocks.length) while (end > start + 1 && !byId.has(blocks[end - 1].attrs.id)) end--;
     const segment = blocks.slice(start + 1, end);
     const linkedEntries = segment.some(item => byId.has(item.attrs.id));
     // References may have been placed directly in their questions, leaving no
@@ -196,6 +198,10 @@ export function reconcileImportAnswers(document: ChalkLeeDocument, entries: Impo
     if (["heading", "paragraph"].includes(node.type) && isImportAnswerHeading(importText(node))) { inAnswerKey = true; continue; }
     if ((node.type === "question" || node.type === "questionGroup") && !byId.has(node.attrs.id)) inAnswerKey = false;
     if (!inAnswerKey || !keyHeading(node) || replacements.has(node.attrs.id)) continue;
+    // Titles stacked over the paper's next part ("第二部分", "Ⅲ．语法填空", its passage) head that part, not an emptied key.
+    let below = i + 1;
+    while (below < blocks.length && keyHeading(blocks[below])) below++;
+    if (below > i + 1 && below < blocks.length && !byId.has(blocks[below].attrs.id) && !isImportAnswerHeading(importText(blocks[below])) && meaningful(blocks[below])) continue;
     let contentRemains = false;
     for (let j = i + 1; j < blocks.length; j++) {
       const next = blocks[j];
