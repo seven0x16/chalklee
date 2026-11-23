@@ -40,6 +40,8 @@ function setup() {
     <div id="left-resizer" class="workspace-pane-resizer left" role="separator" tabindex="0"><span id="left-resizer-grip" /></div>
     <div id="right-resizer" class="workspace-pane-resizer right" role="separator" tabindex="0"><span id="right-resizer-grip" /></div>
     <aside class="workspace-inspector"><nav><button class="outline-entry question-entry" data-outline-id="q2" id="outline-q2">2</button></nav><div id="host"><button id="property">边框</button></div><button id="region">题干</button></aside>
+    <aside class="complete-sidebar assistant-sidebar"><section class="assistant-panel"><button id="ai-suggestion">出相似题</button><textarea id="ai-input"></textarea></section></aside>
+    <aside class="complete-sidebar right-tool-sidebar"><button id="basket-item">插入试卷</button></aside>
   </body></html>`);
   const dom = document.querySelector<HTMLElement>("#editor")!;
   const host = document.querySelector<HTMLElement>("#host")!;
@@ -121,6 +123,29 @@ describe("visible question selection and paper inspector", () => {
       h.emit("update");
       expect(h.visible).toBe("q1");
     }
+    h.dispose();
+  });
+
+  it.each([false, true])("keeps question selection (whole: %s) when moving to ChalkLee AI or right tool panels", async whole => {
+    const h = setup();
+    await h.clickQuestion("q1", whole);
+    for (const selector of ["#ai-input", "#ai-suggestion", "#basket-item"]) {
+      h.send(selector, "pointerdown");
+      expect(h.visible).toBe("q1");
+      await h.focus(selector);
+      h.emit("update");
+      expect(h.visible).toBe("q1");
+    }
+    // Switching to ChalkLee AI from the titlebar auto-focuses the composer without a pointerdown on it.
+    h.send("#right-toggle", "pointerdown");
+    await h.focus("#ai-input");
+    expect(h.visible).toBe("q1");
+    // Clicking blank paper or unrelated UI still clears the selection.
+    h.send(".chalklee-paper", "pointerdown");
+    expect(h.visible).toBeNull();
+    await h.clickQuestion("q2", whole);
+    await h.focus("#search");
+    expect(h.visible).toBeNull();
     h.dispose();
   });
 

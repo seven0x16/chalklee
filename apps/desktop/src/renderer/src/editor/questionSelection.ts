@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/core";
 import { CHALKLEE_REVEAL_QUESTION_EVENT, findChalkLeeQuestionContext, selectedChalkLeeQuestionContext } from "./editorContext";
 
-/** The visible selection outlives inspector focus and sidebar layout changes, but not a click on paper. */
+/** The visible selection outlives right-pane focus (inspector, ChalkLee AI, tools) and sidebar layout changes, but not a click on paper. */
 export function trackChalkLeeQuestionSelection(
   editor: Editor,
   inspectorHost: () => HTMLElement | null,
@@ -28,7 +28,7 @@ export function trackChalkLeeQuestionSelection(
     ? element.closest<HTMLElement>(".chalklee-question-object[data-node-id]")?.dataset.nodeId ?? null : null;
   const isControl = (element: Element) => Boolean(
     inspectorHost()?.closest(".workspace-inspector")?.contains(element)
-    || element.closest(".workspace-pane-toggle, .workspace-pane-resizer")
+    || element.closest(".assistant-sidebar, .right-tool-sidebar, .workspace-pane-toggle, .workspace-pane-resizer")
     || (pane?.contains(element) && (
       !element.closest(".chalklee-editor-scroll-shell") || Boolean(element.closest(".chalklee-line-insert"))
     ))
