@@ -21,7 +21,7 @@ import { assertInsideRoot, createWorkspaceChalkLee, readWorkspaceDocument } from
 import { workspaceStorageDirectory } from "../workspace/storage";
 import { openConversionStorage } from "./cacheStorage";
 import { locateWorkspaceOriginal, readConversionSource } from "./originals";
-import { assertWordImportPlan, normalizeWordImportPlan, WORD_PLAN_PROMPT } from "./wordPlan";
+import { assertWordImportPlan, normalizeWordImportPlan, plainTitlesInQuestions, WORD_PLAN_PROMPT } from "./wordPlan";
 import { mergeAdjacentBlanks, sliceInlineContent, tidyWordInlines, wordPrefixLength, wordSourceEntries, wordSourceText } from "../../shared/conversion/wordSource";
 import { importQuestionAnchors, printedBlankNumbers } from "../../shared/conversion/questionAnchors";
 import { resolveWordFormulaImages } from "./wordFormulas";
@@ -73,7 +73,7 @@ export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: I
     // A source heading/new printed question is stronger evidence than a model's
     // continuation flag, particularly after question-aware Word chunking.
     if (first?.role === "heading" || (printed && first?.questionNumber === printed && continuation?.type === "question" && continuation.attrs.number.mode === "fixed" && continuation.attrs.number.label !== printed)) reply.continuesPrevious = false;
-    reply.blocks = normalizeWordImportPlan(reply.blocks, unit);
+    reply.blocks = plainTitlesInQuestions(normalizeWordImportPlan(reply.blocks, unit), unit);
     const opening = reply.blocks[0] as any;
     // A native-text page can continue a group whose previous page needed OCR.
     // An empty material wrapper is a continuation only with matching source

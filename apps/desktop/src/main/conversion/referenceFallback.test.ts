@@ -3,7 +3,7 @@ import type { ChalkLeeBlockNode } from "@chalklee/format";
 import { importAppearance, importText } from "../../shared/conversion/importDocument";
 import type { PreparedImport } from "../../shared/conversion/types";
 import { wordSourceEntries } from "../../shared/conversion/wordSource";
-import { newAutonomousDraft } from "./autonomous/state";
+import { assessAutonomousDraft, compileAutonomousDraft, newAutonomousDraft } from "./autonomous/state";
 import { makeDocument } from "./documentImport";
 import { compileUnfinishedReferenceDraft } from "./referenceDraft";
 import { organizeRemainingReferences, referenceFollowUp } from "./referenceFallback";
@@ -66,6 +66,19 @@ describe("organizing what the agent left", () => {
     const filled = organizeRemainingReferences(input, base, newAutonomousDraft());
     expect(filled.organized).toEqual([]);
     expect(importText(compileUnfinishedReferenceDraft(input, base, filled.draft).document.content)).toContain("一段不属于选项的文字");
+  });
+
+  it("notices a printed question left outside when its bold line was read as a title", () => {
+    const input = prepared(["1. 第一题。", "2. 结合漫画，完成下列要求。"]), base = template(input);
+    const unit = input.units[0];
+    unit.blocks[1] = { ...unit.blocks[1], type: "heading", attrs: { ...unit.blocks[1].attrs, level: 2 } } as ChalkLeeBlockNode;
+    unit.sourceRoles = { ...unit.sourceRoles, source_2: "heading" };
+    const fragment = (key: string, order: number, block: unknown) => ({ key, order, unitIds: ["part_1"], continuesPrevious: false, warnings: [], blocks: [block] });
+    const question = fragment("q1", 0, { type: "question", number: "1", kind: "free-response", stem: [{ ref: "source_1", stripPrefix: "1." }] });
+    const loose = { ...newAutonomousDraft(), seenUnits: ["part_1"], fragments: [question, fragment("q2", 1, { ref: "source_2", as: "paragraph" })] };
+    expect(assessAutonomousDraft(input, loose as any, compileAutonomousDraft(input, base, loose as any)).join("\n")).toContain("第2题留在了题外");
+    const title = { ...loose, fragments: [question, fragment("q2", 1, { ref: "source_2", as: "heading", level: 2 })] };
+    expect(assessAutonomousDraft(input, title as any, compileAutonomousDraft(input, base, title as any)).join("\n")).not.toContain("留在了题外");
   });
 
   it("names the questions behind a doubt, by number or by paragraph", () => {

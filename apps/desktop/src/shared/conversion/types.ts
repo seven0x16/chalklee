@@ -133,7 +133,7 @@ export interface ImportRecord {
     proofread?: "pending" | "done";
     /** A delivered conversion's places worth checking; continuing lets ChalkLee AI organize them again. */
     followUp?: ImportFollowUp;
-    units?: ImportUnitResult[]; structureModel: string; execution?: ImportExecutionOptions; calls: ImportModelCall[]; cachedUnits: number; answers?: ImportAnswerReport; formulas?: { native: number; recognized: number; unresolved: number }; agent?: { rounds: number; resumed: boolean; actions: ImportReviewAction[]; previewPages: number }; reviews?: { unit: string; completed: boolean; actions: ImportReviewAction[] }[];
+    units?: ImportUnitResult[]; structureModel: string; execution?: ImportExecutionOptions; calls: ImportModelCall[]; cachedUnits: number; answers?: ImportAnswerReport; formulas?: { native: number; recognized: number; unresolved: number }; agent?: { rounds: number; resumed: boolean; actions: ImportReviewAction[]; previewPages: number; /** What the agent checked against the original and kept, and why. */ kept?: { issue: string; reason: string }[] }; reviews?: { unit: string; completed: boolean; actions: ImportReviewAction[] }[];
     /** Knowledge-point tags ChalkLee AI put on the delivered copy: the preset course it drew on, and how many questions got tags. */
     tags?: { course: string | null; questions: number };
     timing?: ImportTiming };

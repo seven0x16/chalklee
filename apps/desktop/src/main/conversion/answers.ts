@@ -110,6 +110,12 @@ export function reconcileImportAnswers(document: ChalkLeeDocument, entries: Impo
     // of a question number. Only the unique unnumbered writing question fits.
     if (!numberedCandidates.length && !entry.parents.length && /^(?:书面表达|写作|writing)$/i.test(path.at(-1) ?? "")) candidates = index.filter(candidate =>
       candidate.node.type === "question" && !candidate.path.length && candidate.sectionName === "书面表达");
+    // A key's plain "1. A" is question 1, not part (1) of some later question.
+    const printedAsPart = (question: Question) => question.attrs.number.mode === "fixed" && /^\s*[（(]/.test(question.attrs.number.label);
+    if (!entry.parents.length && !printedAsPart(node)) {
+      const whole = candidates.filter(candidate => !printedAsPart(candidate.node));
+      if (whole.length) candidates = whole;
+    }
     const regions = node.content.filter(region => region.type === "questionAnswer" || region.type === "questionAnalysis");
     if (!regions.length || !regions.some(meaningful)) throw new Error("独立答案片段没有可保留的答案或解析正文。");
     // Explicit parent/section scope remains usable when an unrelated page is

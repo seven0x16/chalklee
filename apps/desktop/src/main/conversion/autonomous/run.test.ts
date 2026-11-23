@@ -713,7 +713,7 @@ describe("whole-document autonomous import", () => {
     draft.fragments = [{ ...fragment("q", 1, "part_1", [question("计算 $x^3$")]), warnings: [], continuesPrevious: false }];
     expect(() => compileAutonomousDraft(input, makeDocument("test", input, "source.docx"), draft)).toThrow("内容必须引用原稿ref");
   });
-  it("keeps an indented DOCX heading as a top-level reference and names a misplaced one", () => {
+  it("keeps an indented DOCX heading as a top-level reference, and as a line when it is inside a question", () => {
     input.sourcePath = path.join(root, "test.docx");
     input.units = [{ id: "part_1", label: "第1部分", nativeReferences: true, blocks: [
       { type: "heading", attrs: { id: "source_1", level: 1, indentLeftPt: 79.7, lineHeight: 0.92 }, content: [{ type: "text", text: "期中学情调研问卷" }] },
@@ -724,7 +724,9 @@ describe("whole-document autonomous import", () => {
     const compiled = compileAutonomousDraft(input, makeDocument("test", input, "source.docx"), draft);
     expect(compiled.document.content.content.map(node => node.type)).toEqual(["heading", "question"]);
     draft.fragments = [{ ...fragment("q", 1, "part_1", [{ ...question(), stem: [{ ref: "source_1" }, { ref: "source_2", stripPrefix: "1." }] }]), warnings: [], continuesPrevious: false }];
-    expect(() => compileAutonomousDraft(input, makeDocument("test", input, "source.docx"), draft)).toThrow("questionStem 中不能放 heading，标题请作为独立块放在题目之外");
+    const inside = compileAutonomousDraft(input, makeDocument("test", input, "source.docx"), draft).document.content.content;
+    expect(inside.map(node => node.type)).toEqual(["question"]);
+    expect(importText(inside[0])).toContain("期中学情调研问卷");
   });
   it("preserves native DOCX references and applies the same layout to preview and save", () => {
     input.sourcePath = path.join(root, "test.docx");

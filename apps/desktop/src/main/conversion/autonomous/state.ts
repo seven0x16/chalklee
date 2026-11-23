@@ -210,7 +210,8 @@ export function assessAutonomousDraft(input: PreparedImport, draft: AutonomousDr
     // The printed number, not the program's guess: a number printed twice (the paper, then a commentary reprinting
     // its questions) leaves the guess empty.
     const printed = importPunctuatedQuestionStart(entry.text);
-    if (!topLevelRefs.has(entry.ref) || entry.role !== "body" || !printed || organizedNumbers.has(printed) || !organizedNumbers.has(String(Number(printed) - 1)) || strandedNumbers.has(printed)) continue;
+    // A bold question line can be read as a title; one the agent really keeps as a title is not among these references.
+    if (!topLevelRefs.has(entry.ref) || !["body", "heading"].includes(entry.role) || !printed || organizedNumbers.has(printed) || !organizedNumbers.has(String(Number(printed) - 1)) || strandedNumbers.has(printed)) continue;
     strandedNumbers.add(printed);
     issues.push(`第${printed}题留在了题外：${entry.ref}（“${entry.text.slice(0, 24)}”）印着题号，却不在任何题目里。整理成第${printed}题，有共用材料或小问时整理为题组；确属原稿说明时保持原样再次 finish。`);
   }

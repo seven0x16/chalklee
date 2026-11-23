@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type, type TSchema } from "typebox";
 import { conversionFailureText } from "../../shared/conversion/failure";
@@ -77,7 +78,8 @@ export const REFERENCE_AGENT_PROMPT = `${REFERENCE_INTRO}${REFERENCE_PRINCIPLES}
 - 用 \`write_fragments\` 按一道完整题或题组保存，章节标题可以独立成片段，\`key\` 保持稳定。片段顺序由程序按原稿位置排列。一次可保存几道已确定的题；不要等整章读完或所有疑点处理完才保存，也不要为一处问题重写整章。
 - 每次写入后工具返回题数、还没写入的 ref 和校验问题。逐条处理：沿用原 \`key\` 整段替换，或用 \`edits\` 局部修改（\`path\` 从片段根开始，\`expected\` 必须等于当前值；给题目加上还没有的字段时，如 answerFor，\`expected\` 写 null），不要换新 \`key\` 重复写入。
 - 写入失败时整批不保存，按返回的原因修正后重发，不原样重试。
-- 全部 ref 都已写入、问题处理完后调用 \`finish\`。仅输出完成说明不能结束转换。`;
+- 全部 ref 都已写入、问题处理完后调用 \`finish\`。仅输出完成说明不能结束转换。
+- 方括号里的题号、“答案”“解析”“标题”是程序的判断，可能有误，以原稿实际内容为准。\`finish\` 返回带 id 的问题时逐条处理：能改的改好；核对原稿后确属原稿如此的，再次调用时在 \`keep\` 中写这一条的 \`id\` 和 \`reason\`，reason 写清原稿哪里是这样印的。`;
 
 /** The first pass organizes the whole paper without tools; local corrections are left to the agent. */
 export const REFERENCE_PLAN_PROMPT = `${REFERENCE_INTRO}${REFERENCE_PRINCIPLES
@@ -89,6 +91,8 @@ export const REFERENCE_PLAN_PROMPT = `${REFERENCE_INTRO}${REFERENCE_PRINCIPLES
 const MAX_ROUNDS = 60;
 /** The whole paper is in the first message, so this many turns without saving anything means the agent is going round. */
 const IDLE_ROUNDS = 12;
+/** A short, stable name for one finding, so the agent can say why it keeps that one. */
+const issueId = (issue: string) => `chk_${createHash("sha256").update(issue).digest("hex").slice(0, 8)}`;
 const ROLE_LABELS: Record<string, string> = { heading: "标题", answer: "答案", analysis: "解析" };
 const identifier = Type.String({ pattern: "^[a-zA-Z0-9_-]{1,80}$" });
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }], details: {} });
@@ -132,7 +136,9 @@ function printedQuestions(document: ChalkLeeDocument): number {
 
 export interface ReferenceAgentRun { draft: AutonomousDraft; failure: string; rounds: number; calls: ImportModelCall[];
   /** Structure the checks still doubted when the agent delivered, for the teacher to look at. */
-  concerns: string[] }
+  concerns: string[];
+  /** What the agent checked against the original and kept, and why. */
+  kept: { issue: string; reason: string }[] }
 
 /** A first pass started before the pages were final, with the paragraphs it was given. */
 export interface EarlyReferencePlan { source: string; entries: { ref: string; text: string }[]; plan: Promise<ReferencePlan>; calls: ImportModelCall[]; cancel: () => void }
@@ -169,9 +175,10 @@ export async function draftWithReferences(options: {
   const unitOf = new Map(entries.map(entry => [entry.ref, entry.unitId]));
   const allUnits = new Set(input.units.map(unit => unit.id));
   let draft: AutonomousDraft = { ...options.draft, seenUnits: [...allUnits] };
-  let finished = false, rounds = 0, toolCalls = 0, finishRevision = -1, strandedRevision = -1, concerns: string[] = [];
+  let finished = false, rounds = 0, toolCalls = 0, concerns: string[] = [], kept: { issue: string; reason: string }[] = [];
   let failedTools = 0, repeatedReads = 0, repeatedStates = 0, readsSinceWrite = 0, needsRecovery = false, recoveryReason = "";
   let lastWriteRound = 0, idle = false, idleStops = 0, lastRefusal = "";
+  const keepReasons = new Map<string, string>();
   const readRequests = new Set<string>();
   const writtenStates = new Set([draftContentKey(draft)]);
   const calls: ImportModelCall[] = [];
@@ -229,7 +236,7 @@ export async function draftWithReferences(options: {
   /**
    * What still stands in the way of delivering this revision; the same check whether the agent or the first pass finishes.
    * Lost, broken or misfiled content has to be put right; if the agent cannot, its run ends and the program delivers the
-   * paper with those places marked. Where the agent only differs from the program's reading, it is asked once.
+   * paper with those places marked. Where it only differs from the program's reading, it may keep its placement with a reason.
    */
   const deliveryProblem = async (): Promise<string | undefined> => {
     const state = status();
@@ -243,19 +250,13 @@ export async function draftWithReferences(options: {
     const doubts = structureConcerns(state.issues, state.compiled.notices);
     const required = doubts.filter(issue => !issue.startsWith(STRUCTURE_DOUBT));
     if (required.length) return required.join("\n");
-    const all = [...new Set([...doubts, ...state.issues])];
-    if (all.length && finishRevision !== draft.revision) {
-      finishRevision = draft.revision;
-      return `${all.join("\n")}\n请对照原稿处理；确认原稿本来如此、无法再改时，不修改直接再次调用 finish。`;
-    }
-    // A question or an answer left outside every question is easy to wave through and costly to the teacher, so it is
-    // put once more, on its own. A numbered note in an appended commentary may still stay.
-    const stranded = state.issues.filter(issue => /留在了题外|已保留在原答案位置待核对/.test(issue));
-    if (stranded.length && strandedRevision !== draft.revision) {
-      strandedRevision = draft.revision;
-      return `${stranded.join("\n")}\n这些内容还没有归到题目里。印着题号的题干放进 question 的 stem，有小问时放进 questionGroup 的 material 并把题组 number 写成这个题号，小问放 questions；答案和解析直接放进对应题目的 answer、analysis，并去掉独立的 answerEntry。只有它们确实不属于任何题目（如卷末解读文章里的条目）时，才不修改再次调用 finish。`;
-    }
-    concerns = [...doubts, ...stranded];
+    // Whatever else is open may be how the original is printed, which the agent can check and the program cannot.
+    // It keeps a finding by saying why, one by one, so a general "the original is like this" does not clear them all.
+    const open = [...new Set([...doubts, ...state.issues])];
+    const unexplained = open.filter(issue => !keepReasons.has(issueId(issue)));
+    if (unexplained.length) return `${unexplained.map(issue => `[${issueId(issue)}] ${issue}`).join("\n")}\n逐条处理：能改的改好；核对原稿后确属原稿如此的，再调用 finish 时在 keep 中写这一条的 id 和 reason，reason 写清原稿哪里是这样印的。`;
+    kept = open.map(issue => ({ issue, reason: keepReasons.get(issueId(issue))! }));
+    concerns = open.filter(issue => issue.startsWith(STRUCTURE_DOUBT) || /留在了题外|已保留在原答案位置待核对/.test(issue));
     return undefined;
   };
 
@@ -492,7 +493,9 @@ export async function draftWithReferences(options: {
         ...(keys?.length ? { contents: keys.map((key: string) => draft.fragments.find(fragment => fragment.key === key) ?? { key, error: "不存在" }) } : {}),
         ...(includeDocument ? { document: state.compiled.document.content } : {}) });
     }),
-    tool("finish", "完成原稿转换。要求全部ref已写入、结构校验通过；其余问题须先处理，确认原稿本来如此时可再次调用。", Type.Object({ summary: Type.String({ minLength: 4 }) }), async ({ summary }) => {
+    tool("finish", "完成原稿转换。要求全部ref已写入、结构校验通过。返回的问题逐条处理；核对原稿后确属原稿如此的，在keep中写这一条的id和理由。", Type.Object({ summary: Type.String({ minLength: 4 }),
+      keep: Type.Optional(Type.Array(Type.Object({ id: Type.String(), reason: Type.String({ minLength: 6, maxLength: 300 }) }), { maxItems: 200 })) }), async ({ summary, keep = [] }) => {
+      for (const item of keep as { id: string; reason: string }[]) keepReasons.set(item.id, item.reason);
       const problem = await deliveryProblem();
       if (problem) {
         // Refused twice for the same thing with nothing changed between: this agent has no further way to fix it.
@@ -583,5 +586,5 @@ export async function draftWithReferences(options: {
     await options.transcript?.({ systemPrompt: agent.state.systemPrompt, tools: tools.map(({ name, description, parameters }) => ({ name, description, parameters })), messages: agent.state.messages,
       ...(plan ? { plan: { ranges: plan.ranges, outputs: planOutputs, failures: plan.failures, refused: refused.map(({ fragment, error }) => ({ key: fragment.key, error })) } } : {}) });
   }
-  return { draft, failure: failure.slice(0, 600), rounds, calls, concerns };
+  return { draft, failure: failure.slice(0, 600), rounds, calls, concerns, kept };
 }

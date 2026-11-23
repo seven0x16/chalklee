@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertWordImportPlan, attachGroupSolutions, normalizeWordImportPlan } from "./wordPlan";
+import { assertWordImportPlan, attachGroupSolutions, normalizeWordImportPlan, plainTitlesInQuestions } from "./wordPlan";
 import { chunkWordSourceBlocks, joinWrappedLines, mergeAdjacentBlanks, normalizeNumberedBlanks, splitWordSourceBlocks, tidyWordInlines, wordAnswerLineCount, wordAnswerLineSuffix, wordPrefixLength, wordSourceEntries, wordSourceText } from "../../shared/conversion/wordSource";
 
 it("keeps a numbered child introduction and its figure with the child's circled steps", () => {
@@ -15,6 +15,18 @@ it("keeps a numbered child introduction and its figure with the child's circled 
   expect(plan[0].questions[0].stem).toEqual([{ ref: "intro", stripPrefix: "（1）" }, { ref: "figure" }, { ref: "step" }]);
   expect(() => assertWordImportPlan(plan, source)).not.toThrow();
   expect(normalizeWordImportPlan(plan, source)).toEqual(plan);
+});
+
+it("keeps a title printed inside a question as a line of that question", () => {
+  const source: any = { id: "part", label: "原稿", images: [], nativeReferences: true, blocks: [
+    { type: "paragraph", attrs: { id: "stem" }, content: [{ type: "text", text: "19. 阅读材料。" }] },
+    { type: "heading", attrs: { id: "title", level: 3, textAlign: "center" }, content: [{ type: "text", text: "未来已来" }] },
+    { type: "paragraph", attrs: { id: "line" }, content: [{ type: "text", text: "小标题" }] },
+    { type: "heading", attrs: { id: "section", level: 2 }, content: [{ type: "text", text: "二、填空题" }] }
+  ] };
+  const [group, outside] = plainTitlesInQuestions([{ type: "questionGroup", number: "19", kind: "composite", material: [{ ref: "stem" }, { ref: "title" }, { ref: "line", as: "heading", level: 3 }], questions: [] }, { ref: "section" }], source);
+  expect(group.material).toEqual([{ ref: "stem" }, { ref: "title", as: "paragraph", align: "center" }, { ref: "line", as: "paragraph" }]);
+  expect(outside).toEqual({ ref: "section" });
 });
 
 it("keeps what is written under the field a question or group does not show", () => {

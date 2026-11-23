@@ -46,6 +46,7 @@ import { draftWithReferences, referenceAgentSource } from "./referenceAgent";
 const call = (options: AgentOptions, name: string, args: unknown = {}) => options.initialState!.tools!.find(tool => tool.name === name)!.execute("call", args) as Promise<any>;
 const content = (result: any) => JSON.parse(result.content[0].text);
 const next = (options: AgentOptions) => options.finishTurn!({} as any);
+const keepAll = (error: string) => [...error.matchAll(/\[(chk_[0-9a-f]+)\]/g)].map(match => ({ id: match[1], reason: "已对照原稿，确实这样印" }));
 let root: string, input: PreparedImport;
 beforeEach(async () => {
   vi.mocked(getAiCredentials).mockReset().mockResolvedValue({ model: "test", baseUrl: "https://example.invalid/v1", apiKey: "test-only" });
@@ -727,16 +728,19 @@ describe("shared reference conversion", () => {
       const written = content(await call(options, "write_fragments", { fragments: [moved] }));
       expect(written.error).toBeUndefined();
       expect(written.issues.join("\n")).toContain("结构存疑");
-      expect(content(await call(options, "finish", { summary: "按题意归入第 1 题" })).error).toContain("结构存疑");
-      expect(content(await call(options, "finish", { summary: "核对原稿后保留" })).completed).toBe(true);
+      const asked = content(await call(options, "finish", { summary: "按题意归入第 1 题" })).error;
+      expect(asked).toContain("结构存疑");
+      expect(content(await call(options, "finish", { summary: "没有说明理由" })).error).toContain("结构存疑");
+      expect(content(await call(options, "finish", { summary: "核对原稿后保留", keep: keepAll(asked) })).completed).toBe(true);
     };
     const result = await importSingleDocument(root, input, new AbortController().signal, () => {});
     expect(result.record.conversion?.status).toBe("converted");
-    // The doubt names no question, so the teacher is not asked to look for one.
+    // The doubt names no question, so the teacher is not asked to look for one; the agent's reason stays on record.
     expect(result.record.conversion?.followUp).toBeUndefined();
+    expect(result.record.conversion?.agent?.kept?.[0]).toMatchObject({ reason: "已对照原稿，确实这样印" });
   });
 
-  it("asks again about a printed question left outside every question, after a numbered group", async () => {
+  it("needs a reason to keep a printed question outside every question, after a numbered group", async () => {
     vi.mocked(runImportAgent).mockImplementation(async (_credentials, _prompt, _images, _signal, _system, _observe, stage) => stage?.startsWith("transcribe")
       ? JSON.stringify({ markdown: "续页条件 $x^2$。\n\n2. 原稿第二题。\n\n(1) 第一小问。\n\n3. 阅读材料，完成下列要求。\n\n参考答案\n\n1. 结果为 $a-b$。", figures: [], uncertainties: [], warnings: [] })
       : stage === "reference-plan" ? '{"fragments":[],"corrections":[]}' : stage === "source-number-check" ? _prompt : '{"status":"pass","issues":[]}');
@@ -747,9 +751,10 @@ describe("shared reference conversion", () => {
         { ref: "page_2_source_4" }, { ref: "page_2_source_5" },
         { type: "answerEntry", number: "1", answer: [{ ref: "page_2_source_6", stripPrefix: "1." }] }] };
       expect(content(await call(options, "write_fragments", { fragments: [written] })).issues.join("\n")).toContain("第3题留在了题外");
-      expect(content(await call(options, "finish", { summary: "第一次" })).error).toContain("第3题留在了题外");
-      expect(content(await call(options, "finish", { summary: "第二次" })).error).toContain("不在任何题目里");
-      expect(content(await call(options, "finish", { summary: "确实不是题目" })).completed).toBe(true);
+      const asked = content(await call(options, "finish", { summary: "第一次" })).error;
+      expect(asked).toContain("第3题留在了题外");
+      expect(content(await call(options, "finish", { summary: "第二次" })).error).toContain("第3题留在了题外");
+      expect(content(await call(options, "finish", { summary: "确实不是题目", keep: keepAll(asked) })).completed).toBe(true);
     };
     const result = await importSingleDocument(root, input, new AbortController().signal, () => {});
     expect(result.record.conversion?.status).toBe("converted");
@@ -789,14 +794,15 @@ describe("shared reference conversion", () => {
 
   it.each([["the balance", "402: insufficient balance", "模型余额或额度不足", false], ["the Key", "401 Unauthorized", "模型的 Key 无法使用", false],
     ["a dropped connection on the last run", "fetch failed", "连不上模型服务", true]] as const)("still delivers the paper when %s stops the model, and says why", async (_name, message, reason, last) => {
-    vi.mocked(runImportAgent).mockImplementation(async (_credentials, _prompt, _images, _signal, _system, _observe, stage) => { if (stage?.startsWith("transcribe")) throw new Error(message); return '{"status":"pass","issues":[]}'; });
+    vi.mocked(runImportAgent).mockRejectedValue(new Error(message));
+    vi.mocked(checkPdfNativeText).mockRejectedValue(new Error(message));
     exercise = async () => { throw new Error(message); };
     const result = await importSingleDocument(root, { ...input, ...(last ? { deliverUnfinished: true } : {}) }, new AbortController().signal, () => {});
     expect(result.record.conversion?.status).toBe("converted");
-    expect(result.record.conversion?.followUp).toMatchObject({ service: reason, pages: [2] });
-    const saved = await readChalkLeeArchive(await readFile(result.file.path));
-    expect(importText(saved.document.content)).toContain("已知");
-    expect(JSON.stringify(saved.document.content)).toContain("page_2");
+    expect(result.record.conversion?.followUp).toMatchObject({ service: reason, pages: [1, 2] });
+    const saved = JSON.stringify((await readChalkLeeArchive(await readFile(result.file.path))).document.content);
+    expect(saved).toContain("page_1");
+    expect(saved).toContain("page_2");
   });
 
   it("waits for another run when the connection drops before the last one", async () => {

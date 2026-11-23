@@ -465,7 +465,7 @@ async function runAutonomousImport(rootPath: string, input: PreparedImport, sign
     const followUp = !failure || delivering ? referenceFollowUp(input, filled ? [...filled.organized, ...filled.left] : [], concerns, delivering ? failedPages : [], service, filled ? filled.unplaced || concerns.length > 0 : false) : undefined;
     return saveImportDocument(session, compiled.document, compiled.assets, compiled.notices, {
       strategy: "autonomous-v1", status: failure && !delivering ? "draft" : "converted", ...(followUp ? { followUp } : {}), ...(pdfReferences ? { sourceReferences: true } : {}), ...(run.draft.sourceRevisions?.length ? { sourceRevisions: run.draft.sourceRevisions } : {}), structureModel: credentials.model, calls: [...calls, ...run.calls],
-      cachedUnits: pdfReferences?.cachedUnits ?? (resumed ? draft.sourceChecks.length : 0), answers: compiled.answers, agent: { rounds: run.rounds, resumed, actions, previewPages: preview?.pageCount ?? 0 },
+      cachedUnits: pdfReferences?.cachedUnits ?? (resumed ? draft.sourceChecks.length : 0), answers: compiled.answers, agent: { rounds: run.rounds, resumed, actions, previewPages: preview?.pageCount ?? 0, ...(run.kept.length ? { kept: run.kept } : {}) },
       timing: { prepareMs, assembleMs },
       units: input.units.map(unit => {
         // A run that stopped as a whole leaves every page open; otherwise only the pages that stayed as images are.

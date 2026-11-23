@@ -45,6 +45,17 @@ describe("whole-document answer association", () => {
     expect(document.content.content.map(node => node.attrs.id)).toEqual(["q1", "q2", "open", "loose", "note", "section", "q3"]);
     expect(result.redundantIds).toEqual(["label", "first", "second"]);
   });
+  it("does not take a printed part (1) of a later question for question 1", () => {
+    const part = q("part", "(1)");
+    const group: any = { type: "questionGroup", attrs: { id: "g", kind: "composite", number: { mode: "fixed", label: "2" } }, content: [
+      { type: "questionMaterial", attrs: { id: "m" }, content: [p("mp", "材料")] }, { type: "subQuestionList", attrs: { id: "l" }, content: [part] }] };
+    const document = doc([q("q1", "1"), group, a("key", "1", "A"), a("partKey", "(1)", "B")]);
+    const result = reconcileImportAnswers(document, [entry("key"), entry("partKey", { parents: ["2"] })]);
+    expect(result.report).toMatchObject({ matched: 2, unmatched: 0 });
+    const [first, second] = document.content.content as any[];
+    expect(importText(first)).toContain("A");
+    expect(importText(second.content[1].content[0])).toContain("B");
+  });
   it("keeps the section titles of the next part after a key printed under a question group", () => {
     const heading = (id: string, text: string) => ({ ...p(id, text), type: "heading", attrs: { id, level: 2 } });
     const document = doc([heading("first", "Ⅰ．完形填空"), q("q1", "1"), p("label", "【答案】"), a("a1", "1", "B"),

@@ -576,6 +576,27 @@ export function normalizeWordImportPlan(value: any, unit?: ImportUnit): any {
  * wrong, so with a list these findings are collected for a second look instead of refusing the plan. Lost, repeated,
  * rewritten or invented content is always refused.
  */
+/**
+ * A title printed inside a question, such as a reading passage's own, is a line of that question: a question holds
+ * no headings, so it is kept there as a centred or plain paragraph instead of pushing the question apart.
+ */
+export function plainTitlesInQuestions(blocks: any[], unit: ImportUnit): any[] {
+  const source = new Map(unit.blocks.map(block => [block.attrs.id, block as any]));
+  const plain = (value: any): any => {
+    if (Array.isArray(value)) return value.map(plain);
+    if (!value || typeof value !== "object") return value;
+    if (typeof value.ref === "string") {
+      const original = source.get(value.ref);
+      if (value.as !== "heading" && !(original?.type === "heading" && !value.as)) return value;
+      const { level: _level, ...rest } = value;
+      const align = value.align ?? (["center", "right"].includes(original?.attrs?.textAlign) ? original.attrs.textAlign : undefined);
+      return { ...rest, as: "paragraph", ...(align ? { align } : {}) };
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, plain(child)]));
+  };
+  return blocks.map(block => ["question", "questionGroup"].includes(block?.type) ? plain(block) : block);
+}
+
 export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, continuation?: ChalkLeeBlockNode, doubts?: string[]): void {
   const doubt = (message: string) => { if (!doubts) throw new Error(message); doubts.push(message); };
   const entries = wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers);
@@ -641,7 +662,10 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
       const bareLabel = !(wordAnswerLabel.test(entry.text) ? entry.text.replace(wordAnswerLabel, "") : wordAnalysisLabel.test(entry.text) ? entry.text.replace(wordAnalysisLabel, "") : "x").trim();
       if (entry.questionNumber && questionNumber && entry.questionNumber !== questionNumber && !ownedSubquestion && !listedItem && !bareLabel) {
         const printed = importQuestionAnchors(entry.text).some(match => match.index === 0);
-        const message = `原稿片段 ${entry.ref} 属于第 ${entry.questionNumber} 题，不能移入第 ${questionNumber} 题。${printed ? "请保留实际印刷题号，不按顺序或答案表改号。" : '此片段没有印刷题号；如果原稿是另一道无题号题，请用 number:"" 保留，不能猜补题号。'}`;
+        const part = printedSubNumbers(entry.text)[0]?.number;
+        const message = `原稿片段 ${entry.ref} 属于第 ${entry.questionNumber} 题${part ? `的小问 (${part})` : ""}，不能移入第 ${questionNumber} 题。${printed ? "请保留实际印刷题号，不按顺序或答案表改号。"
+          : part ? `把第 ${entry.questionNumber} 题写成题组：number 写“${entry.questionNumber}”，公共题干放 material，这一段放 questions 中 number 为“(${part})”的小题。`
+          : `这一段没有印刷题号：确属第 ${questionNumber} 题时可以保留，否则放回第 ${entry.questionNumber} 题；是另一道无题号题时用 number:"" 保留，不猜补题号。`}`;
         // A stem under another number than the one printed on it would renumber the paper; a solution's "2." may be one of its points.
         if (printed && !["answer", "analysis"].includes(region)) throw new Error(message);
         doubt(message);
