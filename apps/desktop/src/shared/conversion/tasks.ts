@@ -1,4 +1,4 @@
-import type { ImportProgress, ImportResult, PreparedImport } from "./types";
+import type { ImportFollowUp, ImportProgress, ImportResult, PreparedImport } from "./types";
 import type { WorkspaceFileNode } from "../contracts";
 import { conversionFailureText, conversionServiceProblem } from "./failure";
 import { externalAgentLabel } from "./externalAgent";
@@ -107,6 +107,24 @@ export function conversionUnfinished(task: Pick<ConversionTask, "status" | "erro
     : !service && record && !usable ? "还没有转出可用内容，进度已保存"
     : reason ? conversionFailureText(reason) : "还没转完，进度已保存";
   return { detail, service, usable, stuck: !service && (task.unfinishedRuns ?? 0) > AUTO_CONTINUE_LIMIT + 1 };
+}
+/** What a delivered conversion leaves to check. */
+export const conversionFollowUp = (task: Pick<ConversionTask, "status" | "result">) =>
+  task.status === "completed" ? task.result?.record?.conversion?.followUp : undefined;
+/** "18～27、30": three or more numbers in a row read as a range. */
+function numberRuns(numbers: string[]): string[] {
+  const sorted = [...new Set(numbers.map(Number))].sort((a, b) => a - b), runs: number[][] = [];
+  for (const number of sorted) {
+    const run = runs.at(-1);
+    if (run && run.at(-1) === number - 1) run.push(number); else runs.push([number]);
+  }
+  return runs.flatMap(run => run.length >= 3 ? [`${run[0]}～${run.at(-1)}`] : run.map(String));
+}
+export function conversionFollowUpText(followUp: ImportFollowUp): string {
+  const runs = numberRuns(followUp.questions);
+  const questions = !runs.length ? "" : runs.length > PAGES_NAMED ? `有 ${new Set(followUp.questions).size} 道题请检查` : `第 ${runs.join("、")} 题请检查`;
+  const pages = !followUp.pages.length ? "" : followUp.pages.length > PAGES_NAMED ? `有 ${followUp.pages.length} 页保留为原图` : `第 ${followUp.pages.join("、")} 页保留为原图`;
+  return [followUp.service, questions, pages, questions || pages ? "" : "部分内容请检查"].filter(Boolean).join("，");
 }
 /** What moves an unfinished conversion on: settings when something there is in the way, another model once this one keeps stopping. */
 export function conversionNextStep(task: Pick<ConversionTask, "result">, unfinished: ConversionUnfinished, model?: string): "settings" | "model" | "continue" {

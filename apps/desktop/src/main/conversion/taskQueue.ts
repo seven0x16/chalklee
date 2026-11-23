@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ImportProgress, ImportResult, PreparedImport } from "../../shared/conversion/types";
-import { AUTO_CONTINUE_LIMIT, conversionIsActive, EXTERNAL_CONNECTION_TIMEOUT_MS, EXTERNAL_CONVERSION_IDLE_MS, proofreadPending, type ConversionBatchAction, type ConversionStatus, type ConversionTask } from "../../shared/conversion/tasks";
+import { AUTO_CONTINUE_LIMIT, conversionFollowUp, conversionIsActive,EXTERNAL_CONNECTION_TIMEOUT_MS, EXTERNAL_CONVERSION_IDLE_MS, proofreadPending, type ConversionBatchAction, type ConversionStatus, type ConversionTask } from "../../shared/conversion/tasks";
 import { conversionServiceProblem, isTransientImportFailure } from "../../shared/conversion/failure";
 import { conversionReviewFromRecord, pendingConversionNotices } from "../../shared/conversion/review";
 import { questionReviewNotices } from "../../shared/conversion/questionReview";
@@ -179,6 +179,8 @@ export class ConversionTaskQueue {
     if (fresh && this.options.freshCache) task.cacheScope = randomUUID();
     // Converting again starts over; continuing an unfinished one counts on.
     if (fresh && previous.status !== "draft") delete task.unfinishedRuns;
+    // The teacher's 继续整理 runs once and delivers what it reaches.
+    else if (conversionFollowUp(previous)) task.unfinishedRuns = AUTO_CONTINUE_LIMIT;
     return this.requeue(task, previous, priority);
   }
   /** The teacher asked for the draft to be proofread against the original; it changes that document in place. */
@@ -223,7 +225,7 @@ export class ConversionTaskQueue {
   async acknowledgeUnfinished(id: string) {
     await this.ready;
     const task = this.find(id);
-    if (task.status !== "draft" || task.dismissed) return;
+    if (task.status !== "draft" && !conversionFollowUp(task) || task.dismissed) return;
     task.dismissed = true;
     await this.persist(); this.changed();
   }
@@ -425,7 +427,7 @@ export class ConversionTaskQueue {
       appLog.info(`[conversion] 开始${work} ${task.source.name}（第 ${task.attempt} 次）`);
       this.changed(); await this.persist(); signal.throwIfAborted();
       const prepared = await this.options.prepare(task, signal, message => report({ sourcePath: task.source.path, completed: 0, total: 0, message }));
-      const input = task.cacheScope ? { ...prepared, cacheScope: task.cacheScope } : prepared;
+      const input = { ...prepared, ...(task.cacheScope ? { cacheScope: task.cacheScope } : {}), ...((task.unfinishedRuns ?? 0) >= AUTO_CONTINUE_LIMIT ? { deliverUnfinished: true } : {}) };
       signal.throwIfAborted();
       task.status = "running"; await this.persist(); signal.throwIfAborted(); this.changed();
       let result: ImportResult;

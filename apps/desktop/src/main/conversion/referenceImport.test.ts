@@ -38,6 +38,7 @@ import { importReviewModel, runImportAgent } from "./model";
 import { getAiCredentials } from "../settings/ai";
 import { checkPdfNativeText } from "./pdfNativeText";
 import { importSingleDocument, makeDocument } from "./documentImport";
+import { wordSourceEntries } from "../../shared/conversion/wordSource";
 import { assessAutonomousDraft, compileAutonomousDraft, newAutonomousDraft } from "./autonomous/state";
 import { proofreadAutonomousDocument } from "./autonomous/run";
 import { draftWithReferences, referenceAgentSource } from "./referenceAgent";
@@ -296,7 +297,26 @@ describe("shared reference conversion", () => {
     expect(rows).toHaveLength(2);
     expect(rows.every(row => document.provenance!.anchors!.some(anchor => anchor.nodeId === row.attrs.id))).toBe(true);
   });
-  it("requires later answer details to be attached instead of accepting a repeated finish", async () => {
+  it("does not let the agent wave through a misfiled answer, and delivers the paper with that question marked", async () => {
+    vi.mocked(runImportAgent).mockImplementation(async (_credentials, _prompt, _images, _signal, _system, _observe, stage) => stage?.startsWith("transcribe")
+      ? JSON.stringify({ markdown: "续页条件 $x^2$。\n\n2. 原稿第二题。\n\n参考答案\n\n1. 结果为 $a-b$。\n\n1. 补充解题过程。", figures: [], uncertainties: [], warnings: [] })
+      : stage === "source-number-check" ? _prompt : '{"status":"pass","issues":[]}');
+    let written = false;
+    exercise = async options => {
+      if (!written) {
+        written = true;
+        const partial = structuredClone(section);
+        partial.blocks.push({ type: "answerEntry", number: "1", answer: [{ ref: "page_2_source_5", stripPrefix: "1." }] } as any);
+        expect(content(await call(options, "write_fragments", { fragments: [partial] })).error).toBeUndefined();
+      }
+      for (let attempt = 0; attempt < 2; attempt++) expect(content(await call(options, "finish", { summary: "保留卷末详解" })).error).toContain("已有答案或解析");
+    };
+    const result = await importSingleDocument(root, { ...input, deliverUnfinished: true }, new AbortController().signal, () => {});
+    expect(result.record.conversion?.status).toBe("converted");
+    expect(result.record.conversion?.followUp?.questions).toContain("1");
+    expect(importText((await readChalkLeeArchive(await readFile(result.file.path))).document.content)).toContain("补充解题过程");
+  });
+  it("attaches later answer details when the agent acts on the first warning", async () => {
     vi.mocked(runImportAgent).mockImplementation(async (_credentials, _prompt, _images, _signal, _system, _observe, stage) => stage?.startsWith("transcribe")
       ? JSON.stringify({ markdown: "续页条件 $x^2$。\n\n2. 原稿第二题。\n\n参考答案\n\n1. 结果为 $a-b$。\n\n1. 补充解题过程。", figures: [], uncertainties: [], warnings: [] })
       : stage === "source-number-check" ? _prompt : '{"status":"pass","issues":[]}');
@@ -696,6 +716,104 @@ describe("shared reference conversion", () => {
     };
     expect((await importSingleDocument(root, input, new AbortController().signal, () => {})).record.conversion?.status).toBe("draft");
     expect(vi.mocked(runImportAgent).mock.calls.filter(call => call[6] === "transcribe")).toHaveLength(1);
+  });
+
+  it("lets the agent's placement stand over the program's reading, and asks about it once", async () => {
+    exercise = async options => {
+      const moved = structuredClone(section);
+      // The program reads this line as loose text after question 2; the agent says it is question 1's answer.
+      moved.blocks = moved.blocks.filter((block: any) => block.ref !== "page_2_source_3" && block.type !== "answerEntry");
+      (moved.blocks[1] as any).answer = [{ ref: "page_2_source_3" }, { ref: "page_2_source_4", stripPrefix: "1." }];
+      const written = content(await call(options, "write_fragments", { fragments: [moved] }));
+      expect(written.error).toBeUndefined();
+      expect(written.issues.join("\n")).toContain("结构存疑");
+      expect(content(await call(options, "finish", { summary: "按题意归入第 1 题" })).error).toContain("结构存疑");
+      expect(content(await call(options, "finish", { summary: "核对原稿后保留" })).completed).toBe(true);
+    };
+    const result = await importSingleDocument(root, input, new AbortController().signal, () => {});
+    expect(result.record.conversion?.status).toBe("converted");
+    // The doubt names no question, so the teacher is not asked to look for one.
+    expect(result.record.conversion?.followUp).toBeUndefined();
+  });
+
+  it("asks again about a printed question left outside every question, after a numbered group", async () => {
+    vi.mocked(runImportAgent).mockImplementation(async (_credentials, _prompt, _images, _signal, _system, _observe, stage) => stage?.startsWith("transcribe")
+      ? JSON.stringify({ markdown: "续页条件 $x^2$。\n\n2. 原稿第二题。\n\n(1) 第一小问。\n\n3. 阅读材料，完成下列要求。\n\n参考答案\n\n1. 结果为 $a-b$。", figures: [], uncertainties: [], warnings: [] })
+      : stage === "reference-plan" ? '{"fragments":[],"corrections":[]}' : stage === "source-number-check" ? _prompt : '{"status":"pass","issues":[]}');
+    exercise = async options => {
+      const written = { key: "section", blocks: [{ ref: "pdf_title" },
+        { type: "question", number: "1", kind: "free-response", stem: [{ ref: "pdf_stem", stripPrefix: "1." }, { ref: "page_2_source_1", join: true }] },
+        { type: "questionGroup", number: "2", kind: "composite", material: [{ ref: "page_2_source_2", stripPrefix: "2." }], questions: [{ type: "question", number: "(1)", kind: "free-response", stem: [{ ref: "page_2_source_3", stripPrefix: "(1)" }] }] },
+        { ref: "page_2_source_4" }, { ref: "page_2_source_5" },
+        { type: "answerEntry", number: "1", answer: [{ ref: "page_2_source_6", stripPrefix: "1." }] }] };
+      expect(content(await call(options, "write_fragments", { fragments: [written] })).issues.join("\n")).toContain("第3题留在了题外");
+      expect(content(await call(options, "finish", { summary: "第一次" })).error).toContain("第3题留在了题外");
+      expect(content(await call(options, "finish", { summary: "第二次" })).error).toContain("不在任何题目里");
+      expect(content(await call(options, "finish", { summary: "确实不是题目" })).completed).toBe(true);
+    };
+    const result = await importSingleDocument(root, input, new AbortController().signal, () => {});
+    expect(result.record.conversion?.status).toBe("converted");
+    expect(result.record.conversion?.followUp?.questions).toContain("3");
+  });
+
+  it("stops a run that keeps reading without saving, and delivers it instead of running again", async () => {
+    let turns = 0;
+    exercise = async options => {
+      for (let turn = 0; turn < 40; turn++) {
+        await call(options, "read_draft"); turns++;
+        if (next(options)) return;
+      }
+    };
+    const delivered = await importSingleDocument(root, input, new AbortController().signal, () => {});
+    expect(turns).toBeLessThanOrEqual(24);
+    expect(delivered.record.conversion?.status).toBe("converted");
+    expect(delivered.record.conversion?.followUp).toBeDefined();
+  });
+
+  it("delivers the whole paper from the last run, and continuing replaces it in the same file", async () => {
+    exercise = async () => {};
+    const delivered = await importSingleDocument(root, { ...input, deliverUnfinished: true }, new AbortController().signal, () => {});
+    expect(delivered.record.conversion?.status).toBe("converted");
+    expect(delivered.record.conversion?.followUp).toBeDefined();
+    expect(delivered.record.conversion?.units?.every(unit => unit.status === "converted")).toBe(true);
+    const saved = await readChalkLeeArchive(await readFile(delivered.file.path));
+    expect(saved.document.provenance!.sources[0].coverage).not.toBe("partial");
+    expect(importText(saved.document.content)).toContain("原稿第二题");
+    exercise = structure;
+    const continued = await importSingleDocument(root, { ...input, retryOf: delivered.file.path, into: delivered.file.path, deliverUnfinished: true }, new AbortController().signal, () => {});
+    expect(continued.file.path).toBe(delivered.file.path);
+    expect(continued.record.conversion?.followUp).toBeUndefined();
+    const text = importText((await readChalkLeeArchive(await readFile(continued.file.path))).document.content);
+    expect(text.match(/原稿第二题/g)).toHaveLength(1);
+  });
+
+  it.each([["the balance", "402: insufficient balance", "模型余额或额度不足", false], ["the Key", "401 Unauthorized", "模型的 Key 无法使用", false],
+    ["a dropped connection on the last run", "fetch failed", "连不上模型服务", true]] as const)("still delivers the paper when %s stops the model, and says why", async (_name, message, reason, last) => {
+    vi.mocked(runImportAgent).mockImplementation(async (_credentials, _prompt, _images, _signal, _system, _observe, stage) => { if (stage?.startsWith("transcribe")) throw new Error(message); return '{"status":"pass","issues":[]}'; });
+    exercise = async () => { throw new Error(message); };
+    const result = await importSingleDocument(root, { ...input, ...(last ? { deliverUnfinished: true } : {}) }, new AbortController().signal, () => {});
+    expect(result.record.conversion?.status).toBe("converted");
+    expect(result.record.conversion?.followUp).toMatchObject({ service: reason, pages: [2] });
+    const saved = await readChalkLeeArchive(await readFile(result.file.path));
+    expect(importText(saved.document.content)).toContain("已知");
+    expect(JSON.stringify(saved.document.content)).toContain("page_2");
+  });
+
+  it("waits for another run when the connection drops before the last one", async () => {
+    vi.mocked(runImportAgent).mockImplementation(async (_credentials, _prompt, _images, _signal, _system, _observe, stage) => { if (stage?.startsWith("transcribe")) throw new Error("fetch failed"); return '{"status":"pass","issues":[]}'; });
+    await expect(importSingleDocument(root, input, new AbortController().signal, () => {})).rejects.toThrow("fetch failed");
+  });
+
+  it("delivers a Word-style paper organized by the program when the model never answers", async () => {
+    const paragraph = (id: string, text: string) => ({ type: "paragraph", attrs: { id }, content: [{ type: "text", text }] }) as any;
+    const blocks = [paragraph("w1", "1. 下列正确的是（ ）"), paragraph("w2", "A. 甲"), paragraph("w3", "B. 乙"), paragraph("w4", "【答案】A"), paragraph("w5", "2. 求值____。"), paragraph("w6", "【答案】5")];
+    const entries = wordSourceEntries(blocks);
+    const word: PreparedImport = { ...input, sourcePath: input.sourcePath, units: [{ id: "part_1", label: "第 1 部分", images: [], nativeReferences: true, blocks,
+      sourceRoles: Object.fromEntries(entries.map(entry => [entry.ref, entry.role])), sourceQuestionNumbers: Object.fromEntries(entries.flatMap(entry => entry.questionNumber ? [[entry.ref, entry.questionNumber]] : [])) }] as any };
+    vi.mocked(runImportAgent).mockRejectedValue(new Error("402: insufficient balance"));
+    exercise = async () => { throw new Error("402: insufficient balance"); };
+    const result = await importSingleDocument(root, word, new AbortController().signal, () => {});
+    expect(result.record).toMatchObject({ questionCount: 2, conversion: { status: "converted", followUp: { service: "模型余额或额度不足", questions: ["1", "2"] } } });
   });
 
   it("finishes pagination of explicit references without repeating them or using the whole document total", async () => {

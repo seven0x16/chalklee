@@ -230,6 +230,32 @@ describe("durable document conversion tasks", () => {
     expect(task.snapshot.path).toBe("/original/.chalklee/sources/a.pdf");
     expect(task.attempts[0].status).toBe("stopped");
   });
+  it("delivers from the last automatic run, then continues once when the teacher asks", async () => {
+    const { queue, jobs, options, wait, convert } = await setup();
+    const task = await queue.enqueue(source("paper", path.dirname(options.filePath)), false, true); await wait("paper", "running");
+    const first = stoppedAt(jobs.get("paper")!.task);
+    await saveResult(first, jobs.get("paper")!.task);
+    jobs.get("paper")!.resolve(first);
+    await vi.waitFor(() => { expect(convert).toHaveBeenCalledTimes(2); expect(jobs.get("paper")!.settled).toBe(false); }, { interval: 10 });
+    const second = stoppedAt(jobs.get("paper")!.task); second.file = first.file;
+    jobs.get("paper")!.resolve(second);
+    await vi.waitFor(() => { expect(convert).toHaveBeenCalledTimes(3); expect(jobs.get("paper")!.settled).toBe(false); }, { interval: 10 });
+    expect(convert.mock.calls.map(call => !!call[1].deliverUnfinished)).toEqual([false, false, true]);
+    const delivered = result(jobs.get("paper")!.task); delivered.file = first.file;
+    delivered.record.conversion!.followUp = { questions: ["18"], pages: [] };
+    jobs.get("paper")!.resolve(delivered); await wait("paper", "completed");
+    expect(convert).toHaveBeenCalledTimes(3);
+    await queue.resume(task.id); await wait("paper", "running");
+    expect(convert.mock.calls[3][1].deliverUnfinished).toBe(true);
+    expect(queue.list()[0].into).toBe(first.file.path);
+    const redone = result(jobs.get("paper")!.task); redone.file = first.file;
+    redone.record.conversion!.followUp = { questions: ["18"], pages: [] };
+    jobs.get("paper")!.resolve(redone); await wait("paper", "completed");
+    expect(convert).toHaveBeenCalledTimes(4);
+    await queue.acknowledgeUnfinished(task.id);
+    expect(queue.list()[0].dismissed).toBe(true);
+  });
+
   it("keeps one full result per document across retries and drops partial saves left by a crash", async () => {
     const { queue, jobs, options, wait, convert } = await setup();
     const task = await queue.enqueue(source("paper", path.dirname(options.filePath)), false, true); await wait("paper", "running");

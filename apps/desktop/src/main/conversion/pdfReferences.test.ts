@@ -484,11 +484,16 @@ describe("PDF content references", () => {
     expect(result.units[0].recognitionReason).toContain("转换模型对照原页修正");
   });
 
-  it("does not recognize again during proofreading, and propagates cancellation and authentication failures", async () => {
+  it("does not recognize again during proofreading, keeps pages as images without the model, and propagates cancellation and storage failures", async () => {
     expect(await prepare([unit(1)], true)).toBeUndefined();
     expect(runImportAgent).not.toHaveBeenCalled();
     vi.mocked(runImportAgent).mockRejectedValueOnce(new Error("HTTP 401 unauthorized"));
-    await expect(prepare([unit(1)])).rejects.toThrow("401");
+    const withoutModel = await prepare([unit(1), unit(2)]);
+    expect(withoutModel).toMatchObject({ failure: "模型的 Key 无法使用，进度已保存" });
+    expect(withoutModel!.failedUnits).toHaveLength(2);
+    expect(runImportAgent).toHaveBeenCalledTimes(1);
+    vi.mocked(runImportAgent).mockRejectedValueOnce(Object.assign(new Error("disk full"), { code: "ENOSPC" }));
+    await expect(prepare([unit(3)])).rejects.toThrow("disk full");
     const controller = new AbortController(); controller.abort(new Error("停止转换"));
     await expect(prepare([unit(1)], false, controller.signal)).rejects.toThrow("停止转换");
   });

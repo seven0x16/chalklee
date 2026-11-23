@@ -2,7 +2,7 @@ import { canSkipConversion, isConvertibleKind, isOriginalKind } from "../../../s
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { WorkspaceFileNode, WorkspaceNode } from "../../../shared/contracts";
-import { conversionIsActive, conversionIsRunning, proofreadPending, type ConversionBatchAction, type ConversionTask } from "../../../shared/conversion/tasks";
+import { conversionFollowUp, conversionIsActive, conversionIsRunning, proofreadPending, type ConversionBatchAction, type ConversionTask } from "../../../shared/conversion/tasks";
 import { relative, requireApp, type ToolConfirmation, type ToolHost } from "./toolKit";
 
 /** One request may start at most this many conversions; a larger folder goes in batches. */
@@ -113,9 +113,10 @@ export interface ConversionActionPlan { action: ConversionBatchAction; tasks: Co
 const ACTION_REASON: Record<ConversionBatchAction, string> = {
   stop: "没有在转换或校对", resume: "没有停下或未完成", proofread: "没有待校对的初稿", "skip-proofread": "没有待决定的初稿"
 };
-const eligible = (task: ConversionTask, action: ConversionBatchAction) => action === "stop" ? conversionIsActive(task) && task.status !== "stopping" && task.status !== "saving"
+/** `named`: this one document was asked for; a delivered conversion with places to check is continued only then. */
+const eligible = (task: ConversionTask, action: ConversionBatchAction, named = false) => action === "stop" ? conversionIsActive(task) && task.status !== "stopping" && task.status !== "saving"
   : conversionIsActive(task) ? false
-  : action === "resume" ? ["stopped", "interrupted", "failed", "draft"].includes(task.status)
+  : action === "resume" ? ["stopped", "interrupted", "failed", "draft"].includes(task.status) || named && !!conversionFollowUp(task)
   : proofreadPending(task) && Boolean(task.result);
 
 /**
@@ -136,7 +137,7 @@ export async function planConversionAction(host: ToolHost, request: ConversionAc
       const matches = tasks.filter(task => inside(task.source.path) || inside(task.result?.file.path));
       if (!matches.length) plan.skipped.push({ source: relative(host.root, info.path), reason: "没有转换任务" });
       for (const task of matches) {
-        if (eligible(task, request.action)) chosen.add(task);
+        if (eligible(task, request.action, info.kind !== "directory")) chosen.add(task);
         else if (info.kind !== "directory") plan.skipped.push({ source: relative(host.root, task.source.path), reason: ACTION_REASON[request.action] });
       }
     }

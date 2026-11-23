@@ -571,7 +571,13 @@ export function normalizeWordImportPlan(value: any, unit?: ImportUnit): any {
   return result;
 }
 
-export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, continuation?: ChalkLeeBlockNode): void {
+/**
+ * `doubts`: which question or region a paragraph belongs to rests on the program's reading of the paper, which can be
+ * wrong, so with a list these findings are collected for a second look instead of refusing the plan. Lost, repeated,
+ * rewritten or invented content is always refused.
+ */
+export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, continuation?: ChalkLeeBlockNode, doubts?: string[]): void {
+  const doubt = (message: string) => { if (!doubts) throw new Error(message); doubts.push(message); };
   const entries = wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers);
   const source = new Map(entries.map(entry => [entry.ref, entry]));
   const positions = new Map(entries.map((entry, index) => [entry.ref, index]));
@@ -635,16 +641,20 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
       const bareLabel = !(wordAnswerLabel.test(entry.text) ? entry.text.replace(wordAnswerLabel, "") : wordAnalysisLabel.test(entry.text) ? entry.text.replace(wordAnalysisLabel, "") : "x").trim();
       if (entry.questionNumber && questionNumber && entry.questionNumber !== questionNumber && !ownedSubquestion && !listedItem && !bareLabel) {
         const printed = importQuestionAnchors(entry.text).some(match => match.index === 0);
-        throw new Error(`原稿片段 ${entry.ref} 属于第 ${entry.questionNumber} 题，不能移入第 ${questionNumber} 题。${printed ? "请保留实际印刷题号，不按顺序或答案表改号。" : '此片段没有印刷题号；如果原稿是另一道无题号题，请用 number:"" 保留，不能猜补题号。'}`);
+        const message = `原稿片段 ${entry.ref} 属于第 ${entry.questionNumber} 题，不能移入第 ${questionNumber} 题。${printed ? "请保留实际印刷题号，不按顺序或答案表改号。" : '此片段没有印刷题号；如果原稿是另一道无题号题，请用 number:"" 保留，不能猜补题号。'}`;
+        // A stem under another number than the one printed on it would renumber the paper; a solution's "2." may be one of its points.
+        if (printed && !["answer", "analysis"].includes(region)) throw new Error(message);
+        doubt(message);
       }
-      if (entry.questionNumber && !questionNumber && ["answer", "analysis"].includes(region) && !bareLabel) throw new Error(`原稿片段 ${entry.ref} 标明第 ${entry.questionNumber} 题，须归入该题或对应 answerEntry，不能放在无题号题组的公共解答中。`);
+      if (entry.questionNumber && !questionNumber && ["answer", "analysis"].includes(region) && !bareLabel) doubt(`原稿片段 ${entry.ref} 标明第 ${entry.questionNumber} 题，须归入该题或对应 answerEntry，不能放在无题号题组的公共解答中。`);
       if ((region === "answer" || region === "analysis") && entry.role !== region) {
         const name = region === "answer" ? "答案" : "解析";
         // The bare "【答案】" left by splitting "【答案】1. D 2. B" is a label, not a title; in an answer it is removed by stripPrefix.
         // A sample essay's own title ("参考范文") opens that answer.
         const sampleTitle = region === "answer" && isImportSampleHeading(entry.text);
         const partTitle = entry.role === "heading" && restatesPart(entry.text);
-        if (entry.role === "heading" && !bareLabel && !sampleTitle && !partTitle) throw new Error(`原稿片段 ${entry.ref} 是标题，不能放入${name}；阅读标题应保留在下一篇材料之前。`);
+        const titleInSolution = entry.role === "heading" && !bareLabel && !sampleTitle && !partTitle;
+        if (titleInSolution) doubt(`原稿片段 ${entry.ref} 是标题，不能放入${name}；阅读标题应保留在下一篇材料之前。`);
         // Only lines that carry a label are marked; an unmarked line printed
         // straight after one in the same region may continue it, but never an
         // option or another question's number. A sentence may open with a count
@@ -662,7 +672,7 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
         const continues = bareLabel || sampleTitle || explains || restated || partTitle || entry.role === "body" && !sourceOption && solution !== undefined && previous?.solution === solution
           && positions.get(previous.ref) === positions.get(entry.ref)! - 1
           && (printed === undefined || printed === questionNumber);
-        if (!continues) throw new Error(`原稿片段 ${entry.ref} 没有标为${name}，不能放入该区域。${name}从标为${name}的段落开始，紧接其后的未标注续行可以一并放入；选项、标题和其他题号的段落保留在原处。`);
+        if (!continues && !titleInSolution) doubt(`原稿片段 ${entry.ref} 没有标为${name}，不能放入该区域。${name}从标为${name}的段落开始，紧接其后的未标注续行可以一并放入；选项、标题和其他题号的段落保留在原处。`);
       }
       previous = { ref: entry.ref, solution, region };
       if (value.stripPrefix) {

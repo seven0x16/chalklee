@@ -69,6 +69,7 @@ export function compileAutonomousDraft(input: PreparedImport, template: ChalkLee
   const keys = new Set<string>();
   const transcription = new Map<string, string>();
   const questionSources: ImportQuestionSource[] = [];
+  const doubts: string[] = [];
   const sourceTables = new Set(input.units.flatMap(unit => unit.blocks.filter(block => block.type === "table").map(block => block.attrs.id)));
   // A source table written inside a one-cell table, {"type":"table","rows":[[[{"ref":"t"}]]]}, is that table itself.
   const unwrapSourceTable = (value: any): any => {
@@ -113,7 +114,7 @@ export function compileAutonomousDraft(input: PreparedImport, template: ChalkLee
       sourceRoles: Object.assign({}, ...units.map(unit => unit.sourceRoles)),
       sourceQuestionNumbers: Object.assign({}, ...units.map(unit => unit.sourceQuestionNumbers)) };
     const reply = { blocks: normalizeImportStructuredContent(structuredClone(fragment.blocks)), continuesPrevious: fragment.continuesPrevious, warnings: fragment.warnings };
-    const prepared = prepareReply(reply, unit, importContinuationTarget(document.content.content), index);
+    const prepared = prepareReply(reply, unit, importContinuationTarget(document.content.content), index, doubts);
     questionSources.push(...prepared.questions);
     for (const [id, value] of captureImportContent(prepared.blocks, new Set(prepared.answers.map(entry => entry.nodeId)))) transcription.set(id, value);
     assertImportDocument({ ...document, content: { type: "doc", content: prepared.blocks }, provenance: { ...document.provenance!, anchors: [] } }, true);
@@ -160,8 +161,11 @@ export function compileAutonomousDraft(input: PreparedImport, template: ChalkLee
   visit(document.content);
   document.provenance!.anchors = document.provenance!.anchors!.filter(anchor => ids.has(anchor.nodeId));
   for (const id of usedAssets) if (!assets.has(id)) throw new Error(`图片 ${id} 不存在。请先裁图，或使用 read_source 列出的原生图片ID。`);
-  return { document, assets: [...assets.values()].filter(asset => usedAssets.has(asset.id)), notices, answers: answerResult.report, summary, contentAudit, repeated, inventory: importQuestionInventory(document.content) };
+  return { document, assets: [...assets.values()].filter(asset => usedAssets.has(asset.id)), notices, answers: answerResult.report, summary, contentAudit, repeated, doubts, inventory: importQuestionInventory(document.content) };
 }
+
+/** Where the agent's placement differs from the program's reading of the paper; either may be the right one. */
+export const STRUCTURE_DOUBT = "结构存疑（核对原稿后，确属这样可以保留）：";
 
 // Image asset IDs and LaTeX subscripts are not printed answer blanks.
 function printedBlankText(node: any): string {
@@ -175,7 +179,7 @@ export function assessAutonomousDraft(input: PreparedImport, draft: AutonomousDr
   input = workingReferenceInput(input, draft.sourceRevisions);
   const issues: string[] = [];
   issues.push(...compiled.contentAudit.issues);
-  issues.push(...compiled.repeated.issues);
+  issues.push(...compiled.repeated.issues, ...compiled.doubts.map(doubt => STRUCTURE_DOUBT + doubt));
   const actualNumbers = new Set<string>();
   walkAutonomous(compiled.document.content, node => {
     if (node.type === "question" && node.attrs.number?.label) actualNumbers.add(node.attrs.number.label);
@@ -199,12 +203,14 @@ export function assessAutonomousDraft(input: PreparedImport, draft: AutonomousDr
   // "1. 变化一" in a commentary appended after the paper, are left alone.
   const topLevelRefs = new Set(draft.fragments.flatMap(fragment => autonomousFragmentBlocks(fragment))
     .filter((block: any) => typeof block?.ref === "string" && block.as !== "heading").map((block: any) => block.ref as string));
-  const strandedNumbers = new Set<string>();
+  const strandedNumbers = new Set<string>(), organizedNumbers = new Set(actualNumbers);
+  // A question with parts is a numbered group: it counts as the question before the stranded one, or as this one.
+  walkAutonomous(compiled.document.content, node => { if (node.type === "questionGroup" && node.attrs.number?.label) organizedNumbers.add(node.attrs.number.label); });
   for (const unit of input.units.filter(unit => unit.nativeReferences)) for (const entry of wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers)) {
     // The printed number, not the program's guess: a number printed twice (the paper, then a commentary reprinting
     // its questions) leaves the guess empty.
     const printed = importPunctuatedQuestionStart(entry.text);
-    if (!topLevelRefs.has(entry.ref) || entry.role !== "body" || !printed || actualNumbers.has(printed) || !actualNumbers.has(String(Number(printed) - 1)) || strandedNumbers.has(printed)) continue;
+    if (!topLevelRefs.has(entry.ref) || entry.role !== "body" || !printed || organizedNumbers.has(printed) || !organizedNumbers.has(String(Number(printed) - 1)) || strandedNumbers.has(printed)) continue;
     strandedNumbers.add(printed);
     issues.push(`第${printed}题留在了题外：${entry.ref}（“${entry.text.slice(0, 24)}”）印着题号，却不在任何题目里。整理成第${printed}题，有共用材料或小问时整理为题组；确属原稿说明时保持原样再次 finish。`);
   }

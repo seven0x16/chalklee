@@ -60,6 +60,8 @@ export interface PreparedImport {
   sourceHash: string;
   /** A separate cache for this conversion, instead of the one shared by every conversion of the same original. */
   cacheScope?: string;
+  /** No automatic run follows this one, so what it reaches is delivered, the rest organized by the program. */
+  deliverUnfinished?: boolean;
   page: ChalkLeePageAppearance;
   units: ImportUnit[];
   warnings: string[];
@@ -129,10 +131,21 @@ export interface ImportRecord {
     sourceRevisions?: SourceFragmentRevision[];
     /** A whole first draft the teacher has not yet had proofread against the original ("pending"), or one that was ("done"). */
     proofread?: "pending" | "done";
+    /** A delivered conversion's places worth checking; continuing lets ChalkLee AI organize them again. */
+    followUp?: ImportFollowUp;
     units?: ImportUnitResult[]; structureModel: string; execution?: ImportExecutionOptions; calls: ImportModelCall[]; cachedUnits: number; answers?: ImportAnswerReport; formulas?: { native: number; recognized: number; unresolved: number }; agent?: { rounds: number; resumed: boolean; actions: ImportReviewAction[]; previewPages: number }; reviews?: { unit: string; completed: boolean; actions: ImportReviewAction[] }[];
     /** Knowledge-point tags ChalkLee AI put on the delivered copy: the preset course it drew on, and how many questions got tags. */
     tags?: { course: string | null; questions: number };
     timing?: ImportTiming };
+}
+
+export interface ImportFollowUp {
+  /** Printed numbers of the questions to check. */
+  questions: string[];
+  /** PDF pages kept as their original image. */
+  pages: number[];
+  /** The balance, the Key or the model stopped the run, which only settings can change. */
+  service?: string;
 }
 
 export interface ImportUnitResult {

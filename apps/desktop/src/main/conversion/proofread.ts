@@ -324,7 +324,7 @@ export async function applyConversion(root: string, targetPath: string, director
     const issues = validateChalkLeeSemantics(written.document, written.manifest);
     if (issues.length) throw new Error(`转换结果结构校验失败：${issues[0].message}`);
     // Finishing a draft continues it; anything else converts the paper again.
-    const action = previous?.conversion?.status === "draft" ? "继续转换" : "重新转换";
+    const action = previous?.conversion?.followUp ? "继续整理" : previous?.conversion?.status === "draft" ? "继续转换" : "重新转换";
     prepared?.assertLease();
     const saved = await writeWorkspaceDocument(root, target, Uint8Array.from(bytes).buffer, fresh.modifiedAt, { reason: "conversion", label: `${action}前` });
     await prepared?.commit(document, saved, [], "document", {

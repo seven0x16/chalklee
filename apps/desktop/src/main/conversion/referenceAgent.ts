@@ -6,8 +6,8 @@ import type { ChalkLeeDocument } from "@chalklee/format";
 import type { ImportModelCall, ImportReviewAction, PreparedImport, SourceFragmentEdit } from "../../shared/conversion/types";
 import { importCallReporter, importReviewModel, importReviewStream, type ImportCredentials } from "./model";
 import { applyAutonomousEdits, type AutonomousEdit } from "./autonomous/edits";
-import { assessAutonomousDraft, autonomousFragmentBlocks, compileAutonomousDraft, walkAutonomous, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
-import { referenceSourceEntries as sourceEntries, collectSourceRefs as collectRefs, sourceLayoutLabels, assemblyProgress } from "./referenceDraft";
+import { assessAutonomousDraft, autonomousFragmentBlocks, compileAutonomousDraft, STRUCTURE_DOUBT, walkAutonomous, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
+import { referenceSourceEntries as sourceEntries, collectSourceRefs as collectRefs, sourceLayoutLabels, assemblyProgress, damagedContentIssues, structureConcerns } from "./referenceDraft";
 export { compileUnfinishedReferenceDraft, withOriginalParagraphs } from "./referenceDraft";
 import { runImportWithRecovery } from "./retry";
 import { appendSourceRevisions, SourceFragmentEditSchema, sourceImageHash, sourceRevisionChanges, workingReferenceInput } from "./referenceSources";
@@ -87,6 +87,8 @@ export const REFERENCE_PLAN_PROMPT = `${REFERENCE_INTRO}${REFERENCE_PRINCIPLES
   .replace("引用完整、结构和渲染校验通过后即可 finish，不再追加文句校对。", "")}${REFERENCE_STRUCTURE}${REFERENCE_PLAN_OUTPUT}`;
 
 const MAX_ROUNDS = 60;
+/** The whole paper is in the first message, so this many turns without saving anything means the agent is going round. */
+const IDLE_ROUNDS = 12;
 const ROLE_LABELS: Record<string, string> = { heading: "标题", answer: "答案", analysis: "解析" };
 const identifier = Type.String({ pattern: "^[a-zA-Z0-9_-]{1,80}$" });
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }], details: {} });
@@ -128,7 +130,9 @@ function printedQuestions(document: ChalkLeeDocument): number {
   return count;
 }
 
-export interface ReferenceAgentRun { draft: AutonomousDraft; failure: string; rounds: number; calls: ImportModelCall[] }
+export interface ReferenceAgentRun { draft: AutonomousDraft; failure: string; rounds: number; calls: ImportModelCall[];
+  /** Structure the checks still doubted when the agent delivered, for the teacher to look at. */
+  concerns: string[] }
 
 /** A first pass started before the pages were final, with the paragraphs it was given. */
 export interface EarlyReferencePlan { source: string; entries: { ref: string; text: string }[]; plan: Promise<ReferencePlan>; calls: ImportModelCall[]; cancel: () => void }
@@ -165,8 +169,9 @@ export async function draftWithReferences(options: {
   const unitOf = new Map(entries.map(entry => [entry.ref, entry.unitId]));
   const allUnits = new Set(input.units.map(unit => unit.id));
   let draft: AutonomousDraft = { ...options.draft, seenUnits: [...allUnits] };
-  let finished = false, rounds = 0, toolCalls = 0, finishRevision = -1;
+  let finished = false, rounds = 0, toolCalls = 0, finishRevision = -1, strandedRevision = -1, concerns: string[] = [];
   let failedTools = 0, repeatedReads = 0, repeatedStates = 0, readsSinceWrite = 0, needsRecovery = false, recoveryReason = "";
+  let lastWriteRound = 0, idle = false, idleStops = 0, lastRefusal = "";
   const readRequests = new Set<string>();
   const writtenStates = new Set([draftContentKey(draft)]);
   const calls: ImportModelCall[] = [];
@@ -221,7 +226,11 @@ export async function draftWithReferences(options: {
     ...assemblyProgress(input, draft, state.issues)
   });
 
-  /** What still stands in the way of delivering this revision; the same check whether the agent or the first pass finishes. */
+  /**
+   * What still stands in the way of delivering this revision; the same check whether the agent or the first pass finishes.
+   * Lost, broken or misfiled content has to be put right; if the agent cannot, its run ends and the program delivers the
+   * paper with those places marked. Where the agent only differs from the program's reading, it is asked once.
+   */
   const deliveryProblem = async (): Promise<string | undefined> => {
     const state = status();
     if (state.missing.length) return `还有 ${state.missing.length} 段原稿没有写入：${state.missing.slice(0, 12).map(entry => `${entry.ref}（${entry.text.slice(0, 30)}）`).join("、")}`;
@@ -229,15 +238,24 @@ export async function draftWithReferences(options: {
       const rendered = await options.preview(state.compiled);
       if (rendered.issues.length) return rendered.issues.join("\n");
     }
-    const blocking = state.issues.filter(issue => /未通过/.test(issue));
-    blocking.push(...state.compiled.notices.filter(notice => /答案(?:章节不一致|已有答案或解析)/.test(notice.message)).map(notice => notice.message));
-    if (blocking.length) return blocking.join("\n");
-    // Genuinely absent or ambiguous source numbers can remain unresolved;
-    // avoid treating a repairable section mismatch as a source defect.
-    if (state.issues.length && finishRevision !== draft.revision) {
+    const damaged = damagedContentIssues(state.issues);
+    if (damaged.length) return damaged.join("\n");
+    const doubts = structureConcerns(state.issues, state.compiled.notices);
+    const required = doubts.filter(issue => !issue.startsWith(STRUCTURE_DOUBT));
+    if (required.length) return required.join("\n");
+    const all = [...new Set([...doubts, ...state.issues])];
+    if (all.length && finishRevision !== draft.revision) {
       finishRevision = draft.revision;
-      return `${state.issues.join("\n")}\n请对照原稿处理；确认原稿本来如此、无法再改时，不修改直接再次调用 finish。`;
+      return `${all.join("\n")}\n请对照原稿处理；确认原稿本来如此、无法再改时，不修改直接再次调用 finish。`;
     }
+    // A question or an answer left outside every question is easy to wave through and costly to the teacher, so it is
+    // put once more, on its own. A numbered note in an appended commentary may still stay.
+    const stranded = state.issues.filter(issue => /留在了题外|已保留在原答案位置待核对/.test(issue));
+    if (stranded.length && strandedRevision !== draft.revision) {
+      strandedRevision = draft.revision;
+      return `${stranded.join("\n")}\n这些内容还没有归到题目里。印着题号的题干放进 question 的 stem，有小问时放进 questionGroup 的 material 并把题组 number 写成这个题号，小问放 questions；答案和解析直接放进对应题目的 answer、analysis，并去掉独立的 answerEntry。只有它们确实不属于任何题目（如卷末解读文章里的条目）时，才不修改再次调用 finish。`;
+    }
+    concerns = [...doubts, ...stranded];
     return undefined;
   };
 
@@ -365,7 +383,7 @@ export async function draftWithReferences(options: {
             recoveryReason = "连续重复读取相同内容，没有新增信息或写入进展。不要继续读取相同区域；根据已有完整引用先写入能确定的题目结构，无法确认的内容保持原样，不推断或补写。";
           }
         } else if (draft.revision !== before.revision) {
-          readRequests.clear(); repeatedReads = 0; readsSinceWrite = 0;
+          readRequests.clear(); repeatedReads = 0; readsSinceWrite = 0; lastWriteRound = rounds;
           const key = draftContentKey(draft);
           repeatedStates = writtenStates.has(key) ? repeatedStates + 1 : 0;
           writtenStates.add(key);
@@ -476,7 +494,12 @@ export async function draftWithReferences(options: {
     }),
     tool("finish", "完成原稿转换。要求全部ref已写入、结构校验通过；其余问题须先处理，确认原稿本来如此时可再次调用。", Type.Object({ summary: Type.String({ minLength: 4 }) }), async ({ summary }) => {
       const problem = await deliveryProblem();
-      if (problem) throw new Error(problem);
+      if (problem) {
+        // Refused twice for the same thing with nothing changed between: this agent has no further way to fix it.
+        if (problem === lastRefusal) idle = needsRecovery = true;
+        lastRefusal = problem;
+        throw new Error(problem);
+      }
       finished = true;
       return { ...json({ completed: true, summary, questions: status().questions }), terminate: true };
     })
@@ -487,7 +510,14 @@ export async function draftWithReferences(options: {
   const agent = new Agent({
     initialState: { model: importReviewModel(credentials), thinkingLevel: credentials.reasoningEffort ?? "off", systemPrompt: REFERENCE_AGENT_PROMPT + (options.preview ? "\n组题完成后直接 finish，程序自动校验完整成品的实际渲染。仅当 finish 返回具体排版问题时，用 preview_document 查看有关页面；不逐题预览、不额外抽查。" : ""), tools },
     streamFn, toolExecution: "sequential",
-    finishTurn: () => { rounds++; return finished || needsRecovery || rounds >= MAX_ROUNDS ? { action: "end" as const } : undefined; }
+    finishTurn: () => {
+      rounds++;
+      if (!finished && rounds - lastWriteRound >= IDLE_ROUNDS) {
+        idle = needsRecovery = true;
+        recoveryReason = `已连续 ${IDLE_ROUNDS} 轮没有保存新内容。完整原文已在第一条消息中，不要继续读取；现在就用 write_fragments 写入还没写入的 ref，拿不准的段落保持原样，然后调用 finish。`;
+      }
+      return finished || needsRecovery || rounds >= MAX_ROUNDS ? { action: "end" as const } : undefined;
+    }
   });
   const reportCall = importCallReporter("reference-agent", call => calls.push(call));
   agent.subscribe(event => {
@@ -534,20 +564,24 @@ export async function draftWithReferences(options: {
         scoped.throwIfAborted();
         options.progress("正在继续整理，已完成的部分已保存", status().placedUnits);
       }
-      failedTools = 0; repeatedReads = 0; repeatedStates = 0; readRequests.clear(); writtenStates.clear(); writtenStates.add(draftContentKey(draft)); needsRecovery = false;
+      failedTools = 0; repeatedReads = 0; repeatedStates = 0; readRequests.clear(); writtenStates.clear(); writtenStates.add(draftContentKey(draft)); needsRecovery = false; idle = false; lastWriteRound = rounds;
       await runImportWithRecovery(agent, () => agent.prompt(prompt), scoped, quota => options.progress(quota ? "AI 服务提示额度或用量受限，1 分钟后自动重试，已完成的部分已保存" : "AI 服务连接不稳定，正在自动重试，已完成的部分已保存", status().placedUnits), true);
       scoped.throwIfAborted();
       const last = agent.state.messages.at(-1);
       if (last?.role === "assistant" && ["error", "aborted"].includes(last.stopReason)) throw new Error(last.errorMessage || "模型连接未完成。");
+      // Asked once to write what it has; a second time round would only spend the teacher's quota.
+      if (idle && ++idleStops >= 2) break;
     }
     if (!finished) failure = "题目还没整理完，进度已保存";
   } catch (error) {
     signal.throwIfAborted();
-    failure = budget.signal.aborted ? "这次用时太长，先停在这里，进度已保存" : conversionFailureText(String(error instanceof Error ? error.message : error).split(credentials.apiKey).join("[已隐藏]"));
+    const reported = String(error instanceof Error ? error.message : error).split(credentials.apiKey).join("[已隐藏]");
+    console.warn(`[conversion] ChalkLee AI 没有走完 ${options.sourceName}：`, reported.slice(0, 1000));
+    failure = budget.signal.aborted ? "这次用时太长，先停在这里，进度已保存" : conversionFailureText(reported);
   } finally {
     clearTimeout(deadline); scoped.removeEventListener("abort", abort); options.earlyPlan?.cancel(); await options.persist(draft);
     await options.transcript?.({ systemPrompt: agent.state.systemPrompt, tools: tools.map(({ name, description, parameters }) => ({ name, description, parameters })), messages: agent.state.messages,
       ...(plan ? { plan: { ranges: plan.ranges, outputs: planOutputs, failures: plan.failures, refused: refused.map(({ fragment, error }) => ({ key: fragment.key, error })) } } : {}) });
   }
-  return { draft, failure: failure.slice(0, 600), rounds, calls };
+  return { draft, failure: failure.slice(0, 600), rounds, calls, concerns };
 }

@@ -66,7 +66,7 @@ function walk(value: unknown, visit: (node: Record<string, any>) => void): void 
   if (Array.isArray(node.content)) node.content.forEach(child => walk(child, visit));
 }
 
-export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: ImportUnit, continuation: ChalkLeeBlockNode | undefined, unitIndex: number) {
+export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: ImportUnit, continuation: ChalkLeeBlockNode | undefined, unitIndex: number, doubts?: string[]) {
   if (unit.nativeReferences) {
     const first = wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers).find(entry => entry.text.trim());
     const printed = first && importQuestionAnchors(first.text).find(match => match.index === 0)?.[1];
@@ -81,7 +81,7 @@ export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: I
     if (unit.page && first?.role !== "heading" && continuation?.type === "questionGroup" && opening?.type === "questionGroup"
       && opening.kind === continuation.attrs.kind && String(opening.number ?? "") === (continuation.attrs.number.mode === "fixed" ? continuation.attrs.number.label : "")
       && (!opening.material || (Array.isArray(opening.material) && !opening.material.length)) && opening.questions?.length) reply.continuesPrevious = true;
-    assertWordImportPlan(reply.blocks, unit, reply.continuesPrevious ? continuation : undefined);
+    assertWordImportPlan(reply.blocks, unit, reply.continuesPrevious ? continuation : undefined, doubts);
   }
   const originals = new Map<string, Record<string, any>>();
   walk(unit.blocks, node => { if (node.attrs?.id) originals.set(node.attrs.id, node); });
@@ -916,7 +916,7 @@ export async function saveImportDocument(
   // proofread sees them as added after the draft and keeps them, as it keeps the teacher's.
   // Tags read only the text, so they are chosen while the figures are rendered again.
   const tagged = structuredClone(finalized.document);
-  const taggingRun: Promise<{ value: ConversionTagging | null } | { error: unknown }> = conversion.status !== "draft" && (externalTags || credentials.apiKey && credentials.tagQuestions !== false) ? (async () => {
+  const taggingRun: Promise<{ value: ConversionTagging | null } | { error: unknown }> = conversion.status !== "draft" && !conversion.followUp?.service && (externalTags || credentials.apiKey && credentials.tagQuestions !== false) ? (async () => {
     progress({ sourcePath: input.sourcePath, completed: input.units.length, total: input.units.length, message: "正在给题目打知识点标签" });
     const relativePath = path.relative(root, input.sourcePath).split(path.sep).join("/");
     return { value: externalTags ? await applyExternalConversionTags(root, tagged, relativePath, externalTags) : await tagConvertedQuestions(root, tagged, relativePath, credentials, signal) };

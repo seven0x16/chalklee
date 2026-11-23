@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Check, ChevronRight, Clock3, FileText, ListTodo, LoaderCircle, X } from "lucide-react";
-import { conversionActivity, conversionBatchEndedText, conversionDurationText, conversionIdleText, conversionIsActive, conversionIsRunning, conversionOpenTarget, conversionStatusText, conversionUnfinished, currentConversionBatch, newlyEndedConversions, proofreadPending, type ConversionBatchAction, type ConversionBatchSummary, type ConversionTask } from "../../../shared/conversion/tasks";
+import { conversionActivity, conversionBatchEndedText, conversionDurationText, conversionFollowUp, conversionFollowUpText, conversionIdleText, conversionIsActive, conversionIsRunning, conversionOpenTarget, conversionStatusText, conversionUnfinished, currentConversionBatch, newlyEndedConversions, proofreadPending, type ConversionBatchAction, type ConversionBatchSummary, type ConversionTask } from "../../../shared/conversion/tasks";
 import { PanelEmptyNote } from "../ui/PanelEmptyNote";
 import { SidebarOverlayScrollArea } from "../ui/SidebarOverlayScrollArea";
 import { useConversionClock, useCopiedFlag } from "./hooks";
@@ -99,7 +99,8 @@ export function ConversionTasksPanel({ tasks, onOpenTask, onStop, onResume, onPr
     // One line under the name: time, then the current step. Under 正在转换 with a spinner,
     // ChalkLee's own conversion needs no 转换中 of its own.
     // Active tasks keep that line to one, cut short with an ellipsis; ended ones wrap between phrases.
-    const status = [activity && task.phase !== "proofread" ? "" : conversionStatusText(task), idle, activity?.time, activity?.step, conversionDurationText(task)].filter(Boolean);
+    const followUp = conversionFollowUp(task);
+    const status = [activity && task.phase !== "proofread" ? "" : conversionStatusText(task), idle, activity?.time, activity?.step, conversionDurationText(task), followUp ? conversionFollowUpText(followUp) : ""].filter(Boolean);
     const statusLine = status.join("，");
     const problem = task.status === "draft" || task.status === "failed" && task.phase !== "proofread" ? conversionUnfinished(task).detail : task.status === "interrupted" ? "" : task.error;
     // Actions sit under the text, so a narrow pane still shows the file name and status in full.
@@ -109,6 +110,7 @@ export function ConversionTasksPanel({ tasks, onOpenTask, onStop, onResume, onPr
         <button type="button" className="conversion-task-retry is-quiet" title="直接使用这份初稿，与校对完成后一样" aria-label={`不校对：${task.source.name}`} onClick={() => onSkipProofread(task.id)}>不校对</button>
       </>
       : task.agent && task.status !== "draft" ? !hasResult ? <button type="button" className="conversion-task-retry" title="粘贴到任意已连接的外部 AI 应用中发送" aria-label={`交给外部 AI 应用：${task.source.name}`} onClick={() => { onCopyInstruction(task).then(() => flashCopied(task.id), error => onError(String(error))); }}>{copiedTask === task.id ? "已复制" : "交给外部 AI 应用"}</button> : null
+      : followUp ? <button type="button" className="conversion-task-retry" aria-label={`继续整理：${task.source.name}`} onClick={() => onResume(task.id)}>继续整理</button>
       : task.status !== "completed" ? <button type="button" className="conversion-task-retry" aria-label={`继续转换：${task.source.name}`} title={task.agent ? "改用 ChalkLee AI 转换" : undefined} onClick={() => onResume(task.id)}>继续</button> : null;
     return <article key={task.id} className={`conversion-task-row status-${task.status}${activity?.stalled ? " is-stalled" : ""}${isActive ? " is-active" : ""}`}>
       <button type="button" className="conversion-task-file" title={hasResult ? "打开转换后的文档" : "查看原稿"} onClick={() => onOpenTask(task, hasResult ? "result" : "source")}>

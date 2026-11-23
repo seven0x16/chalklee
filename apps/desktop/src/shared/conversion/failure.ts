@@ -2,13 +2,13 @@
 export function isTransientImportFailure(message: string): boolean {
   message = message.replace(/第\s*\d+\s*页/g, "");
   if (/insufficient_quota|allocated quota exceeded/i.test(message)) return false;
-  return /timed?\s*out|timeout|ETIMEDOUT|ECONNRESET|EAI_AGAIN|UND_ERR_SOCKET|fetch failed|network error|socket hang up|stream ended without finish_reason|^(?:TypeError:\s*)?terminated$|\b(?:408|429|500|502|503|504)\b|超时|连接中断/i.test(message);
+  return /timed?\s*out|timeout|ETIMEDOUT|ECONNRESET|EAI_AGAIN|UND_ERR_SOCKET|fetch failed|network error|socket hang up|stream ended without finish_reason|^(?:TypeError:\s*)?terminated$|\b(?:408|429|500|502|503|504)\b|超时|连接中断|连不上模型服务/i.test(message);
 }
 
 const SERVICE_PROBLEMS = [
   [/insufficient.{0,10}(?:quota|balance)|allocated quota exceeded|\b402\b|余额|额度/i, "模型余额或额度不足"],
-  [/\b40[13]\b|unauthorized|forbidden|invalid.{0,15}key|api.?key|authentication|鉴权|无权限/i, "模型的 Key 无法使用"],
-  [/\b404\b|invalid.{0,15}model|model.{0,20}not.{0,10}(?:found|exist)/i, "所选模型无法使用"]
+  [/\b40[13]\b|unauthorized|forbidden|invalid.{0,15}key|api.?key|authentication|鉴权|无权限|模型的 Key 无法使用/i, "模型的 Key 无法使用"],
+  [/\b404\b|invalid.{0,15}model|model.{0,20}not.{0,10}(?:found|exist)|所选模型无法使用/i, "所选模型无法使用"]
 ] as const;
 
 /** Page numbers in a reason are not status codes. */

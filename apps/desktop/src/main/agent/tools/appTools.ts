@@ -7,7 +7,12 @@ import { ASSISTANT, BOTH, PathParam, WITH_PLUGINS, defineTool, documentRef, outp
 import { organizeConfirmation, organizePreview, planOrganize, runOrganize, undoOrganize } from "./workspaceOrganize";
 import { planTagEdit, runTagEdit, tagEditConfirmation, tagTreeListing, undoTagEdit } from "./questionTags";
 import { conversionActionConfirmation, conversionConfirmation, markOriginals, MAX_CONVERSIONS, planConversionAction, planConversions, runConversionAction, startConversions } from "./conversionPlan";
-import { conversionUnfinished } from "../../../shared/conversion/tasks";
+import { conversionFollowUp, conversionFollowUpText, conversionUnfinished, type ConversionTask } from "../../../shared/conversion/tasks";
+
+const conversionDetail = (task: ConversionTask) => {
+  const followUp = conversionFollowUp(task);
+  return followUp ? conversionFollowUpText(followUp) : task.status === "draft" ? conversionUnfinished(task).detail : task.error;
+};
 
 const QuestionRef = Type.Object({ path: PathParam, questionId: Type.String({ minLength: 1 }) }, strict);
 const trashName = () => process.platform === "darwin" ? "废纸篓" : "回收站";
@@ -231,7 +236,7 @@ export const APP_TOOLS: ChalkLeeTool[] = [
   }),
   defineTool({
     name: "conversion_tasks", label: "转换任务", surfaces: BOTH, kind: "destructive",
-    description: "查看和操作 PDF/DOC/DOCX/LaTeX/Markdown 转换任务，与右上角转换任务中的按钮相同。新转换直接交付，不主动询问或安排独立校对。list 查看状态与结果文档：draft 表示转换未完成（对老师只说“转换未完成”，不说草稿），error 说明还差什么，可以 resume；旧版 drafted 表示整卷初稿已完成，等待选择 ChalkLee AI 校对或不校对；phase 为 proofread 时是在校对初稿。stop 停止转换或校对（已整理的部分保留，之后可以继续）；resume 让停止、中断或未完成的任务从停下处接着转换或校对；proofread 用 ChalkLee AI 逐页对照原稿校对初稿，直接修正同一份 ChalkLee（老师改过的题保留并标为待核对，修改前的内容存为版本）；skip-proofread 不校对，保留初稿作为结果。paths 传原稿、转换结果或文件夹，省略时作用于工作区中所有适用的任务（不包括外部 AI 应用的会话）。not-needed 把原稿标为不需要转换（课本等只用来阅读的资料：不计入待转换份数，转换文件夹时跳过，单独点名时仍可转换），needed 取消这个标记；两者都要传 paths，文件夹作用于其中全部原稿，已有转换结果或正在转换的不标。",
+    description: "查看和操作 PDF/DOC/DOCX/LaTeX/Markdown 转换任务，与右上角转换任务中的按钮相同。新转换直接交付，不主动询问或安排独立校对。list 查看状态与结果文档：draft 表示转换未完成（对老师只说“转换未完成”，不说草稿），error 说明还差什么，可以 resume；completed 且 error 写着“请检查”或“保留为原图”时文档已可用，老师要继续整理时用 paths 点名这份再 resume；旧版 drafted 表示整卷初稿已完成，等待选择 ChalkLee AI 校对或不校对；phase 为 proofread 时是在校对初稿。stop 停止转换或校对（已整理的部分保留，之后可以继续）；resume 让停止、中断或未完成的任务从停下处接着转换或校对；proofread 用 ChalkLee AI 逐页对照原稿校对初稿，直接修正同一份 ChalkLee（老师改过的题保留并标为待核对，修改前的内容存为版本）；skip-proofread 不校对，保留初稿作为结果。paths 传原稿、转换结果或文件夹，省略时作用于工作区中所有适用的任务（不包括外部 AI 应用的会话）。not-needed 把原稿标为不需要转换（课本等只用来阅读的资料：不计入待转换份数，转换文件夹时跳过，单独点名时仍可转换），needed 取消这个标记；两者都要传 paths，文件夹作用于其中全部原稿，已有转换结果或正在转换的不标。",
     notes: {
       assistant: "继续或校对多份会先请用户在卡片上确认。",
       mcp: "resume、proofread 会用 ChalkLee 设置中的模型额度，这里不能用：请老师在 ChalkLee 右上角转换任务中操作，或用 conversion_open 自己转换。"
@@ -245,7 +250,7 @@ export const APP_TOOLS: ChalkLeeTool[] = [
     execute: async ({ action, paths }, host) => {
       if (!action || action === "list") return output(requireApp(host).conversions().filter(task => task.workspaceRoot === host.root && !task.dismissed).map(task => ({
         source: relative(host.root, task.source.path), status: task.status, result: task.result?.file ? relative(host.root, task.result.file.path) : undefined,
-        error: task.status === "draft" ? conversionUnfinished(task).detail : task.error, pendingReview: task.pendingReviewCount || undefined, agent: task.agent, phase: task.phase
+        error: conversionDetail(task), pendingReview: task.pendingReviewCount || undefined, agent: task.agent, phase: task.phase
       })));
       if (action === "not-needed" || action === "needed") {
         const result = await markOriginals(host, paths, action === "needed");

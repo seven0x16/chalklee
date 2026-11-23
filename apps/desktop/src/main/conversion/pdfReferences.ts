@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { CHALKLEE_SCHEMA_VERSION, chalkLeeSchemaErrors } from "@chalklee/format";
+import { conversionFailureText, conversionServiceProblem, isTransientImportFailure } from "../../shared/conversion/failure";
 import { importAppearance } from "../../shared/conversion/importDocument";
 import type { ImportModelCall, ImportProgress, ImportUnit, PreparedImport } from "../../shared/conversion/types";
 import { checkPdfNativeText } from "./pdfNativeText";
@@ -56,7 +57,7 @@ export async function preparePdfReferences(options: {
   let ocrUnavailable = "";
   const stopped = new AbortController(), signal = AbortSignal.any([parentSignal, stopped.signal]);
   const calls: ImportModelCall[] = [], units: ImportUnit[] = [], reports: PdfReferences["units"] = [], warnings = [...input.warnings], failedUnits: string[] = [];
-  let cachedUnits = 0, completed = 0, next = 0, cacheMissing = false, failure = "";
+  let cachedUnits = 0, completed = 0, next = 0, cacheMissing = false, failure = "", modelDown = "";
   const observe = (call: ImportModelCall) => calls.push(call);
   const settled: (ImportUnit | undefined)[] = [];
   let announced = false;
@@ -101,8 +102,16 @@ export async function preparePdfReferences(options: {
     } catch (error) {
       if (!(error instanceof SyntaxError) && (error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
+    /** The page stays as its image in the paper; nothing is cached, so continuing recognizes it again. */
+    const imagePage = (reason: string, warning: string) => {
+      const fallback = preserveImportPage(original, page);
+      failure ||= reason; failedUnits.push(original.id);
+      return { blocks: fallback.blocks, images: [{ id: fallback.asset.id, dataUrl: page.dataUrl, widthPt: page.widthPt, heightPt: page.heightPt }],
+        warnings: [warning], recognition: "visual" as const, recognitionReason: reason };
+    };
     if (!saved) {
       if (options.cachedOnly) { cacheMissing = true; return; }
+      if (modelDown) saved = imagePage(modelDown, `${original.label}未识别：${modelDown}`);
       let stage = "正在读取";
       const emit = (message: string) => progress({ sourcePath: input.sourcePath, completed, total: input.units.length, message });
       // A page whose recognition does not pass its checks is recognized once more from the start: a second reading
@@ -231,17 +240,22 @@ export async function preparePdfReferences(options: {
         await removeSupersededCacheFiles(file, new RegExp(`^${original.id}-[a-f0-9]{64}-references\\.json$`));
       } catch (error) {
         signal.throwIfAborted();
-        try { pageFailure(error); } catch (classified) { if (!(classified instanceof ImportPageFailure)) throw classified; }
         const message = String(error instanceof Error ? error.message : "识别失败");
         const shown = credentials.apiKey ? message.split(credentials.apiKey).join("[已隐藏]") : message;
+        try { pageFailure(error); } catch (classified) {
+          if (!(classified instanceof ImportPageFailure)) {
+            // Without the model no page can be recognized: the paper is still delivered, its pages as images. A dropped
+            // connection may come back, so it waits for the last run; anything else (storage, a program error) stops here.
+            if (!conversionServiceProblem(shown) && !(input.deliverUnfinished && isTransientImportFailure(shown))) throw classified;
+            modelDown ||= conversionFailureText(shown);
+            saved = imagePage(modelDown, `${original.label}未识别：${modelDown}`);
+            continue;
+          }
+        }
         // Kept beside the page cache for diagnosis, like the figure rounds.
         await writeFile(path.join(cacheDirectory, `page-failure-${original.id}-${round}.json`), JSON.stringify({ stage, error: shown.slice(0, 4000) }), { mode: 0o600 }).catch(() => undefined);
         if (round < 2) { emit(`正在重新识别${original.label}`); continue; }
-        const fallback = preserveImportPage(original, page);
-        const reason = `${original.label}内容识别未完成，已保留原稿，可继续转换。`;
-        failure ||= reason; failedUnits.push(original.id);
-        saved = { blocks: fallback.blocks, images: [{ id: fallback.asset.id, dataUrl: page.dataUrl, widthPt: page.widthPt, heightPt: page.heightPt }],
-          warnings: [`${stage}${original.label}未完成：${shown}`], recognition: "visual", recognitionReason: reason };
+        saved = imagePage(`${original.label}内容识别未完成，已保留原稿，可继续转换。`, `${stage}${original.label}未完成：${shown}`);
       }
     }
     units[index] = pageUnit(original, page, saved.blocks, saved.images, saved.answerStartRef, saved.recognition === "visual");
@@ -266,9 +280,10 @@ export async function preparePdfReferences(options: {
   const rejected = outcomes.find(outcome => outcome.status === "rejected");
   if (rejected?.status === "rejected") throw stopped.signal.reason ?? rejected.reason;
   if (cacheMissing) return undefined;
-  const prepared = await omitVerifiedPdfWatermarks(units, new Set(reports.filter(report => report.recognition === "native-text").map(report => report.id)),
+  // Checking a watermark takes the model too.
+  const prepared = modelDown ? units : await omitVerifiedPdfWatermarks(units, new Set(reports.filter(report => report.recognition === "native-text").map(report => report.id)),
     cacheDirectory, credentials, signal, observe, options.cachedOnly);
   if (!prepared) return undefined;
   assignPdfSourceRoles(prepared);
-  return { input: { ...input, units: prepared, warnings: [...new Set(warnings)] }, calls, cachedUnits, units: reports, failure, failedUnits };
+  return { input: { ...input, units: prepared, warnings: [...new Set(warnings)] }, calls, cachedUnits, units: reports, failure: modelDown || failure, failedUnits };
 }

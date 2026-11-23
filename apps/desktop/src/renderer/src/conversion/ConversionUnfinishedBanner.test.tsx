@@ -54,6 +54,18 @@ describe("unfinished conversion banner on a document", () => {
     render(task({ unfinishedRuns: 4 }), handlers, "another");
     expect(labels()).toEqual(["知道了", "继续转换"]);
   });
+  it("shows a delivered conversion as done, with the places to check and a way to continue", async () => {
+    const delivered = task({ status: "completed", result: { file: { ...source, path, extension: "chalklee" }, record: { questionCount: 27, model: "flash", conversion: { followUp: { questions: ["18", "19", "20", "23"], pages: [] } } } } as unknown as ConversionTask["result"] });
+    expect(unfinishedConversionFor([delivered], path)?.id).toBe("t1");
+    expect(unfinishedConversionFor([{ ...delivered, dismissed: true }], path)).toBeUndefined();
+    const handlers = render(delivered);
+    expect(container.querySelector("strong")!.textContent).toBe("转换完成");
+    expect(container.querySelector(".source-conversion-detail")!.textContent).toBe("第 18～20、23 题请检查");
+    expect(container.querySelector(".has-error")).toBeNull();
+    expect(labels()).toEqual(["知道了", "继续整理"]);
+    await click("继续整理");
+    expect(handlers.onContinue).toHaveBeenCalledWith("t1");
+  });
   it("follows the conversion while it continues into the document", async () => {
     const handlers = render(task({ status: "running", into: path, startedAt: Date.now() - 2 * 60_000, progress: { sourcePath: source.path, completed: 1, total: 2, message: "正在接着上次的进度转换，已完成的题目会保留" } }));
     expect(container.querySelector("strong")!.textContent).toBe("ChalkLee AI 正在转换");

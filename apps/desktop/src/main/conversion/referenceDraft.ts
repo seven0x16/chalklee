@@ -2,7 +2,7 @@ import type { ChalkLeeDocument } from "@chalklee/format";
 import type { PreparedImport } from "../../shared/conversion/types";
 import { wordSourceEntries } from "../../shared/conversion/wordSource";
 import { assertImportDocument } from "../../shared/conversion/importDocument";
-import { compileAutonomousDraft, type AutonomousDraft } from "./autonomous/state";
+import { compileAutonomousDraft, STRUCTURE_DOUBT, type AutonomousDraft } from "./autonomous/state";
 import { preserveImportFragment } from "./draft";
 
 export function referenceSourceEntries(input: PreparedImport) {
@@ -46,6 +46,16 @@ export function assemblyProgress(input: PreparedImport, draft: AutonomousDraft, 
   };
 }
 
+/** Content lost or changed on the way, or a document that is no longer valid: the only findings that stop a delivery. */
+const DAMAGED_CONTENT = /未通过格式校验|素材或引用不完整|转录内容 .*在组装后|原稿原生公式被改写或遗漏|公式转义或语法无效/;
+export const damagedContentIssues = (issues: string[]) => issues.filter(issue => DAMAGED_CONTENT.test(issue));
+
+/** Structure the program doubts: the agent gets one more look, and what remains is shown to the teacher to check. */
+export const structureConcerns = (issues: string[], notices: { message: string }[]) => [
+  ...issues.filter(issue => (/未通过/.test(issue) || issue.startsWith(STRUCTURE_DOUBT)) && !DAMAGED_CONTENT.test(issue)),
+  ...notices.filter(notice => /答案(?:章节不一致|已有答案或解析)/.test(notice.message)).map(notice => notice.message)
+];
+
 /** Paragraphs the agent has not placed yet stay where they were printed, so an unfinished run still delivers the whole paper. */
 export function withOriginalParagraphs(input: PreparedImport, draft: AutonomousDraft): AutonomousDraft {
   const used = new Set(draft.fragments.flatMap(fragment => collectSourceRefs(fragment.blocks)));
@@ -56,7 +66,10 @@ export function withOriginalParagraphs(input: PreparedImport, draft: AutonomousD
 /** The unfinished paper: the agent's structure where it compiles, the original paragraphs everywhere else. */
 export function compileUnfinishedReferenceDraft(input: PreparedImport, template: ChalkLeeDocument, draft: AutonomousDraft) {
   let compiled: ReturnType<typeof compileAutonomousDraft>;
-  try { compiled = compileAutonomousDraft(input, template, withOriginalParagraphs(input, draft), true); }
+  const used = new Set(draft.fragments.flatMap(fragment => collectSourceRefs(fragment.blocks)));
+  // With every paragraph placed, answers and reprinted questions can be matched across the whole paper.
+  const whole = referenceSourceEntries(input).every(entry => used.has(entry.ref));
+  try { compiled = compileAutonomousDraft(input, template, withOriginalParagraphs(input, draft), !whole); }
   catch { compiled = compileAutonomousDraft(input, template, withOriginalParagraphs(input, { ...draft, fragments: [] }), true); }
   try { assertImportDocument(compiled.document); }
   catch { compiled.document.content.content = compiled.document.content.content.flatMap(preserveImportFragment); }

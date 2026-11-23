@@ -18,13 +18,15 @@ import { importVisionImage } from "../visionImage";
 import { cropContextBitmap, cutCropEdges, importCropRect, pixelCropBox, type PixelBox } from "../crop";
 import { ImportPreviewHost, type AutonomousPreview } from "../previewHost";
 import { AUTONOMOUS_IMPORT_VERSION, assessAutonomousDraft, autonomousRevision, autonomousFigureImage, compileAutonomousDraft, newAutonomousDraft, type AutonomousDraft, type AutonomousFragment } from "./state";
-import { conversionFailureText } from "../../../shared/conversion/failure";
+import { conversionFailureText, conversionServiceProblem, isTransientImportFailure } from "../../../shared/conversion/failure";
 import { draftParagraph, preserveImportFragment, preserveImportPage } from "../draft";
 import { wordSourceEntries } from "../../../shared/conversion/wordSource";
 import { autonomousLayoutDefaults, autonomousLayoutRanges, validateAutonomousLayout } from "./layout";
 import { preparePdfReferences } from "../pdfReferences";
 import { conversionOcr } from "../../settings/ocr";
-import { compileUnfinishedReferenceDraft, draftWithReferences, isReferenceImport, startReferencePlan, type EarlyReferencePlan } from "../referenceAgent";
+import { compileUnfinishedReferenceDraft, draftWithReferences, isReferenceImport, startReferencePlan, withOriginalParagraphs, type EarlyReferencePlan } from "../referenceAgent";
+import { collectSourceRefs, structureConcerns } from "../referenceDraft";
+import { organizeRemainingReferences, referenceFollowUp } from "../referenceFallback";
 
 /** Complete conversions are delivered directly; the proofread phase remains for existing tasks. */
 export type AutonomousPhase = "draft" | "proofread";
@@ -408,6 +410,7 @@ async function runAutonomousImport(rootPath: string, input: PreparedImport, sign
     const host = new ImportPreviewHost();
     let preview: (AutonomousPreview & { revision: number }) | undefined;
     const assembling = Date.now();
+    const placedBefore = collectSourceRefs(draft.fragments).length;
     const run = await draftWithReferences({
       // Reference assembly already has the complete source. Keep the chosen
       // reasoning setting instead of the visual-agent loop safeguard above.
@@ -438,15 +441,35 @@ async function runAutonomousImport(rootPath: string, input: PreparedImport, sign
     signal.throwIfAborted();
     const assembleMs = Date.now() - assembling;
     const failure = run.failure || pdfReferences?.failure || "";
-    const compiled = failure ? compileUnfinishedReferenceDraft(input, template, run.draft) : compileAutonomousDraft(input, template, run.draft);
-    if (failure) compiled.notices.push({ message: failure });
+    // What only settings can change ends the run at once; a dropped connection may come back, so it waits for the last run.
+    // Either way the top of the document says why. The program's questions are not saved as progress: continuing redoes them.
+    const account = conversionServiceProblem(failure);
+    const service = account ?? (isTransientImportFailure(failure) ? "连不上模型服务" : undefined);
+    // A run that placed nothing new would only repeat itself; a dropped connection may well go through next time.
+    const stalled = !!run.failure && !isTransientImportFailure(run.failure) && collectSourceRefs(run.draft.fragments).length <= placedBefore;
+    let filled: ReturnType<typeof organizeRemainingReferences> | undefined;
+    // Organizing is a help on top of a paper that is already whole: if it fails, the paper is saved as unfinished.
+    if (failure && (input.deliverUnfinished || account || stalled)) {
+      try { filled = organizeRemainingReferences(input, template, run.draft); }
+      catch (error) { console.warn("[import] 程序整理未完成，保留未完成的文档", error instanceof Error ? error.message : error); }
+    }
+    const delivering = !!filled;
+    const compiled = failure ? compileUnfinishedReferenceDraft(input, template, filled?.draft ?? run.draft) : compileAutonomousDraft(input, template, run.draft);
+    if (failure && !delivering) compiled.notices.push({ message: failure });
+    const failedPages = input.units.flatMap(unit => unit.page && pdfReferences?.failedUnits.includes(unit.id) ? [unit.page] : []);
+    let concerns = run.concerns;
+    if (filled) {
+      try { concerns = structureConcerns(assessAutonomousDraft(input, withOriginalParagraphs(input, filled.draft), compiled), compiled.notices); }
+      catch { concerns = []; }
+    }
+    const followUp = !failure || delivering ? referenceFollowUp(input, filled ? [...filled.organized, ...filled.left] : [], concerns, delivering ? failedPages : [], service, filled ? filled.unplaced || concerns.length > 0 : false) : undefined;
     return saveImportDocument(session, compiled.document, compiled.assets, compiled.notices, {
-      strategy: "autonomous-v1", status: failure ? "draft" : "converted", ...(pdfReferences ? { sourceReferences: true } : {}), ...(run.draft.sourceRevisions?.length ? { sourceRevisions: run.draft.sourceRevisions } : {}), structureModel: credentials.model, calls: [...calls, ...run.calls],
+      strategy: "autonomous-v1", status: failure && !delivering ? "draft" : "converted", ...(followUp ? { followUp } : {}), ...(pdfReferences ? { sourceReferences: true } : {}), ...(run.draft.sourceRevisions?.length ? { sourceRevisions: run.draft.sourceRevisions } : {}), structureModel: credentials.model, calls: [...calls, ...run.calls],
       cachedUnits: pdfReferences?.cachedUnits ?? (resumed ? draft.sourceChecks.length : 0), answers: compiled.answers, agent: { rounds: run.rounds, resumed, actions, previewPages: preview?.pageCount ?? 0 },
       timing: { prepareMs, assembleMs },
       units: input.units.map(unit => {
         // A run that stopped as a whole leaves every page open; otherwise only the pages that stayed as images are.
-        const unfinished = run.failure ? true : !!pdfReferences?.failedUnits.includes(unit.id);
+        const unfinished = run.failure && !delivering ? true : !!pdfReferences?.failedUnits.includes(unit.id);
         return { id: unit.id, label: unit.label, ...(unit.page ? { page: unit.page } : {}), ...pdfReferences?.units.find(report => report.id === unit.id), status: unfinished ? "source-preserved" as const : "converted" as const, ...(unfinished ? { stage: "agent" as const, reason: failure } : {}) };
       })
     }, signal, progress);
