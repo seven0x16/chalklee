@@ -4,7 +4,7 @@ import { assertImportDocument } from "../../shared/conversion/importDocument";
 import { importNumberedFirstOption, importOptionAnchors, importPunctuatedQuestionStart, importQuestionAnchors } from "../../shared/conversion/questionAnchors";
 import type { ImportFollowUp, ImportFollowUpItem, PreparedImport } from "../../shared/conversion/types";
 import { wordAnswerLabel, wordBareLabel } from "../../shared/conversion/wordSource";
-import { compileAutonomousDraft, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
+import { compileAutonomousDraft, STRUCTURE_DOUBT, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
 import { collectSourceRefs, referenceSourceEntries, withOriginalParagraphs } from "./referenceDraft";
 import { workingReferenceInput } from "./referenceSources";
 import { answerKeyLines, misprintedAnswerNumbers } from "./answers";
@@ -232,6 +232,12 @@ function concernReason(concern: string, textOf: (ref: string) => string | undefi
   return "结构可能不对";
 }
 
+/** A finding without its paragraphs, numbers and part labels: the kind of doubt it is, whichever question it is about. */
+export const concernKind = (concern: string) => concern.replace(/(?<![\w-])[\w-]*source_[\w-]+/g, "REF")
+  .replace(/[（(]\s*[^（()）\s]{1,4}\s*[）)]/g, "(N)").replace(/\d+/g, "N");
+/** In this many questions, one kind of structure doubt kept after checking the original is the program misreading the paper. */
+const MISFIT_QUESTIONS = 3;
+
 /** The questions and pages to point the teacher to, from what the program organized and what its checks still doubt. */
 export function referenceFollowUp(input: PreparedImport, numbers: string[], concerns: string[], pages: number[], service?: string, unplaced = false): ImportFollowUp | undefined {
   const entries = referenceSourceEntries(input);
@@ -247,13 +253,26 @@ export function referenceFollowUp(input: PreparedImport, numbers: string[], conc
     note(expected, `原稿答案的题号印成了 ${printed}，请核对这题和第 ${printed} 题的答案`);
     located.set(expected, keyLines[line]);
   }
-  for (const concern of concerns) {
+  const questionsOf = (concern: string) => {
     const named = [...concern.matchAll(/第\s*(\d{1,3})(?:\s*[–～~-]\s*\d{1,3})?\s*[题空]/g)].map(match => match[1]);
     const owned = [...concern.matchAll(/(?<![\w-])[\w-]*source_[\w-]+/g)].flatMap(match => owner.get(match[0]) ?? []);
-    const line = byRef.get(concern.match(CONCERN_REF)?.[0] ?? "");
     // A passage put in another question is looked at there, once, rather than also at the number printed on it.
     const moved = movedTo(concern);
-    for (const number of moved && /^\d+$/.test(moved) ? [moved] : named.length ? named : owned) {
+    return moved && /^\d+$/.test(moved) ? [moved] : named.length ? named : owned;
+  };
+  // A doubt about the program's own reading that the original answers the same way in question after question (each
+  // "【小问1详解】" taken as another part) is a rule that does not fit this paper: the teacher is not sent to each of them.
+  // The findings and their reasons stay in the conversion record.
+  const spread = new Map<string, Set<string>>();
+  for (const concern of concerns.filter(concern => concern.startsWith(STRUCTURE_DOUBT))) {
+    const questions = spread.get(concernKind(concern)) ?? new Set<string>();
+    questionsOf(concern).forEach(number => questions.add(number));
+    spread.set(concernKind(concern), questions);
+  }
+  const misfit = (concern: string) => concern.startsWith(STRUCTURE_DOUBT) && (spread.get(concernKind(concern))?.size ?? 0) >= MISFIT_QUESTIONS;
+  for (const concern of concerns.filter(concern => !misfit(concern))) {
+    const line = byRef.get(concern.match(CONCERN_REF)?.[0] ?? "");
+    for (const number of questionsOf(concern)) {
       if (!reasons.has(number) && line) located.set(number, line);
       note(number, concernReason(concern, ref => byRef.get(ref)?.text));
     }

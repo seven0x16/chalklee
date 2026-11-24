@@ -193,6 +193,22 @@ describe("organizing what the agent left", () => {
     expect(followUp.items?.map(({ question, sourceText }) => ({ question, sourceText }))).toEqual([{ question: "2", sourceText: "解：连接 CD，则 CD=AD。" }]);
   });
 
+  it("does not send the teacher to a doubt the original answers the same way in question after question", () => {
+    const input = prepared(["21. 计算", "【小问1详解】", "24. 如图", "【小问1详解】", "26. 已知", "【小问1详解】", "27. 新定义", "【小问1详解】", "18. 如图", "图 3 图 4", "6. 下列", "7. 下列"]);
+    const moved = (ref: string, number: string, part: string) => `结构存疑（核对原稿后，确属这样可以保留）：原稿片段 ${ref} 属于第 ${number} 题，不能移入第 ${part} 题。这一段没有印刷题号：确属第 ${part} 题时可以保留，否则放回第 ${number} 题；是另一道无题号题时用 number:"" 保留，不猜补题号。`;
+    const misread = [moved("source_2", "21", "(1)"), moved("source_4", "24", "(1)"), moved("source_6", "26", "(1)"), moved("source_8", "27", "(1)")];
+    // Another kind of doubt still points to its question; one of the same kind goes with the rest, misread as they are.
+    const lone = "结构存疑（核对原稿后，确属这样可以保留）：原稿片段 source_10 是标题，不能放入解析；阅读标题应保留在下一篇材料之前。";
+    const outside = ["第6–7题前有 3 段正文不在任何题目中，像是这几题共用的阅读材料：整理为一个题组。", "第21题前有 3 段正文不在任何题目中，像是这几题共用的阅读材料：整理为一个题组。",
+      "第24题前有 3 段正文不在任何题目中，像是这几题共用的阅读材料：整理为一个题组。", "第26题前有 3 段正文不在任何题目中，像是这几题共用的阅读材料：整理为一个题组。"];
+    const questions = (concerns: string[]) => referenceFollowUp(input, [], concerns, [])?.items?.map(item => item.question) ?? [];
+    expect(questions(misread)).toEqual([]);
+    expect(questions([...misread, lone])).toEqual(["18"]);
+    // Two questions are not yet a pattern; content left outside questions is a finding of its own, however often.
+    expect(questions(misread.slice(0, 2))).toEqual(["21", "24"]);
+    expect(questions(outside)).toEqual(["6", "21", "24", "26"]);
+  });
+
   it("points to the first question when a passage was left outside a run of questions", () => {
     const input = prepared(["1. 一", "6. 二", "7. 三"]);
     const followUp = referenceFollowUp(input, [], ["第6–7题前有 45 段正文不在任何题目中，像是这几题共用的阅读材料：整理为一个题组。"], [])!;
