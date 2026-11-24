@@ -56,6 +56,9 @@ export const structureConcerns = (issues: string[], notices: { message: string }
   ...notices.filter(notice => /答案(?:章节不一致|已有答案或解析)/.test(notice.message)).map(notice => notice.message)
 ];
 
+/** Of the findings kept with a reason, those the teacher is pointed to: doubted structure and content left outside questions. */
+export const keptConcerns = (kept: string[]) => kept.filter(issue => issue.startsWith(STRUCTURE_DOUBT) || /留在了题外|已保留在原答案位置待核对|不在任何题目中/.test(issue));
+
 /** Paragraphs the agent has not placed yet stay where they were printed, so an unfinished run still delivers the whole paper. */
 export function withOriginalParagraphs(input: PreparedImport, draft: AutonomousDraft): AutonomousDraft {
   const used = new Set(draft.fragments.flatMap(fragment => collectSourceRefs(fragment.blocks)));

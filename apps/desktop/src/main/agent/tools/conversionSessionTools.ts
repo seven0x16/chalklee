@@ -91,10 +91,11 @@ export const CONVERSION_SESSION_TOOLS: ChalkLeeTool[] = [
   }),
   defineTool({
     name: "finish", label: "完成转换", surfaces: MCP, kind: "write",
-    description: "来源引用齐备后，自动渲染当前版本并检查排版，保存 ChalkLee 和转换记录，返回编辑 URL；无需逐页调用 preview_document。直接交付，不追加独立校对。用户另行明确要求校对时可再次完成旧会话，保留用户改过的题。draft:true 保留已有内容和未转换原页，保存未完成草稿。",
+    description: "来源引用齐备后，自动渲染当前版本并检查排版，保存 ChalkLee 和转换记录，返回编辑 URL；无需逐页调用 preview_document。返回带 id 的问题时逐条处理，核对原稿后确属原稿如此的，在 keep 中写这一条的 id 和 reason。直接交付，不追加独立校对。用户另行明确要求校对时可再次完成旧会话，保留用户改过的题。draft:true 保留已有内容和未转换原页，保存未完成草稿。",
     parameters: Type.Object({ sessionId: SessionId, agentName: Type.String({ minLength: 1, maxLength: 100 }), draft: Type.Optional(Type.Boolean({ default: false })),
+      keep: Type.Optional(Type.Array(Type.Object({ id: Type.String({ pattern: "^chk_[0-9a-f]{8}$" }), reason: Type.String({ minLength: 6, maxLength: 300 }) }, strict), { maxItems: 200 })),
       tags: Type.Optional(Type.Object({ revision: Type.Integer({ minimum: 0 }), tags: Type.Record(Type.String(), Type.Array(Type.String({ maxLength: 100 }), { maxItems: 3 })),
         groups: Type.Optional(Type.Record(Type.String(), Type.Array(Type.String({ maxLength: 100 }), { maxItems: 12 }))) }, strict)) }, strict),
-    execute: async ({ sessionId, agentName, draft, tags }, host) => output(await requireExternal(host).service.finish(sessionId, agentName, draft ?? false, tags))
+    execute: async ({ sessionId, agentName, draft, tags, keep }, host) => output(await requireExternal(host).service.finish(sessionId, agentName, draft ?? false, tags, keep))
   })
 ];

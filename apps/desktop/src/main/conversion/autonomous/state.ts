@@ -171,6 +171,8 @@ export function compileAutonomousDraft(input: PreparedImport, template: ChalkLee
 
 /** Where the agent's placement differs from the program's reading of the paper; either may be the right one. */
 export const STRUCTURE_DOUBT = "结构存疑（核对原稿后，确属这样可以保留）：";
+/** A short, stable name for one finding, so whoever converts can say why it keeps that one. */
+export const autonomousIssueId = (issue: string) => `chk_${createHash("sha256").update(issue).digest("hex").slice(0, 8)}`;
 
 // Image asset IDs and LaTeX subscripts are not printed answer blanks.
 function printedBlankText(node: any): string {

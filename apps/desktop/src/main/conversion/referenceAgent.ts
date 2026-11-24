@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type, type TSchema } from "typebox";
 import { conversionFailureText } from "../../shared/conversion/failure";
@@ -7,8 +6,8 @@ import type { ChalkLeeDocument } from "@chalklee/format";
 import type { ImportModelCall, ImportReviewAction, PreparedImport, SourceFragmentEdit } from "../../shared/conversion/types";
 import { importCallReporter, importReviewModel, importReviewStream, type ImportCredentials } from "./model";
 import { applyAutonomousEdits, type AutonomousEdit } from "./autonomous/edits";
-import { assessAutonomousDraft, autonomousFragmentBlocks, compileAutonomousDraft, STRUCTURE_DOUBT, walkAutonomous, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
-import { referenceSourceEntries as sourceEntries, collectSourceRefs as collectRefs, sourceLayoutLabels, assemblyProgress, damagedContentIssues, structureConcerns } from "./referenceDraft";
+import { assessAutonomousDraft, autonomousFragmentBlocks, autonomousIssueId, compileAutonomousDraft, STRUCTURE_DOUBT, walkAutonomous, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
+import { referenceSourceEntries as sourceEntries, collectSourceRefs as collectRefs, sourceLayoutLabels, assemblyProgress, damagedContentIssues, keptConcerns, structureConcerns } from "./referenceDraft";
 export { compileUnfinishedReferenceDraft, withOriginalParagraphs } from "./referenceDraft";
 import { importNumberedFirstOption, importPunctuatedQuestionStart } from "../../shared/conversion/questionAnchors";
 import { settleNumberedChoices } from "./referenceFallback";
@@ -93,8 +92,7 @@ export const REFERENCE_PLAN_PROMPT = `${REFERENCE_INTRO}${REFERENCE_PRINCIPLES
 const MAX_ROUNDS = 60;
 /** The whole paper is in the first message, so this many turns without saving anything means the agent is going round. */
 const IDLE_ROUNDS = 12;
-/** A short, stable name for one finding, so the agent can say why it keeps that one. */
-const issueId = (issue: string) => `chk_${createHash("sha256").update(issue).digest("hex").slice(0, 8)}`;
+const issueId = autonomousIssueId;
 const ROLE_LABELS: Record<string, string> = { heading: "标题", answer: "答案", analysis: "解析" };
 const identifier = Type.String({ pattern: "^[a-zA-Z0-9_-]{1,80}$" });
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }], details: {} });
@@ -261,7 +259,7 @@ export async function draftWithReferences(options: {
     const unexplained = open.filter(issue => !keepReasons.has(issueId(issue)));
     if (unexplained.length) return `${unexplained.map(issue => `[${issueId(issue)}] ${issue}`).join("\n")}\n逐条处理：能改的改好；核对原稿后确属原稿如此的，再调用 finish 时在 keep 中写这一条的 id 和 reason，reason 写清原稿哪里是这样印的。`;
     kept = open.map(issue => ({ issue, reason: keepReasons.get(issueId(issue))! }));
-    concerns = open.filter(issue => issue.startsWith(STRUCTURE_DOUBT) || /留在了题外|已保留在原答案位置待核对|不在任何题目中/.test(issue));
+    concerns = keptConcerns(open);
     return undefined;
   };
 

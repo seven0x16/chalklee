@@ -10,6 +10,7 @@ import { parseMarkdownDocument } from "../../shared/markdown/document";
 import { prepareWordImport, prepareStructuredImport } from "../../shared/conversion/prepareWord";
 import { importStorageDirectory, makeDocument, readImportHistory } from "./documentImport";
 import { snapshotConversionSource } from "./sources";
+import { wordSourceEntries } from "../../shared/conversion/wordSource";
 import { newAutonomousDraft } from "./autonomous/state";
 import { scanWorkspace } from "../workspace/files";
 
@@ -202,7 +203,7 @@ describe("external-agent conversion sessions", () => {
     expect((await service.finish(sessionId, "WorkBuddy")).file.path).toBe(result.file.path);
     expect(getAiCredentials).not.toHaveBeenCalled(); expect(runImportAgent).not.toHaveBeenCalled();
   });
-  it("delivers a draft finished again unchanged when only what the original may say is left, never one missing content", async () => {
+  it("delivers what only the original may explain once each finding is kept with a reason, never one missing content", async () => {
     const { sessionId } = await legacySession();
     await expect(service.finish(sessionId, "WorkBuddy")).rejects.toThrow("尚未查看原稿");
     await expect(service.finish(sessionId, "WorkBuddy")).rejects.toThrow("尚未查看原稿");
@@ -210,10 +211,40 @@ describe("external-agent conversion sessions", () => {
     await expect(service.finish(sessionId, "WorkBuddy")).rejects.toThrow("尚无对应的文档片段");
     await expect(service.finish(sessionId, "WorkBuddy")).rejects.toThrow("尚无对应的文档片段");
     await service.writeFragments(sessionId, { expectedRevision: 0, fragments: [fragment("如图，计算 $1+1$")] });
-    await expect(service.finish(sessionId, "WorkBuddy")).rejects.toThrow("确认原稿本来如此");
-    const result = await service.finish(sessionId, "WorkBuddy");
+    const asked = await service.finish(sessionId, "WorkBuddy").catch((error: Error) => error.message);
+    expect(asked).toContain("在 keep 中写这一条的 id 和 reason");
+    // Finishing again unchanged is no longer a reason.
+    await expect(service.finish(sessionId, "WorkBuddy")).rejects.toThrow("keep");
+    const keep = [...String(asked).matchAll(/\[(chk_[0-9a-f]{8})\]/g)].map(match => ({ id: match[1], reason: "原稿第 1 页这道题没有印图" }));
+    const result = await service.finish(sessionId, "WorkBuddy", false, undefined, keep);
     expect(result.record.conversion?.status).toBe("converted");
-    expect(result.record.warnings.map(notice => notice.message).join()).not.toContain("确认原稿本来如此");
+    expect(result.record.conversion?.agent?.kept?.map(item => item.reason)).toEqual(keep.map(item => item.reason));
+    expect(result.record.warnings.map(notice => notice.message).join()).not.toContain("keep");
+  });
+
+  it("organizes loose choice lines and points the teacher to each place kept, as ChalkLee AI does", async () => {
+    const source = "练习", sourcePath = path.join(root, "练习.md"); await writeFile(sourcePath, source);
+    const texts = ["1. 第一题题干", "这一段说明", "2. 第二题题干", "3. A. 甲", "B. 乙", "C. 丙", "D. 丁"];
+    const blocks = texts.map((text, index) => ({ type: "paragraph", attrs: { id: `source_${index + 1}` }, content: [{ type: "text", text }] })) as any[];
+    const entries = wordSourceEntries(blocks);
+    input = { sourcePath, sourceHash: createHash("sha256").update(source).digest("hex"), page: importAppearance().page, warnings: [], units: [{ id: "part_1", label: "第 1 部分", blocks, images: [], nativeReferences: true,
+      sourceRoles: Object.fromEntries(entries.map(entry => [entry.ref, entry.role])), sourceQuestionNumbers: Object.fromEntries(entries.flatMap(entry => entry.questionNumber ? [[entry.ref, entry.questionNumber]] : [])) }] } as PreparedImport;
+    const { sessionId } = await service.openDocument(sourcePath);
+    await service.readSource(sessionId, [{ unitId: "part_1" }]);
+    // The paragraph printed after question 1 is put in question 2; question 3 is left as loose lines.
+    await service.writeFragments(sessionId, { expectedRevision: 0, fragments: [{ key: "all", order: 0, unitIds: ["part_1"], continuesPrevious: false, warnings: [], blocks: [
+      { type: "question", number: "1", kind: "solution", stem: [{ ref: "source_1", stripPrefix: "1." }] },
+      { type: "question", number: "2", kind: "solution", stem: [{ ref: "source_2" }, { ref: "source_3", stripPrefix: "2." }] },
+      { ref: "source_4" }, { ref: "source_5" }, { ref: "source_6" }, { ref: "source_7" }
+    ] }] });
+    const asked = String(await service.finish(sessionId, "WorkBuddy").catch((error: Error) => error.message));
+    expect(asked).toMatch(/\[chk_[0-9a-f]{8}\] 结构存疑[^\n]*不能移入第 2 题/);
+    const keep = [...asked.matchAll(/\[(chk_[0-9a-f]{8})\]/g)].map(match => ({ id: match[1], reason: "原稿里这段说明印在第 2 题题干前面" }));
+    const result = await service.finish(sessionId, "WorkBuddy", false, undefined, keep);
+    expect(result.record.conversion?.followUp?.items).toEqual([{ question: "2", sourceText: "这一段说明", reason: "“这一段说明”可能属于第 1 题，请核对" }]);
+    const archive = await readChalkLeeArchive(await readFile(result.file.path));
+    const third = archive.document.content.content.find((block: any) => block.type === "question" && block.attrs.number?.label === "3") as any;
+    expect(third.content.find((region: any) => region.type === "optionGroup").content.map((option: any) => option.attrs.label)).toEqual(["A", "B", "C", "D"]);
   });
   it("compiles the public authoring format for image options, grouped questions, tables and associated answers", async () => {
     const { sessionId } = await legacySession();

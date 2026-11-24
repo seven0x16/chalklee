@@ -18,7 +18,7 @@ import { applyProofread } from "./proofread";
 import { finalizeImportDocument, makeDocument, readImportHistory, saveImportDocument } from "./documentImport";
 import { conversionStorageDirectory, conversionStorageNames, openConversionStorage } from "./cacheStorage";
 import { applyAutonomousEdits, type AutonomousEdit } from "./autonomous/edits";
-import { assessAutonomousDraft, autonomousFigureImage, autonomousRevision, compileAutonomousDraft, newAutonomousDraft, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
+import { assessAutonomousDraft, autonomousFigureImage, autonomousIssueId, autonomousRevision, compileAutonomousDraft, newAutonomousDraft, STRUCTURE_DOUBT, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
 import { validateAutonomousLayout, type AutonomousLayout } from "./autonomous/layout";
 import { cropContextBitmap, cutCropEdges, importCropRect, importImageSize, pixelCropBox, type PixelBox } from "./crop";
 import { ImportPreviewHost, type AutonomousPreview, type PreviewView } from "./previewHost";
@@ -29,7 +29,8 @@ import { pdfFigureRepairCandidates } from "./pdfFigureCandidates";
 import { assignPdfSourceRoles } from "./pdfReferenceSource";
 import { pdfNativeCheckLines } from "./pdfNativeText";
 import { preserveImportPage } from "./draft";
-import { assemblyProgress, compileUnfinishedReferenceDraft, sourceLayoutLabels } from "./referenceDraft";
+import { assemblyProgress, compileUnfinishedReferenceDraft, damagedContentIssues, keptConcerns, sourceLayoutLabels, structureConcerns } from "./referenceDraft";
+import { referenceFollowUp, settleNumberedChoices } from "./referenceFallback";
 
 /** Source pixels and template are immutable. Copy editable state only so each
  * write remains atomic without duplicating every page's encoded image. */
@@ -52,7 +53,8 @@ interface ExternalSession {
   /** The draft as last delivered; finishing again without changes returns that result. */
   deliveredRevision?: string;
   /** The draft a finish last refused for issues the original may simply have; finishing it again unchanged delivers it. */
-  finishRevision?: string;
+  /** Why the converting AI kept each finding it checked against the original, by finding id. */
+  keepReasons?: Record<string, string>;
   viewedSourceImages?: Record<string, { hash: string; full: boolean }>;
   /** Absent only in sessions created before the PDF reference protocol. */
   pdfSources?: { ready: boolean; pages: { unitId: string; recognition: "native-text" | "visual" | "source-image"; reason: string }[] };
@@ -449,7 +451,7 @@ export class ExternalImportService {
         remainingPages: Array.from({ length: preview.value.pageCount }, (_, index) => index + 1).filter(page => !session.viewedPreviewPages.includes(page)), images: images.images };
     });
   }
-  finish(id: string, agentName: string, draft = false, tags?: ExternalConversionTags & { revision: number }) {
+  finish(id: string, agentName: string, draft = false, tags?: ExternalConversionTags & { revision: number }, keep: { id: string; reason: string }[] = []) {
     return this.runSession(id, async () => {
       let session = await this.session(id);
       const proofreading = !!session.result;
@@ -469,40 +471,49 @@ export class ExternalImportService {
         }
         assignPdfSourceRoles(session.input.units); session.pdfSources!.ready = true;
       }
+      // As before ChalkLee AI delivers: loose "41. A. …" lines followed by B, C and D can only be a question.
+      if (!draft) {
+        const settled = settleNumberedChoices(session.input, session.template, session.draft);
+        if (settled !== session.draft) { session.draft = settled; await this.store(session); }
+      }
       const compiled = draft && session.input.units.every(unit => unit.nativeReferences)
         ? compileUnfinishedReferenceDraft(session.input, session.template, session.draft)
         : compileAutonomousDraft(session.input, session.template, session.draft, draft);
       const issues = assessAutonomousDraft(session.input, session.draft, compiled);
+      let kept: { issue: string; reason: string }[] = [], concerns: string[] = [];
       if (!draft) {
-        // As for ChalkLee AI: missing content, a failed structure check and answer conflicts always stop delivery.
-        const blocking = issues.filter(issue => FINISH_BLOCKING.test(issue));
-        blocking.push(...compiled.notices.filter(notice => /答案(?:章节不一致|已有答案或解析)/.test(notice.message)).map(notice => notice.message));
+        // As for ChalkLee AI: missing, lost or broken content, a failed structure check and answer conflicts always stop delivery.
+        const doubts = structureConcerns(issues, compiled.notices);
+        const blocking = [...new Set([...issues.filter(issue => FINISH_BLOCKING.test(issue)), ...damagedContentIssues(issues), ...doubts.filter(issue => !issue.startsWith(STRUCTURE_DOUBT))])];
         if (blocking.length) throw new Error(blocking.join("\n"));
         const preview = await this.renderPreview(session, compiled);
         if (preview.value.audit.issues.length) throw new Error(preview.value.audit.issues.join("\n"));
-        // Other issues are asked about once; the same draft finished again is what the original says, and the
-        // teacher sees the conversion's own notes about it (such as two copies of a question kept for checking).
-        const revision = autonomousRevision(session.draft);
-        if (issues.length && session.finishRevision !== revision) {
-          session.finishRevision = revision; await this.store(session);
-          throw new Error(`${issues.join("\n")}\n请对照原稿处理；确认原稿本来如此、无法再改时，不修改直接再次调用 finish。`);
-        }
+        // Whatever else is open may be how the original is printed. Each finding is kept by saying where the original
+        // prints it, so a general "the original is like this" does not clear them all; the teacher is pointed to those places.
+        if (keep.length) { session.keepReasons = { ...session.keepReasons, ...Object.fromEntries(keep.map(item => [item.id, item.reason])) }; await this.store(session); }
+        const open = [...new Set([...doubts, ...issues])];
+        const unexplained = open.filter(issue => !session.keepReasons?.[autonomousIssueId(issue)]);
+        if (unexplained.length) throw new Error(`${unexplained.map(issue => `[${autonomousIssueId(issue)}] ${issue}`).join("\n")}\n逐条处理：能改的改好；核对原稿后确属原稿如此的，再调用 finish 时在 keep 中写这一条的 id 和 reason，reason 写清原稿哪里是这样印的。`);
+        kept = open.map(issue => ({ issue, reason: session.keepReasons![autonomousIssueId(issue)] }));
+        concerns = keptConcerns(open);
       } else compiled.notices.push(...issues.map(message => ({ message })));
       const title = session.sourceName.replace(/\.(pdf|docx?|tex|md|markdown)$/i, ""), credentials = { model: `external:${agentName}`, baseUrl: "external-agent", apiKey: "" };
       if (proofreading) {
         // A second delivery is the proofread of the draft the teacher already has: it goes into that document in place.
         const proofread = finalizeImportDocument({ input: session.input, title, sourceName: session.sourceName, credentials }, compiled.document, compiled.assets, compiled.notices,
           { strategy: "autonomous-v1", status: "converted", proofread: "done", ...(session.input.units.every(unit => unit.nativeReferences) ? { sourceReferences: true } : {}), ...(session.draft.sourceRevisions?.length ? { sourceRevisions: session.draft.sourceRevisions } : {}), structureModel: `external:${agentName}`, calls: [], cachedUnits: 0,
-            answers: compiled.answers, agent: { rounds: 0, resumed: false, actions: [], previewPages: this.previews.get(id)?.value.pageCount ?? 0 } });
+            answers: compiled.answers, agent: { rounds: 0, resumed: false, actions: [], previewPages: this.previews.get(id)?.value.pageCount ?? 0, ...(kept.length ? { kept } : {}) } });
         const updated = await applyProofread({ root: session.root, file: session.result!.file, by: agentName, editors: this.options.editors, changed: this.options.changed }, proofread);
         session.result = { file: updated.file, record: updated.record }; session.deliveredRevision = autonomousRevision(session.draft); await this.store(session);
         this.notify({ kind: "finished", sessionId: id, result: session.result });
         this.previews.get(id)?.host.close(); this.previews.delete(id); this.sessions.delete(id);
         return { ...session.result, previewUrl: this.options.editorUrl(updated.file.path), proofread: { applied: updated.applied, keptTeacherEdits: updated.kept } };
       }
+      // The places to check, as for ChalkLee AI: the teacher steps through them at the top of the document.
+      const followUp = draft ? undefined : referenceFollowUp(session.input, [], concerns, []);
       const result = await saveImportDocument({ root: session.root, input: session.input, title, sourceName: session.sourceName, credentials }, compiled.document, compiled.assets, compiled.notices,
-        { strategy: "autonomous-v1", status: draft ? "draft" : "converted", ...(session.input.units.every(unit => unit.nativeReferences) ? { sourceReferences: true } : {}), ...(session.draft.sourceRevisions?.length ? { sourceRevisions: session.draft.sourceRevisions } : {}), structureModel: `external:${agentName}`, calls: [], cachedUnits: 0,
-          answers: compiled.answers, agent: { rounds: 0, resumed: false, actions: [], previewPages: this.previews.get(id)?.value.pageCount ?? 0 } }, this.controller.signal, () => {}, tags);
+        { strategy: "autonomous-v1", status: draft ? "draft" : "converted", ...(followUp ? { followUp } : {}), ...(session.input.units.every(unit => unit.nativeReferences) ? { sourceReferences: true } : {}), ...(session.draft.sourceRevisions?.length ? { sourceRevisions: session.draft.sourceRevisions } : {}), structureModel: `external:${agentName}`, calls: [], cachedUnits: 0,
+          answers: compiled.answers, agent: { rounds: 0, resumed: false, actions: [], previewPages: this.previews.get(id)?.value.pageCount ?? 0, ...(kept.length ? { kept } : {}) } }, this.controller.signal, () => {}, tags);
       session.result = result; session.deliveredRevision = autonomousRevision(session.draft); await this.store(session); this.remember(session); this.options.changed(result.file.path);
       this.notify({ kind: "finished", sessionId: id, result });
       this.previews.get(id)?.host.close(); this.previews.delete(id);
