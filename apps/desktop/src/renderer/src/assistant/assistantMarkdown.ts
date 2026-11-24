@@ -30,7 +30,8 @@ markdown.renderer.rules.table_close = () => "</table></div>";
 
 /** Streaming text may end mid-construct; close an open code fence so the rest does not turn into code. */
 export function renderAssistantMarkdown(text: string, streaming = false): string {
-  let source = text;
+  // 文件名常带空格（如“组卷 11月22日”），Markdown 链接地址里有空格就不成链接；包进尖括号后照常解析
+  let source = text.replace(/\]\((chalklee:[^)\n]*\s[^)\n]*)\)/gi, (_match, href: string) => `](<${href.trim()}>)`);
   if (streaming && (source.match(/^```/gm)?.length ?? 0) % 2 === 1) source += "\n```";
   return markdown.render(source);
 }

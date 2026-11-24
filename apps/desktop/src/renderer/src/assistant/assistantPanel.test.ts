@@ -76,6 +76,10 @@ describe("assistant markdown", () => {
   it("parses in-app document links", () => {
     expect(parseAssistantDocumentLink("chalklee:%E9%AB%98%E4%B8%80/%E6%9C%9F%E4%B8%AD.chalklee#q_1")).toEqual({ path: "高一/期中.chalklee", questionId: "q_1" });
     expect(parseAssistantDocumentLink("https://example.com")).toBeNull();
+    const spaced = renderAssistantMarkdown("[第4题](chalklee:组卷 11月22日.chalklee#node_1)：已插入");
+    expect(spaced).not.toContain("](chalklee:");
+    const href = /href="([^"]+)"/.exec(spaced)?.[1] ?? "";
+    expect(parseAssistantDocumentLink(href)).toEqual({ path: "组卷 11月22日.chalklee", questionId: "node_1" });
   });
 });
 
