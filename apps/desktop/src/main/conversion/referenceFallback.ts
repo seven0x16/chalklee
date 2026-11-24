@@ -193,8 +193,9 @@ const CONCERN_REF = /(?<![\w-])[\w-]*source_[\w-]+/;
 /** A few printed words to name a passage by, as the teacher sees them in the original: no formula source or image ids. */
 function quoted(text?: string) {
   const parts = (text ?? "").split(/\$[^$]*\$|\[图片[^\]]*\]/).map(part => part.replace(/\s+/g, " ").trim()).filter(Boolean);
-  const words = parts.find(part => part.replace(/\s/g, "").length >= 4) ?? parts[0];
-  if (!words) return /\[图片/.test(text ?? "") ? "一张图" : "有一段内容";
+  // Punctuation left between formulas ("；" after "$CN=\\frac12CD$") names nothing a teacher could find.
+  const words = parts.find(part => part.replace(/\s/g, "").length >= 4) ?? parts.find(part => /[\p{L}\p{N}]/u.test(part));
+  if (!words) return /\[图片/.test(text ?? "") ? "一张图" : /\$[^$]+\$/.test(text ?? "") ? "一段公式" : "有一段内容";
   return `“${words.length > 14 ? `${words.slice(0, 14)}…` : words}”`;
 }
 /** Words of a line that can be looked up in the original: no formulas or images, and not just its number. */
@@ -261,10 +262,19 @@ export function referenceFollowUp(input: PreparedImport, numbers: string[], conc
   const list = [...reasons.keys()];
   // A doubt that names no question gives the teacher nothing to look at, so it raises no notice by itself.
   if (!list.length && !pages.length && !service && !unplaced) return undefined;
+  // A label printed under every question ("【小问1详解】") would always find its first copy in the original.
+  const printedTimes = new Map<string, number>();
+  for (const entry of entries) { const text = searchableText(entry.text); if (text) printedTimes.set(text, (printedTimes.get(text) ?? 0) + 1); }
+  const once = (entry?: Entry) => { const text = entry && searchableText(entry.text); return text && printedTimes.get(text) === 1 ? text : undefined; };
   const place = (number: string) => {
     const line = located.get(number) ?? entries.find(entry => entry.questionNumber === number);
-    const page = line && pageOfUnit(line.unitId), sourceText = line && !page ? searchableText(line.text) : undefined;
-    return { ...(page ? { page } : {}), ...(sourceText ? { sourceText } : {}) };
+    const page = line && pageOfUnit(line.unitId);
+    if (!line || page) return page ? { page } : {};
+    // The line itself if its words are printed only there, else the next such line of the same question, else its first line.
+    const at = entries.indexOf(line), owner = line.questionNumber;
+    const following = entries.slice(at, at + 12).filter((entry, index) => !index || entry.questionNumber === owner);
+    const sourceText = following.map(once).find(Boolean) ?? once(entries.find(entry => entry.questionNumber === number)) ?? searchableText(line.text);
+    return sourceText ? { sourceText } : {};
   };
   const items: ImportFollowUpItem[] = [
     ...list.map(question => ({ question, ...place(question), reason: reasons.get(question)! })),

@@ -181,6 +181,18 @@ describe("organizing what the agent left", () => {
     ]);
   });
 
+  it("names a line opening with a formula as a formula, not by the punctuation after it", () => {
+    const input = prepared(["26. 已知点 A、B。", "$CN=\\frac{1}{2}CD$；", "27. 新定义。"]);
+    const followUp = referenceFollowUp(input, [], ["结构存疑（核对原稿后，确属这样可以保留）：原稿片段 source_2 属于第 26 题，不能移入第 (3) 题。这一段没有印刷题号。"], [])!;
+    expect(followUp.items?.[0].reason).toBe("一段公式放在了第 (3) 小问，请核对");
+  });
+
+  it("finds a place by words printed only there, not by a label every question repeats", () => {
+    const input = prepared(["1. 第一题题干", "【小问1详解】", "解：由题意得 x=1。", "2. 第二题题干", "【小问1详解】", "解：连接 CD，则 CD=AD。"]);
+    const followUp = referenceFollowUp(input, [], ["结构存疑（核对原稿后，确属这样可以保留）：原稿片段 source_5 属于第 2 题，不能移入第 (1) 题。这一段没有印刷题号。"], [])!;
+    expect(followUp.items?.map(({ question, sourceText }) => ({ question, sourceText }))).toEqual([{ question: "2", sourceText: "解：连接 CD，则 CD=AD。" }]);
+  });
+
   it("points to the first question when a passage was left outside a run of questions", () => {
     const input = prepared(["1. 一", "6. 二", "7. 三"]);
     const followUp = referenceFollowUp(input, [], ["第6–7题前有 45 段正文不在任何题目中，像是这几题共用的阅读材料：整理为一个题组。"], [])!;
