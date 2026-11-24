@@ -625,6 +625,9 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
     else if (printed.length) child = printed[0].inner && child?.length ? [child[0], ...printed.map(part => part.number)] : printed.map(part => part.number);
     else if (importQuestionAnchors(entry.text).some(match => match.index === 0)) child = undefined;
     if (child) childNumbers.set(entry.ref, child);
+    // "（2）见解析 （3）": the next part's label left at the end of an answer line; what follows it is that part's.
+    const trailing = ["answer", "analysis"].includes(entry.role) ? entry.text.match(/\S\s*[（(]\s*(\d{1,2})\s*[）)]\s*$/)?.[1] : undefined;
+    if (trailing && child?.length === 1 && Number(trailing) === Number(child[0]) + 1) child = [trailing];
   }
   // A short bracketed heading directly before a printed subquestion can
   // introduce that child. It is not a continuation that must stay in the

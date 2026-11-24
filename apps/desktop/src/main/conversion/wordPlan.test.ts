@@ -684,6 +684,18 @@ describe("lossless Word source plans", () => {
       { type: "question", number: "(3)", stem: [{ ref: "p3", stripPrefix: "（3）" }], analysis: [{ ref: "l3" }, { ref: "w3" }] }] }], source, undefined, doubts);
     expect(doubts).toEqual([]);
   });
+  it("takes the lines after a part label left at the end of an answer line as that part's", () => {
+    const texts: [string, string, string][] = [["q", "26. 已知点 A、B。", "body"], ["p1", "（1）求 a，b；", "body"], ["p2", "（2）证明 CD=AD；", "body"], ["p3", "（3）判断 CN 与 CD 的关系。", "body"],
+      ["k1", "【答案】（1）-3；3", "answer"], ["k2", "（2）见解析 （3）", "answer"], ["k3", "$CN=\\frac{1}{2}CD$；", "answer"], ["k4", "理由如下：连接 AM。", "answer"]];
+    const source = { ...unit(texts.map(([id, text]) => paragraph(id, text))),
+      sourceRoles: Object.fromEntries(texts.map(([id, , role]) => [id, role as "body" | "answer"])), sourceQuestionNumbers: Object.fromEntries(texts.map(([id]) => [id, "26"])) };
+    const doubts: string[] = [];
+    assertWordImportPlan([{ type: "questionGroup", number: "26", material: [{ ref: "q", stripPrefix: "26." }], questions: [
+      { type: "question", number: "(1)", stem: [{ ref: "p1", stripPrefix: "（1）" }], answer: [{ ref: "k1", stripPrefix: "【答案】" }] },
+      { type: "question", number: "(2)", stem: [{ ref: "p2", stripPrefix: "（2）" }], answer: [{ ref: "k2" }] },
+      { type: "question", number: "(3)", stem: [{ ref: "p3", stripPrefix: "（3）" }], answer: [{ ref: "k3" }, { ref: "k4" }] }] }], source, undefined, doubts);
+    expect(doubts).toEqual([]);
+  });
   it("lets a circled part inside a printed subquestion be its own question", () => {
     const source = { ...unit([paragraph("q", "11．某实验小组探究加速度。"), paragraph("p2", "（2）利用图乙装置进行实验。"), paragraph("c1", "①t=4 s 时，物体处于____状态；"), paragraph("c2", "②其图像为图线____。"),
       paragraph("a", "【解析】"), paragraph("a1", "（2）①根据图像可知处于失重状态；"), paragraph("a2", "②质量增大一倍，图线为 c。")]),
