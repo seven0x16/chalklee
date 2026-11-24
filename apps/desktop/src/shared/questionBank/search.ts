@@ -651,7 +651,7 @@ function questionCore(question: QuestionBankEntry): IndexedQuestion["core"] {
       if (latex) values.push(latex);
       continue;
     }
-    const plain = fullWidthToHalfWidth(segment).toLowerCase();
+    const plain = fullWidthToHalfWidth(segment).toLowerCase().replace(/图象/g, "图像");
     text += plain.replace(/[^\p{L}]+/gu, "");
     values.push(...plain.match(/\p{N}+/gu) ?? []);
   }
@@ -674,6 +674,28 @@ function similarity(left: Set<string>, right: Set<string>) {
 
 const DUPLICATE_SIMILARITY = 0.85;
 const DUPLICATE_BUCKET_LIMIT = 200;
+/** Words that make another question when only one copy has them, as in 正确 and 不正确. */
+const MEANING_WORDS = [
+  "不", "非", "否", "无", "没", "未", "勿", "错", "正确", "最大", "最小", "最多", "最少", "最高", "最低",
+  "增大", "减小", "增加", "减少", "升高", "降低", "上升", "下降", "大于", "小于", "高于", "低于", "多于", "少于",
+  "以上", "以下", "之前", "之后", "左", "右", "甲", "乙", "丙", "丁", "not", "except", "never", "true", "false", "incorrect"
+];
+const occurrences = (text: string, word: string) => text.split(word).length - 1;
+const sameMeaningWords = (left: string, right: string) => MEANING_WORDS.every(word => occurrences(left, word) === occurrences(right, word));
+const coreKey = (core: IndexedQuestion["core"]) => coreSize(core) < 8 ? null : `${core.values}\u0000${core.text}`;
+
+/** The questions just before and after each one in its document. */
+function questionSurroundings(questions: readonly IndexedQuestion[]) {
+  const surroundings = new Map<string, { previous: string | null; next: string | null }>();
+  const latest = new Map<string, IndexedQuestion>();
+  for (const question of [...questions].sort((left, right) => left.order - right.order)) {
+    const before = latest.get(question.path);
+    surroundings.set(question.key, { previous: before ? coreKey(before.core) : null, next: null });
+    if (before) surroundings.get(before.key)!.next = coreKey(question.core);
+    latest.set(question.path, question);
+  }
+  return surroundings;
+}
 
 /**
  * Whether two different figure ids show one figure, e.g. the same drawing cropped from two
@@ -683,10 +705,11 @@ export type SameFigure = (left: string, right: string) => boolean;
 
 /**
  * Group copies of one question across documents. Copies inside the same document stay
- * separate. Digits and formulas must agree exactly, and so must the figures, one for one;
- * the wording may differ by a few recognition slips, except for copies inserted from the
- * question bank, whose wording came over unchanged: a teacher's edit there makes a
- * question of its own.
+ * separate. Digits and formulas must agree exactly, and so must the figures, one for one.
+ * The wording may differ by recognition slips only between two versions of one document,
+ * shown by a matching question just before or after, and never in a word that changes the
+ * meaning. Copies inserted from the question bank get no such allowance: their wording came
+ * over unchanged, so a teacher's edit there makes a question of its own.
  */
 export function assignDuplicateGroups(questions: IndexedQuestion[], sameFigure: SameFigure = () => false): void {
   const parent = new Map<string, string>();
@@ -750,6 +773,15 @@ export function assignDuplicateGroups(questions: IndexedQuestion[], sameFigure: 
       }
     }
   };
+  let surroundings: ReturnType<typeof questionSurroundings> | undefined;
+  const sameDocumentVersion = (a: IndexedQuestion, b: IndexedQuestion) => {
+    surroundings ??= questionSurroundings(questions);
+    const left = surroundings.get(a.key), right = surroundings.get(b.key);
+    return Boolean(left && right && ((left.previous && left.previous === right.previous) || (left.next && left.next === right.next)));
+  };
+  const onlySlips = (a: IndexedQuestion, b: IndexedQuestion) => !a.copiedFrom && !b.copiedFrom
+    && similarity(shape(a), shape(b)) >= DUPLICATE_SIMILARITY
+    && sameDocumentVersion(a, b) && sameMeaningWords(a.core.text, b.core.text);
   for (const [bucket, members] of buckets) {
     if (members.length < 2) continue;
     const exact = bucket.startsWith("=");
@@ -762,7 +794,7 @@ export function assignDuplicateGroups(questions: IndexedQuestion[], sameFigure: 
       for (let right = left + 1; right < members.length; right++) {
         const a = members[left], b = members[right];
         if (separate(a, b)) continue;
-        if ((exact || (!a.copiedFrom && !b.copiedFrom && similarity(shape(a), shape(b)) >= DUPLICATE_SIMILARITY)) && sameFigures(a, b)) union(a, b);
+        if ((exact || onlySlips(a, b)) && sameFigures(a, b)) union(a, b);
       }
     }
   }

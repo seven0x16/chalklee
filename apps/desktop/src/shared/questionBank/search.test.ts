@@ -244,6 +244,29 @@ describe("question bank search", () => {
     expect(items.map(item => [item.questionId, ...item.duplicates.map(copy => copy.questionId)]).sort()).toEqual([["p1"], ["p2", "q3"], ["q1"], ["q2"]]);
   });
 
+  it("forgives a slip only between versions of one document, and never in a word that changes the meaning", () => {
+    const options = ["光合作用只在白天进行", "呼吸作用只在夜间进行", "两者都需要酶参与", "两者都释放氧气"];
+    const before = () => choice("", [text("细胞是生物体结构和功能的基本单位，下列叙述符合这一观点的是")], ["病毒没有细胞结构", "草履虫能独立生活", "血液属于组织", "种子能够萌发"]);
+    const stem = (wording: string, topic = "光合作用") => [text(`下列关于${topic}和呼吸作用的说法中，${wording}的是哪一项，请根据所学知识作出判断`)];
+    const paper = (id: string, wording: string, topic?: string) => documentWith([
+      { ...before(), attrs: { ...before().attrs, id: `${id}_before` } },
+      choice(id, stem(wording, topic), options)
+    ]);
+    const grouped = (...papers: IndexedQuestion[][]) => {
+      const questions = papers.flat();
+      assignDuplicateGroups(questions);
+      const target = questions.filter(question => !question.questionId.endsWith("_before"));
+      return new Set(target.map(question => question.duplicateGroup)).size === 1;
+    };
+
+    expect(grouped(index(paper("a", "正确"), "原卷版.chalklee"), index(paper("b", "正确", "光台作用"), "解析版.chalklee"))).toBe(true);
+    expect(grouped(index(paper("a", "正确"), "原卷版.chalklee"), index(paper("b", "不正确"), "解析版.chalklee"))).toBe(false);
+    expect(grouped(
+      index(documentWith([choice("a", stem("正确"), options)]), "甲.chalklee"),
+      index(documentWith([choice("b", stem("正确", "光台作用"), options)]), "乙.chalklee")
+    )).toBe(false);
+  });
+
   it("treats an edited bank copy as a question of its own and an unchanged one as the original", () => {
     const original = index(documentWith([
       choice("o1", [text("反比例函数 "), math("y=\\frac{k}{x}"), text(" 的图象经过点 "), math("(1,2)"), text("，则 k 的值为")], ["1", "2"]),
