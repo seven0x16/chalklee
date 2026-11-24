@@ -26,7 +26,7 @@ async function original(digest: string) {
   await mkdir(path.join(root, ".chalklee", "sources"), { recursive: true });
   await writeFile(path.join(root, ".chalklee", "sources", `${digest}.pdf`), "%PDF");
 }
-const sweep = async (at: number, tasks: string[] = []) => removeAbsentDocumentStorage(root, await workspaceDocuments(await scanWorkspace(root), tasks), at);
+const sweep = (at: number, tasks: string[] = []) => removeAbsentDocumentStorage(root, async () => workspaceDocuments(await scanWorkspace(root), tasks), at);
 const histories = async () => (await readdir(path.join(root, ".chalklee", "history"))).filter(name => name !== "absent.json").sort();
 const originals = async () => (await readdir(path.join(root, ".chalklee", "sources"))).sort();
 

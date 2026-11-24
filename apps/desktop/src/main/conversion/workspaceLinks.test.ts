@@ -5,7 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import JSZip from "jszip";
 import * as format from "@chalklee/format";
-import { createChalkLeeArchive, readChalkLeeArchive, readChalkLeeArchiveMetadata, type ChalkLeeSource } from "@chalklee/format";
+import { CHALKLEE_SCHEMA_VERSION, createChalkLeeArchive, readChalkLeeArchive, readChalkLeeArchiveMetadata, type ChalkLeeSource } from "@chalklee/format";
 import type { WorkspaceFileNode, WorkspaceNode } from "../../shared/contracts";
 import { createEmptyChalkLeeDocument } from "../../renderer/src/editor/editing";
 import { readWorkspaceDocument, scanWorkspace } from "../workspace/files";
@@ -39,19 +39,29 @@ describe("workspace conversion associations", () => {
     expect((await files(cache)).get("试卷.pdf").convertedTo).toEqual([first]);
 
     const fullRead = vi.spyOn(format, "readChalkLeeArchive");
+    const metadataRead = vi.spyOn(format, "readChalkLeeArchiveMetadata");
     try {
       // A new path misses the in-memory file cache, even within this process.
       const moved = path.join(root, "改名.chalklee");
       await rename(first, moved);
       expect((await files(cache)).get("试卷.pdf").convertedTo).toEqual([moved]);
       expect(fullRead).not.toHaveBeenCalled();
+      expect(metadataRead).not.toHaveBeenCalled();
 
       const [saved] = await readdir(cache);
-      await writeFile(path.join(cache, saved), "{");
+      const cacheFile = path.join(cache, saved);
+      const hash = createHash("sha256").update(await readFile(moved)).digest("hex");
+      await writeFile(cacheFile, JSON.stringify({ version: 1, schema: CHALKLEE_SCHEMA_VERSION, hashes: [hash] }));
       await rename(moved, first);
       expect((await files(cache)).get("试卷.pdf").convertedTo).toEqual([first]);
+      expect(metadataRead).toHaveBeenCalledTimes(1);
+      expect(fullRead).not.toHaveBeenCalled();
+
+      await writeFile(cacheFile, "{");
+      await rename(first, moved);
+      expect((await files(cache)).get("试卷.pdf").convertedTo).toEqual([moved]);
       expect(fullRead).toHaveBeenCalledTimes(1);
-    } finally { fullRead.mockRestore(); }
+    } finally { fullRead.mockRestore(); metadataRead.mockRestore(); }
   });
 
   it("rechecks damaged image bytes when a result is replaced with its size and mtime preserved", async () => {

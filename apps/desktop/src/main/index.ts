@@ -5,7 +5,6 @@ import { randomUUID, randomBytes } from "node:crypto";
 import path from "node:path";
 import os from "node:os";
 import { app, BrowserWindow, clipboard, crashReporter, dialog, ipcMain, net, protocol, session, shell } from "electron";
-import chokidar, { type FSWatcher } from "chokidar";
 import type { ExportChalkLeeDocxRequest, ExportChalkLeePdfRequest, WindowControlState, WorkspaceChange, WorkspaceChangeKind, WorkspaceSnapshot, WorkspaceFileMutation } from "../shared/contracts";
 import { ApplicationWriteTracker } from "./workspace/applicationWrites";
 import { hideExistingWorkspaceStorage } from "./workspace/storage";
@@ -14,7 +13,7 @@ import { installQaHarness } from "./dev/qaHarness";
 import { captureHtmlPage, type HtmlPageStep } from "./workspace/htmlPageShots";
 import { isHtmlKind, isMarkdownKind } from "../shared/document/kinds";
 import { copyPageVersion, createHtmlPageServer, listWorkspacePageVersions, readWorkspacePage, restorePageVersion, HTML_PAGE_SCHEME, HTML_PAGE_SCHEME_PRIVILEGES, serveHtmlPageRequest } from "./workspace/htmlPages";
-import { createWorkspaceChalkLee, createWorkspaceDirectory, documentKind, inspectWorkspaceDocument, isIgnoredName, readWorkspaceDocument, resolveWorkspaceEntry, scanWorkspace as scanWorkspaceFiles, writeWorkspaceDocument } from "./workspace/files";
+import { createWorkspaceChalkLee, createWorkspaceDirectory, documentKind, inspectWorkspaceDocument, readWorkspaceDocument, resolveWorkspaceEntry, scanWorkspace as scanWorkspaceFiles, writeWorkspaceDocument } from "./workspace/files";
 import { openWorkspaceArchiveValidationCache } from "./workspace/archiveValidationCache";
 import { setOriginalConversionNeeded } from "./workspace/conversionMarks";
 import { deleteAiService, draftAiCredentials, getAiCredentials, getAiSettings, listAiModels, listAiServices, revealAiKey, saveAiService, selectAiModel, setAiReasoning, setConversionTags } from "./settings/ai";
@@ -51,7 +50,9 @@ import { QuestionBankService } from "./questionBank/service";
 import createQuestionBankWorker from "./questionBank/worker?nodeWorker";
 import createArchiveValidationWorker from "./workspace/archiveValidationWorker?nodeWorker";
 import createWorkspaceTreeWorker from "./workspace/treeWorker?nodeWorker";
+import createWorkspaceWatcherWorker from "./workspace/watcherWorker?nodeWorker";
 import { WorkspaceTreeService } from "./workspace/treeService";
+import { startWorkspaceWatcher } from "./workspace/watcher";
 import { WorkspaceArchiveValidationService } from "./workspace/archiveValidationService";
 import type { VerifyWorkspaceArchive } from "./workspace/archiveValidation";
 import { setConversionTagStore } from "./conversion/tagging";
@@ -122,7 +123,7 @@ const renderHtmlPage = async (file: string, screens?: number[], steps?: HtmlPage
   } finally { watch.stop(); }
 };
 protocol.registerSchemesAsPrivileged([HTML_PAGE_SCHEME_PRIVILEGES, PLUGIN_SCHEME_PRIVILEGES]);
-let watcher: FSWatcher | null = null;
+let watcher: ReturnType<typeof startWorkspaceWatcher> | null = null;
 let pdfExportInProgress = false;
 const applicationWrites = new ApplicationWriteTracker();
 let activeImport: { sourcePath: string; controller: AbortController } | null = null;
@@ -395,6 +396,17 @@ function createWindow(): void {
     desktopDocumentLinks.notReady();
     console.error(`[renderer:gone] ${details.reason} (exit ${details.exitCode})`);
   });
+  let unresponsiveSince: number | undefined;
+  mainWindow.on("unresponsive", () => {
+    if (unresponsiveSince !== undefined) return;
+    unresponsiveSince = performance.now();
+    console.warn("[window] 主窗口未响应");
+  });
+  mainWindow.on("responsive", () => {
+    if (unresponsiveSince === undefined) return;
+    console.info(`[window] 主窗口已恢复响应（${Math.round(performance.now() - unresponsiveSince)} ms）`);
+    unresponsiveSince = undefined;
+  });
   mainWindow.once("ready-to-show", () => mainWindow?.show());
   if (process.platform === "win32") {
     const window = mainWindow;
@@ -465,19 +477,14 @@ async function readDocumentHistoryInput(root: string, filePath: string, useValid
   ]);
 }
 const workspaceTree = new WorkspaceTreeService(() => createWorkspaceTreeWorker({}));
-let lastWorkspaceScan: { root: string; fileCount: number } | undefined;
 
 async function scanWorkspace(directoryPath: string) {
-  // The first scan keeps small workspaces on the direct path and tells us when later refreshes merit a worker.
-  const useWorker = lastWorkspaceScan?.root === directoryPath && lastWorkspaceScan.fileCount >= 1024;
   const scan = (verifyArchive?: VerifyWorkspaceArchive) => scanWorkspaceFiles(directoryPath, {
     archiveValidationCacheDirectory: workspaceArchiveValidationDirectory(),
     verifyArchive,
-    readTree: useWorker ? root => workspaceTree.read(root) : undefined
+    readTree: root => workspaceTree.read(root)
   });
-  const snapshot = await (workspaceArchiveValidation ? workspaceArchiveValidation.duringScan(scan) : scan());
-  lastWorkspaceScan = { root: snapshot.root.path, fileCount: snapshot.fileCount };
-  return snapshot;
+  return workspaceArchiveValidation ? workspaceArchiveValidation.duringScan(scan) : scan();
 }
 
 async function openWorkspace(directoryPath: string): Promise<WorkspaceSnapshot> {
@@ -495,28 +502,20 @@ async function openWorkspace(directoryPath: string): Promise<WorkspaceSnapshot> 
     // A copy an earlier version kept stays while an unfinished conversion, in any workspace, may still read it.
     await conversionQueue?.ready;
     const taskSources = conversionQueue?.list().filter(task => task.status !== "completed").map(task => task.sourceHash) ?? [];
-    await removeAbsentDocumentStorage(snapshot.root.path, await workspaceDocuments(snapshot, taskSources));
+    await removeAbsentDocumentStorage(snapshot.root.path, () => workspaceDocuments(snapshot, taskSources));
   })().catch(error => console.warn("[workspace] 无法清理已不在工作区的文档的版本记录", error));
   return snapshot;
 }
 
 async function startWatcher(rootPath: string): Promise<void> {
-  await watcher?.close();
+  const previous = watcher;
+  await previous?.close();
+  if (watcher !== previous || workspaceRoot !== rootPath || quitting) return;
   applicationWrites.clear();
-  watcher = chokidar.watch(rootPath, {
-    awaitWriteFinish: { stabilityThreshold: 220, pollInterval: 80 },
-    alwaysStat: true,
-    followSymlinks: false,
-    ignoreInitial: true,
-    ignored: (candidatePath) => {
-      if (candidatePath === rootPath) return false;
-      const relativeParts = path.relative(rootPath, candidatePath).split(path.sep);
-      return relativeParts.some(isIgnoredName);
-    }
-  });
-
-  const relay = (kind: WorkspaceChangeKind, changedPath: string, stats?: { mtimeMs: number; size: number }) => {
-    if ((kind === "added" || kind === "changed" || kind === "removed") && !documentKind(changedPath)) return;
+  watcher = startWorkspaceWatcher(rootPath, () => createWorkspaceWatcherWorker({ workerData: rootPath }), message => {
+    if ("error" in message) { console.warn("[workspace:watcher]", message.error); return; }
+    if (workspaceRoot !== rootPath || quitting) return;
+    const { kind, path: changedPath, stats } = message;
     // The index also follows the application's own saves, which the UI relay below skips.
     if (kind === "added" || kind === "changed") void questionBank.update(changedPath).catch(error => console.error("[question-bank] 更新失败", error));
     else if (kind === "removed" || kind === "directory-removed") void questionBank.remove(changedPath).catch(error => console.error("[question-bank] 更新失败", error));
@@ -526,14 +525,7 @@ async function startWatcher(rootPath: string): Promise<void> {
     const change: WorkspaceChange = { kind, path: changedPath, at: Date.now() };
     mainWindow?.webContents.send("workspace:changed", change);
     localAgentServer?.publish("workspace:changed", change);
-  };
-
-  watcher
-    .on("add", (changedPath, stats) => relay("added", changedPath, stats))
-    .on("change", (changedPath, stats) => relay("changed", changedPath, stats))
-    .on("unlink", (changedPath) => relay("removed", changedPath))
-    .on("addDir", (changedPath) => relay("directory-added", changedPath))
-    .on("unlinkDir", (changedPath) => relay("directory-removed", changedPath));
+  });
 }
 
 async function openDocumentInApp(input: unknown) {

@@ -349,6 +349,8 @@ interface TreeRowState {
   fileIcon(kind: DocumentKind): ReturnType<typeof documentFileIconReference>;
 }
 
+const FILES_PER_GROUP = 64;
+
 const TreeRows = memo(function TreeRows({ nodes, depth = 0, ...state }: { nodes: WorkspaceNode[]; depth?: number } & TreeRowState) {
   const { activePath, selectedPaths, contextPath, cutPath, renameControls, highlightName, nearbyFiles, forceExpanded, fileIcon } = state;
   const showAllIcons = nearbyFiles === undefined;
@@ -373,9 +375,23 @@ const TreeRows = memo(function TreeRows({ nodes, depth = 0, ...state }: { nodes:
     });
   }), [nodes, plainFiles, activePath, selectedPaths, contextPath, cutPath, renameControls, forceExpanded, highlightName, nearbyFiles, fileIcon, depth]);
 
-  return <>{nodes[0]?.kind === "directory" ? nodes.map((node, index) => node.kind === "directory"
-    ? <TreeFolder key={node.id} node={node} depth={depth} state={state} />
-    : files[index]) : files}</>;
+  // Siblings are sorted with folders first. Wide lists keep their native buttons
+  // and tab order while the browser lays out only nearby groups of file rows.
+  const firstFile = nodes[0]?.kind === "directory" ? files.findIndex(Boolean) : 0;
+  const folderCount = firstFile < 0 ? nodes.length : firstFile;
+  const folders = nodes.slice(0, folderCount).map(node => node.kind === "directory"
+    ? <TreeFolder key={node.id} node={node} depth={depth} state={state} /> : null);
+  if (files.length - folderCount <= FILES_PER_GROUP * 2) return <>{folders}{files.slice(folderCount)}</>;
+  const renameIndex = renameControls ? nodes.findIndex(node => node.path === renameControls.node.path) : -1;
+  const groups = [];
+  for (let start = folderCount; start < files.length; start += FILES_PER_GROUP) {
+    const end = Math.min(start + FILES_PER_GROUP, files.length);
+    const renaming = renameIndex >= start && renameIndex < end;
+    groups.push(<div key={start - folderCount} className={renaming ? undefined : "tree-file-group"} style={{ "--tree-file-rows": end - start } as React.CSSProperties}>
+      {files.slice(start, end)}
+    </div>);
+  }
+  return <>{folders}{groups}</>;
 });
 
 function TreeFolder({ node, depth, state }: { node: WorkspaceDirectoryNode; depth: number; state: TreeRowState }) {

@@ -27,7 +27,11 @@ export interface WorkspaceDocuments {
 export async function workspaceDocuments(snapshot: WorkspaceSnapshot, taskSourceHashes: Iterable<string> = []): Promise<WorkspaceDocuments> {
   const found: WorkspaceDocuments = { complete: true, documentIds: new Set(), sourceHashes: new Set(), taskSourceHashes: new Set([...taskSourceHashes].map(hash => hash.toLowerCase())), besideEveryDocument: new Set() };
   const madeFrom = new Map<string, Set<string>>(), beside = new Map<string, Set<string>>();
-  const add = (map: Map<string, Set<string>>, hash: string, document: string) => map.set(hash, new Set([...map.get(hash) ?? [], document]));
+  const add = (map: Map<string, Set<string>>, hash: string, document: string) => {
+    let documents = map.get(hash);
+    if (!documents) map.set(hash, documents = new Set());
+    documents.add(document);
+  };
   const visit = async (nodes: WorkspaceNode[], directory: string) => {
     try {
       if ((await readdir(directory)).some(name => OFFLOADED_CHALKLEE.test(name))) found.complete = false;
@@ -63,9 +67,11 @@ type AbsentRecord = { version: 1; documents: Record<string, number>; sources: Re
  * unopened loses nothing, and a document that comes back keeps all of its history. Page history, kept
  * by path under `history/pages`, is not touched.
  */
-export async function removeAbsentDocumentStorage(root: string, present: WorkspaceDocuments, now = Date.now()): Promise<void> {
-  if (!await existing(root, [])) return;
-  const history = await workspaceStorageDirectory(root, ["history"], true), sources = await existing(root, ["sources"]);
+export async function removeAbsentDocumentStorage(root: string, scan: () => Promise<WorkspaceDocuments>, now = Date.now()): Promise<void> {
+  const [existingHistory, sources] = await Promise.all([existing(root, ["history"]), existing(root, ["sources"])]);
+  if (!existingHistory && !sources) return;
+  const present = await scan();
+  const history = existingHistory ?? await workspaceStorageDirectory(root, ["history"], true);
   const recordFile = path.join(history, "absent.json");
   let record: AbsentRecord = { version: 1, documents: {}, sources: {} };
   try {

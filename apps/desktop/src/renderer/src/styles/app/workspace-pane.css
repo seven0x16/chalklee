@@ -254,6 +254,7 @@
 
 .app-shell .workspace-tree {
   --cm-sidebar-font-size: var(--cm-font-size-body);
+  --cm-tree-row-height: 26px;
   padding: 4px 8px 14px;
 }
 
@@ -306,10 +307,15 @@
 
 .app-shell .tree-file,
 .app-shell .tree-folder-label {
-  height: 26px;
+  height: var(--cm-tree-row-height, 26px);
   padding-block: 0;
   line-height: 26px;
   border-radius: 7px;
+}
+
+.app-shell .tree-file-group {
+  content-visibility: auto;
+  contain-intrinsic-block-size: calc(var(--tree-file-rows) * var(--cm-tree-row-height));
 }
 
 .app-shell .tree-file {

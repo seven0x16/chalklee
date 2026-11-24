@@ -23,14 +23,14 @@ export async function readWorkspaceSourceHash(filePath: string): Promise<string>
 
 /** Validate once per file fingerprint, including the images the editor needs. */
 async function readWorkspaceChalkLee(filePath: string, { archiveCache, verifyArchive = readWorkspaceArchiveIdentity }: WorkspaceArchiveValidationOptions = {}) {
-  return cachedRead(filePath, documents, async () => {
+  return cachedRead(filePath, documents, async (): Promise<WorkspaceArchiveIdentity & { archiveHash?: string }> => {
     const bytes = await readFile(filePath);
-    const archiveHash = archiveCache && createHash("sha256").update(bytes).digest("hex");
-    // A digest hit means the asset bytes were fully checked earlier. Always
-    // get the provenance and validate the structure from the actual file.
-    const identity = archiveHash && archiveCache?.has(archiveHash)
-      ? await readWorkspaceArchiveIdentity(bytes, false)
-      : await verifyArchive(bytes);
+    if (!archiveCache) return verifyArchive(bytes);
+    const archiveHash = createHash("sha256").update(bytes).digest("hex");
+    // Reuse provenance only for the exact archive bytes that passed full validation.
+    const identity = archiveCache.identity(archiveHash) ?? await (archiveCache.has(archiveHash)
+      ? readWorkspaceArchiveIdentity(bytes, false)
+      : verifyArchive(bytes));
     return { ...identity, archiveHash };
   });
 }
@@ -74,8 +74,8 @@ export async function linkWorkspaceConversions(files: WorkspaceFileNode[], { arc
   const validation = { archiveCache, verifyArchive: chalkLeeFiles.length >= 8 ? verifyArchive : undefined };
   await visitFiles(chalkLeeFiles, async file => {
     try {
-      const { sources, archiveHash } = await readWorkspaceChalkLee(file.path, validation);
-      if (archiveHash) archiveCache?.record(archiveHash);
+      const { id, sources, archiveHash } = await readWorkspaceChalkLee(file.path, validation);
+      if (archiveHash) archiveCache?.record(archiveHash, { id, sources });
       const directory = path.dirname(file.path);
       for (const source of wholeSources(sources)) {
         const key = JSON.stringify([directory, source.type, source.sha256.toLowerCase()]);
@@ -83,7 +83,9 @@ export async function linkWorkspaceConversions(files: WorkspaceFileNode[], { arc
         converted.get(key)!.add(file.path);
         if (source.fileName) {
           const name = JSON.stringify([directory, source.type, source.fileName.toLocaleLowerCase()]);
-          named.set(name, [...(named.get(name) ?? []), { result: file.path, key }]);
+          let matches = named.get(name);
+          if (!matches) named.set(name, matches = []);
+          matches.push({ result: file.path, key });
         }
         let sourceTypes = sourceTypesByDirectory.get(directory);
         if (!sourceTypes) sourceTypesByDirectory.set(directory, sourceTypes = new Set());
