@@ -630,6 +630,17 @@ describe("lossless Word source plans", () => {
     expect(() => assertWordImportPlan(plan("ai", "aii"), source)).not.toThrow();
     expect(() => assertWordImportPlan(plan("aii", "ai"), source)).toThrow("不能移入");
   });
+  it("takes a number printed alone or with a comma as the start of that question", () => {
+    const source = { ...unit([paragraph("q6", "6. 第六题"), paragraph("n7", "7"), paragraph("a7", "A. abilities"), paragraph("o7", "23,A. look up")]),
+      sourceQuestionNumbers: { q6: "6", n7: "6", a7: "6", o7: "6" } };
+    const doubts: string[] = [];
+    assertWordImportPlan([{ type: "question", number: "6", stem: [{ ref: "q6", stripPrefix: "6." }] },
+      { type: "question", number: "7", stem: [{ ref: "n7" }, { ref: "a7" }] }, { type: "question", number: "23", stem: [{ ref: "o7" }] }], source, undefined, doubts);
+    expect(doubts).toEqual([]);
+    const moved: string[] = [];
+    assertWordImportPlan([{ type: "question", number: "6", stem: [{ ref: "q6", stripPrefix: "6." }] }, { type: "question", number: "8", stem: [{ ref: "n7" }, { ref: "a7" }] }, { ref: "o7" }], source, undefined, moved);
+    expect(moved.length).toBe(2);
+  });
   it("lets working under the parent's number go to the part it explains", () => {
     const source = { ...unit([paragraph("q", "26. 已知函数。"), paragraph("p1", "（1）求值；"), paragraph("p2", "（2）证明。"), paragraph("label", "【小问1详解】"), paragraph("work", "由题意得 x=1。")]),
       sourceRoles: { q: "body" as const, p1: "body" as const, p2: "body" as const, label: "analysis" as const, work: "analysis" as const },

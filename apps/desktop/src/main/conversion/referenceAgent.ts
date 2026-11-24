@@ -261,7 +261,7 @@ export async function draftWithReferences(options: {
     const unexplained = open.filter(issue => !keepReasons.has(issueId(issue)));
     if (unexplained.length) return `${unexplained.map(issue => `[${issueId(issue)}] ${issue}`).join("\n")}\n逐条处理：能改的改好；核对原稿后确属原稿如此的，再调用 finish 时在 keep 中写这一条的 id 和 reason，reason 写清原稿哪里是这样印的。`;
     kept = open.map(issue => ({ issue, reason: keepReasons.get(issueId(issue))! }));
-    concerns = open.filter(issue => issue.startsWith(STRUCTURE_DOUBT) || /留在了题外|已保留在原答案位置待核对/.test(issue));
+    concerns = open.filter(issue => issue.startsWith(STRUCTURE_DOUBT) || /留在了题外|已保留在原答案位置待核对|不在任何题目中/.test(issue));
     return undefined;
   };
 

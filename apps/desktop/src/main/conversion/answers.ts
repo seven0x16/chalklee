@@ -194,6 +194,11 @@ export function reconcileImportAnswers(document: ChalkLeeDocument, entries: Impo
       if (whole.length) candidates = whole;
     }
     const regions = node.content.filter(region => region.type === "questionAnswer" || region.type === "questionAnalysis");
+    // The same choice answer printed again ("1.B 【命题点】…") is that question's, not a part's that shares its number.
+    if (candidates.length > 1 && !entry.parents.length) {
+      const repeated = candidates.filter(candidate => candidate.path.length === 1 && repeatsChoiceAnswer(candidate.node, regions));
+      if (repeated.length === 1) candidates = repeated;
+    }
     if (!regions.length || !regions.some(meaningful)) throw new Error("独立答案片段没有可保留的答案或解析正文。");
     // Explicit parent/section scope remains usable when an unrelated page is
     // unfinished. Bare numbers still cannot exclude duplicates in missing pages.

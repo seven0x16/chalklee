@@ -603,7 +603,7 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
   const source = new Map(entries.map(entry => [entry.ref, entry]));
   const positions = new Map(entries.map((entry, index) => [entry.ref, index]));
   // The answer or analysis being visited, and the last paragraph placed anywhere.
-  let solution: unknown, previous: { ref: string; solution: unknown; region: string } | undefined;
+  let solution: unknown, previous: { ref: string; solution: unknown; region: string; startedAt?: string } | undefined;
   // A line may name a nested part ("(2)(ⅰ) a=2/3"): it belongs to (2) and to its part (ⅰ).
   const childNumbers = new Map<string, string[]>();
   let child: string[] | undefined, owner: string | undefined, role: string | undefined;
@@ -662,7 +662,11 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
       if (listedItem) listed.add(`${questionNumber}/${entry.questionNumber}`);
       // A bare label ("【解析】" on its own) names a region, not a question: the number it inherits from the line before says nothing.
       const bareLabel = !(wordAnswerLabel.test(entry.text) ? entry.text.replace(wordAnswerLabel, "") : wordAnalysisLabel.test(entry.text) ? entry.text.replace(wordAnalysisLabel, "") : "x").trim();
-      if (entry.questionNumber && questionNumber && entry.questionNumber !== questionNumber && !ownedSubquestion && !listedItem && !bareLabel) {
+      // A line printed with this question's own number in a form the reading missed ("7" alone, "23,A. look up") starts it,
+      // and the lines printed right after it go with it.
+      const ownNumber = !!questionNumber && /^\d{1,3}$/.test(questionNumber) && new RegExp(`^\\s*${questionNumber}(?:\\s*[,，]|\\s*$)`).test(entry.text);
+      const startedHere = ownNumber || !!previous && !!questionNumber && previous.startedAt === questionNumber && positions.get(previous.ref) === positions.get(entry.ref)! - 1;
+      if (entry.questionNumber && questionNumber && entry.questionNumber !== questionNumber && !ownedSubquestion && !listedItem && !bareLabel && !startedHere) {
         const printed = importQuestionAnchors(entry.text).some(match => match.index === 0);
         const part = printedSubNumbers(entry.text)[0]?.number;
         const message = `原稿片段 ${entry.ref} 属于第 ${entry.questionNumber} 题${part ? `的小问 (${part})` : ""}，不能移入第 ${questionNumber} 题。${printed ? "请保留实际印刷题号，不按顺序或答案表改号。"
@@ -702,7 +706,7 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
           && (printed === undefined || printed === questionNumber);
         if (!continues && !titleInSolution) doubt(`原稿片段 ${entry.ref} 没有标为${name}，不能放入该区域。${name}从标为${name}的段落开始，紧接其后的未标注续行可以一并放入；选项、标题和其他题号的段落保留在原处。`);
       }
-      previous = { ref: entry.ref, solution, region };
+      previous = { ref: entry.ref, solution, region, ...(startedHere ? { startedAt: questionNumber } : {}) };
       if (value.stripPrefix) {
         if (entry.type === "table") throw new Error(`原稿片段 ${entry.ref} 是表格，整体引用，不能写 stripPrefix；表中的选项、题号随表格原样保留。`);
         wordPrefixLength(entry.text, String(value.stripPrefix));

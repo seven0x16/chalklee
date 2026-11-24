@@ -346,6 +346,12 @@ describe("a choice answer printed twice", () => {
     expect(importText(regions.find((region: any) => region.type === "questionAnswer"))).toBe("B");
     expect(importText(regions.find((region: any) => region.type === "questionAnalysis"))).toBe("【命题点】物质的组成");
   });
+  it("takes a repeated answer for the question it repeats when a part shares its number", () => {
+    const part = { ...q("s1", "①"), content: q("s1", "①").content };
+    const group: any = { type: "questionGroup", attrs: { id: "g", kind: "composite", number: { mode: "fixed", label: "19" } }, content: [{ type: "questionMaterial", attrs: { id: "gm" }, content: [p("gp", "材料")] }, { type: "subQuestionList", attrs: { id: "gl" }, content: [part] }] };
+    const document = doc([choice("q1", "1", "B"), group, a("again", "1", "B 【命题点】物质的组成")]);
+    expect(reconcileImportAnswers(document, [entry("again")]).report).toMatchObject({ matched: 1, unmatched: 0 });
+  });
   it("still calls a different letter from a separate entry a conflict", () => {
     const document = doc([choice("q1", "1", "B"), a("again", "1", "C")]);
     expect(reconcileImportAnswers(document, [entry("again")]).report).toMatchObject({ matched: 0, conflicting: 1 });
