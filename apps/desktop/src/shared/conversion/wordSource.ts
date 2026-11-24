@@ -477,6 +477,8 @@ export function wordQuestionAnswerLabels(blocks: ChalkLeeBlockNode[]): Set<strin
 
 export function wordSourceEntries(blocks: ChalkLeeBlockNode[], roles?: Record<string, "body" | "heading" | "answer" | "analysis">, numbers?: Record<string, string>, answerStarts = new Set<string>()) {
   let role: "answer" | "analysis" | "body" = "body";
+  // "【答案】（1）" with nothing but a part number after it: the worked lines that follow ("解：∵…", "证明：…") are that answer.
+  let workedAnswer = false;
   let answerSection = false;
   let scoringSection = false;
   let questionNumber: string | undefined;
@@ -580,7 +582,9 @@ export function wordSourceEntries(blocks: ChalkLeeBlockNode[], roles?: Record<st
     else if (analysisNumber) questionNumber = analysisNumber;
     else if (/^\s*【导语】/.test(text)) questionNumber = undefined;
     if (wordAnswerLabel.test(text)) role = "answer";
-    if (wordAnalysisLabel.test(text) || knowledge.has(index)) role = "analysis";
+    const worked = workedAnswer && role === "answer" && /^\s*(?:解|证明)\s*[:：]/.test(text);
+    if ((wordAnalysisLabel.test(text) && !worked) || knowledge.has(index)) role = "analysis";
+    workedAnswer = role === "answer" && (wordAnswerLabel.test(text) ? !text.replace(wordAnswerLabel, "").replace(/[（(]\s*\d{1,2}\s*[）)]/g, "").trim() : workedAnswer);
     if (shared.has(index)) questionNumber = undefined;
     if (scoringSection) { role = "body"; questionNumber = undefined; }
     if (!item && role !== "body" && questionNumber && /[：:]\s*$/.test(text)) for (const at of listAfter(index, questionNumber)) listed.add(at);

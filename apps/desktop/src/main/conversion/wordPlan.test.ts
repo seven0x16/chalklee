@@ -53,6 +53,15 @@ it("preserves exercise numbers after a Word line break and times beside answer l
   }
 });
 
+it("keeps the worked lines under an answer label that only names a part as that answer", () => {
+  const paragraph = (id: string, text: string): any => ({ type: "paragraph", attrs: { id }, content: [{ type: "text", text }] });
+  const roles = (texts: string[]) => wordSourceEntries(texts.map((text, i) => paragraph(`p${i}`, text))).map(entry => entry.role);
+  expect(roles(["24. 如图，AB=AC，AD=AE。", "（1）求证：BD=CE；", "（2）写出图中所有的等腰三角形。", "【答案】（1）", "解：∵AB=AC，AD=AE，", "∴BD=CE；", "（2）△ABD，△ACE", "【解析】", "【小问1详解】", "略"]))
+    .toEqual(["body", "body", "body", "answer", "answer", "answer", "answer", "analysis", "analysis", "analysis"]);
+  // An answer already given ("【答案】A") is followed by its working as an analysis.
+  expect(roles(["1. 下列正确的是（ ）", "【答案】A", "解：由题意得 x=1。"])).toEqual(["body", "answer", "analysis"]);
+});
+
 it("separates two options sharing a line when the first lost its dot and the next line goes on with the next letter", () => {
   const paragraph = (id: string, text: string): any => ({ type: "paragraph", attrs: { id }, content: [{ type: "text", text }] });
   const lines = ["29. Which of the followings can't the visitors do?", "A Buy all kinds of chocolate products. B. Have a chance to taste the chocolate.",
