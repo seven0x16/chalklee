@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { importAppearance, importText, assertImportDocument } from "../../shared/conversion/importDocument";
 import type { ChalkLeeDocument } from "@chalklee/format";
-import { answerEntryPlan, reconcileImportAnswers, type ImportAnswerEntry } from "./answers";
+import { answerEntryPlan, reconcileImportAnswers, settleRepeatedAnswers, type ImportAnswerEntry } from "./answers";
 
 const p = (id: string, text: string): any => ({ type: "paragraph", attrs: { id }, content: text ? [{ type: "text", text }] : [] });
 const q = (id: string, number: string, text = "题干"): any => ({ type: "question", attrs: { id, kind: "free-response", number: { mode: "fixed", label: number } }, content: [{ type: "questionStem", attrs: { id: `${id}_stem` }, content: [p(`${id}_p`, text)] }] });
@@ -310,6 +310,63 @@ describe("whole-document answer association", () => {
     expect(reconcileImportAnswers(document, [entry("a")]).report.unmatched).toBe(1);
     expect(importText(document.content)).toContain("原文");
     expect(() => answerEntryPlan([{ type: "answerEntry", number: "1", answer: ["A"], stem: ["new question"] }])).toThrow("不能混入题干");
+  });
+});
+
+describe("a choice answer printed twice", () => {
+  const choice = (id: string, number: string, ...lines: string[]) => ({ ...q(id, number), content: [...q(id, number).content,
+    { type: "optionGroup", attrs: { id: `${id}_options` }, content: [] },
+    { type: "questionAnswer", attrs: { id: `${id}_answer` }, content: lines.map((line, index) => p(`${id}_${index}`, line)) }] });
+  const answerOf = (document: ChalkLeeDocument, at = 0) => (document.content.content[at] as any).content.at(-1).content.map((line: any) => importText(line));
+
+  it("keeps one copy of the same letter and the blank line its number left", () => {
+    const document = doc([choice("q1", "1", "C", "", "Ｃ")]);
+    expect(settleRepeatedAnswers(document)).toEqual({ settledIds: ["q1_1", "q1_2"], doubts: [] });
+    expect(answerOf(document)).toEqual(["C"]);
+  });
+  it("moves the note after a repeated letter to the analysis, without changing its words", () => {
+    const document = doc([choice("q1", "1", "B", "B 【命题点】物质的组成")]);
+    expect(settleRepeatedAnswers(document).doubts).toEqual([]);
+    assertImportDocument(document);
+    const regions = (document.content.content[0] as any).content;
+    expect(importText(regions.find((region: any) => region.type === "questionAnswer"))).toBe("B");
+    expect(importText(regions.find((region: any) => region.type === "questionAnalysis"))).toBe("【命题点】物质的组成");
+  });
+  it("reads a repeated letter split across text runs", () => {
+    const document = doc([choice("q1", "1", "B", "x")]);
+    (document.content.content[0] as any).content.at(-1).content[1].content = [{ type: "text", text: "B", marks: [{ type: "bold" }] }, { type: "text", text: "  " }, { type: "text", text: "【命题点】物质" }];
+    expect(settleRepeatedAnswers(document).doubts).toEqual([]);
+    expect(importText((document.content.content[0] as any).content.at(-1))).toBe("【命题点】物质");
+  });
+  it("takes the same answer from a separate entry without calling it a conflict", () => {
+    const document = doc([choice("q1", "1", "B"), a("again", "1", "B 【命题点】物质的组成")]);
+    expect(reconcileImportAnswers(document, [entry("again")]).report).toMatchObject({ matched: 1, conflicting: 0 });
+    settleRepeatedAnswers(document);
+    const regions = (document.content.content[0] as any).content;
+    expect(importText(regions.find((region: any) => region.type === "questionAnswer"))).toBe("B");
+    expect(importText(regions.find((region: any) => region.type === "questionAnalysis"))).toBe("【命题点】物质的组成");
+  });
+  it("still calls a different letter from a separate entry a conflict", () => {
+    const document = doc([choice("q1", "1", "B"), a("again", "1", "C")]);
+    expect(reconcileImportAnswers(document, [entry("again")]).report).toMatchObject({ matched: 0, conflicting: 1 });
+  });
+  it("leaves two different answers for a person", () => {
+    const document = doc([choice("q1", "1", "C", "D")]);
+    const result = settleRepeatedAnswers(document);
+    expect(result.settledIds).toEqual([]);
+    expect(result.doubts[0]).toContain("第1题原稿两处答案不一致");
+    expect(answerOf(document)).toEqual(["C", "D"]);
+  });
+  it("drops a line that only says it is the answer, and keeps one that is the whole answer", () => {
+    const document = doc([a("q1", "17", ""), a("q2", "18", "参考答案")]);
+    (document.content.content[0] as any).content.at(-1).content = [p("label", "参考答案"), p("text", "（1）内容")];
+    expect(settleRepeatedAnswers(document).settledIds).toEqual(["label"]);
+    expect(answerOf(document)).toEqual(["（1）内容"]);
+    expect(answerOf(document, 1)).toEqual(["参考答案"]);
+  });
+  it("does not touch repeated values of a question without options", () => {
+    const document = doc([{ ...q("q1", "1"), content: [...q("q1", "1").content, { type: "questionAnswer", attrs: { id: "q1_answer" }, content: [p("a", "A"), p("b", "A")] }] }]);
+    expect(settleRepeatedAnswers(document)).toEqual({ settledIds: [], doubts: [] });
   });
 });
 

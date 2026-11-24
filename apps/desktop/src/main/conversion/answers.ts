@@ -45,6 +45,83 @@ type Question = ChalkLeeQuestionNode | ChalkLeeQuestionGroupNode;
 const withoutAnswers = (node: any): any => node.content ? { ...node, content: node.content.filter((child: any) => child.type !== "questionAnswer" && child.type !== "questionAnalysis").map(withoutAnswers) } : node;
 const meaningful = (node: any): boolean => !!importText(node).trim() || ["image", "imageInline", "blank"].includes(node.type) || (node.content ?? []).some(meaningful);
 
+/** Takes the repeated letters off the front of "B 【命题点】…", which formatting may have split across text runs. */
+function dropLeadingLetters(line: any, choice: string) {
+  const inline: any[] = line.content ?? [];
+  let rest = choice;
+  for (const [index, node] of inline.entries()) {
+    if (node.type !== "text") return false;
+    let at = 0;
+    for (; at < node.text.length; at++) {
+      if (/\s/.test(node.text[at])) continue;
+      if (node.text[at] !== rest[0]) break;
+      rest = rest.slice(1);
+    }
+    if (at === node.text.length) continue;
+    if (rest || node.text[at] !== "【") return false;
+    line.content = [{ ...node, text: node.text.slice(at) }, ...inline.slice(index + 1)];
+    return true;
+  }
+  return false;
+}
+
+/** The same choice letter printed again for a question, alone or before a labelled note: settled once all answers are in. */
+function repeatsChoiceAnswer(target: Question, regions: any[]) {
+  const letters = (node: any) => importText(node).normalize("NFKC").replace(/\s/g, "");
+  const answer: any = target.content.find(region => region.type === "questionAnswer");
+  const first = answer ? letters(answer) : "";
+  return target.content.some(region => region.type === "optionGroup") && /^[A-H]{1,8}$/.test(first)
+    && regions.every(region => region.type === "questionAnswer" && region.content.filter(meaningful).every((line: any) => letters(line) === first || letters(line).startsWith(`${first}【`)));
+}
+
+/**
+ * A paper may print each answer under its question and again in a solutions section, and both land in the question's
+ * answer. What is certainly the same answer is settled here without changing a word of it: a label line that only
+ * says "参考答案", the same choice letter again, and the letter repeated before a labelled note, whose note goes to
+ * the analysis. Answers that differ are left for a person.
+ */
+export function settleRepeatedAnswers(document: ChalkLeeDocument): { settledIds: string[]; doubts: string[] } {
+  const settledIds: string[] = [], doubts: string[] = [];
+  const letters = (node: any) => importText(node).normalize("NFKC").replace(/\s/g, "");
+  const remove = (region: any, lines: any[]) => {
+    settledIds.push(...lines.map(line => line.attrs.id));
+    region.content = region.content.filter((child: any) => !lines.includes(child));
+  };
+  const visit = (node: any): void => {
+    (node.content ?? []).forEach(visit);
+    if (node.type !== "question" && node.type !== "questionGroup") return;
+    const region = node.content.find((child: any) => child.type === "questionAnswer");
+    if (!region) return;
+    const printed = region.content.filter(meaningful);
+    if (printed.length > 1 && /^【?(?:参考)?答案】?[:：]?$/.test(letters(printed[0]))) remove(region, region.content.slice(0, region.content.indexOf(printed[1])));
+    if (node.type !== "question" || !node.content.some((child: any) => child.type === "optionGroup")) return;
+    const lines: any[] = region.content.filter(meaningful);
+    const first = lines[0] ? letters(lines[0]) : "";
+    if (lines.length < 2 || !/^[A-H]{1,8}$/.test(first)) return;
+    const label = node.attrs.number?.label ?? "";
+    const same: any[] = [], notes: any[] = [];
+    for (const line of lines.slice(1)) {
+      const value = letters(line);
+      if (value === first) same.push(line);
+      else if (/^[A-H]{1,8}$/.test(value)) doubts.push(`第${label}题原稿两处答案不一致：“${first}”和“${value}”。对照原稿，确实如此时保留，不要自行选择。`);
+      else if (value.startsWith(`${first}【`)) {
+        if (dropLeadingLetters(line, first)) notes.push(line);
+        else doubts.push(`第${label}题的答案印了两遍：“${first}”和“${importText(line).trim().slice(0, 24)}”。只保留一个答案，其余内容放进这题的 analysis，用 stripPrefix 去掉重复的题号和答案。`);
+      }
+    }
+    if (!same.length && !notes.length) return;
+    remove(region, region.content.filter((child: any) => same.includes(child) || notes.includes(child) || !meaningful(child)));
+    if (!notes.length) return;
+    const analysis = node.content.find((child: any) => child.type === "questionAnalysis");
+    if (analysis) {
+      settledIds.push(...analysis.content.filter((child: any) => !meaningful(child)).map((child: any) => child.attrs.id));
+      analysis.content = [...notes, ...analysis.content.filter(meaningful)];
+    } else node.content.splice(node.content.indexOf(region) + 1, 0, { type: "questionAnalysis", attrs: { id: `node_${randomUUID()}` }, content: notes });
+  };
+  visit(document.content);
+  return { settledIds, doubts };
+}
+
 /** Resolve after all units: printed numbers alone never select between duplicates.
  * Keep ambiguous/conflicting entries in their source position as ordinary prose.
  * Source child IDs survive moves, including formulas, figures and provenance. */
@@ -123,7 +200,7 @@ export function reconcileImportAnswers(document: ChalkLeeDocument, entries: Impo
     const scoped = entry.parents.length > 0 || !!entrySection || !!entrySectionName;
     const target = (!incompleteSource || scoped) && candidates.length === 1 ? candidates[0].node : undefined;
     const continuation = target && entry.continuesPrevious && last?.target === target.attrs.id && last.path === key && last.unitIndex === entry.unitIndex - 1;
-    const conflict = target && regions.some(region => target.content.some(old => old.type === region.type && meaningful(old))) && !continuation;
+    const conflict = target && regions.some(region => target.content.some(old => old.type === region.type && meaningful(old))) && !continuation && !repeatsChoiceAnswer(target, regions);
     if (!target || conflict || (entry.continuesPrevious && !continuation)) {
       report.unmatched++;
       if (conflict) report.conflicting++;

@@ -4,7 +4,7 @@ import { appendImportBlocks, assertImportDocument, importContinuationTarget, imp
 import { chalkLeeQuestionLabelValue, type ChalkLeeArchiveAssetInput, type ChalkLeeDocument } from "@chalklee/format";
 import type { ImportImage, ImportNotice, PreparedImport, SourceFragmentRevision } from "../../../shared/conversion/types";
 import { prepareReply, normalizeImportLayout } from "../documentImport";
-import { reconcileImportAnswers, type ImportAnswerEntry } from "../answers";
+import { reconcileImportAnswers, settleRepeatedAnswers, type ImportAnswerEntry } from "../answers";
 import { applyImportScores } from "../scores";
 import { normalizeImportStructuredContent } from "../structuredContent";
 import { importCropRect, cutCropEdges, overlappingCropInk, cropAssetMatches } from "../crop";
@@ -140,6 +140,9 @@ export function compileAutonomousDraft(input: PreparedImport, template: ChalkLee
   // These exact repeated title paragraphs were verified against the retained
   // front matter, and removed only after all following answers were moved.
   for (const id of answerResult.redundantIds) transcription.delete(id);
+  const repeatedAnswers = settleRepeatedAnswers(document);
+  for (const id of repeatedAnswers.settledIds) transcription.delete(id);
+  doubts.push(...repeatedAnswers.doubts);
   const contentAudit = auditImportContent(transcription, document.content);
   applyImportScores(document); applyAutonomousLayout(document, draft.layout); normalizeImportLayout(document, input); notices.push(...answerResult.notices);
   const ids = new Set<string>(), usedAssets = new Set<string>();

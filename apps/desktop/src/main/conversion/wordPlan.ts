@@ -650,6 +650,8 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
       const childNumber = printedSubNumbers(questionNumber ?? "").at(-1)?.number ?? normalizeImportNumber(questionNumber ?? "").replace(/^\((I{1,3}|IV|VI{0,3}|IX|X|XI|XII)\)$/i, "$1").toUpperCase();
       const ownedSubquestion = entry.questionNumber && parents.includes(entry.questionNumber)
         && (subNumbers.includes(childNumber) || introductions.get(entry.ref)?.number === childNumber
+          // Working under the parent's number with no part of its own ("【小问1详解】" and what follows) is written out part by part.
+          || ["answer", "analysis"].includes(region) && !subNumbers.length && !printedSubNumbers(entry.text).length
           // Standalone floated graphics have a reliable parent question but
           // their vertical extraction order does not prove child ownership.
           || /^\s*\[图片 [^\]]+\]\s*$/.test(entry.text));
@@ -677,7 +679,9 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
         // A sample essay's own title ("参考范文") opens that answer.
         const sampleTitle = region === "answer" && isImportSampleHeading(entry.text);
         const partTitle = entry.role === "heading" && restatesPart(entry.text);
-        const titleInSolution = entry.role === "heading" && !bareLabel && !sampleTitle && !partTitle;
+        // "17. 参考答案" over a question's solution in the answer section names that question's answer.
+        const numberedLabel = entry.role === "heading" && entry.text.match(/^\s*(\d{1,3})\s*[.．、]\s*(?:参考)?答案(?:与解析)?\s*[:：]?\s*$/)?.[1] === normalizeImportNumber(questionNumber ?? "");
+        const titleInSolution = entry.role === "heading" && !bareLabel && !sampleTitle && !partTitle && !numberedLabel;
         if (titleInSolution) doubt(`原稿片段 ${entry.ref} 是标题，不能放入${name}；阅读标题应保留在下一篇材料之前。`);
         // Only lines that carry a label are marked; an unmarked line printed
         // straight after one in the same region may continue it, but never an
@@ -693,7 +697,7 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
         // "3.①地势比平地稍高…" printed after question 3 with its own number again and no label: that question's answer.
         const restated = entry.role === "body" && !sourceOption && printed !== undefined && printed === normalizeImportNumber(questionNumber ?? "")
           && previous?.solution !== solution && !entry.questionNumber;
-        const continues = bareLabel || sampleTitle || explains || restated || partTitle || entry.role === "body" && !sourceOption && solution !== undefined && previous?.solution === solution
+        const continues = bareLabel || sampleTitle || explains || restated || partTitle || numberedLabel || entry.role === "body" && !sourceOption && solution !== undefined && previous?.solution === solution
           && positions.get(previous.ref) === positions.get(entry.ref)! - 1
           && (printed === undefined || printed === questionNumber);
         if (!continues && !titleInSolution) doubt(`原稿片段 ${entry.ref} 没有标为${name}，不能放入该区域。${name}从标为${name}的段落开始，紧接其后的未标注续行可以一并放入；选项、标题和其他题号的段落保留在原处。`);

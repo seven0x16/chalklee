@@ -208,6 +208,8 @@ export function misprintedAnswerNumbers(lines: string[]): { printed: string; exp
 function concernReason(concern: string): string {
   if (concern.includes("留在了题外")) return "没有整理成题目";
   if (concern.includes("已保留在原答案位置待核对")) return "答案没有归到题目里";
+  if (concern.includes("答案印了两遍")) return "原稿印了两遍答案，请核对";
+  if (concern.includes("两处答案不一致")) return "原稿两处答案不一致，请核对";
   return "结构可能不对";
 }
 

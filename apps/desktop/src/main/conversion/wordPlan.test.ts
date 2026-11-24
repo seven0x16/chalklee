@@ -589,6 +589,17 @@ describe("lossless Word source plans", () => {
     expect(() => assertWordImportPlan(wrong, source)).toThrow("是标题，不能放入答案");
     expect(() => assertWordImportPlan([{ type: "question", number: "15", stem: [{ ref: "q15" }] }, { ref: "reading_b" }, { ref: "passage" }], source)).not.toThrow();
   });
+  it("accepts a heading that names this question's answer, but not another question's", () => {
+    const source = { ...unit([paragraph("q17", "17. 简述原因"), paragraph("key", "17. 参考答案"), paragraph("text", "（1）内容")]),
+      sourceRoles: { q17: "body" as const, key: "heading" as const, text: "answer" as const }, sourceQuestionNumbers: { q17: "17", text: "17" } };
+    const plan = (number: string) => [{ type: "question", number, stem: [{ ref: "q17", stripPrefix: "17." }], answer: [{ ref: "key", stripPrefix: "17." }, { ref: "text" }] }];
+    const doubts: string[] = [];
+    assertWordImportPlan(plan("17"), source, undefined, doubts);
+    expect(doubts).toEqual([]);
+    const other: string[] = [];
+    assertWordImportPlan([{ type: "question", number: "18", stem: [{ ref: "q17" }], answer: [{ ref: "key" }] }, { ref: "text" }], { ...source, sourceQuestionNumbers: {} }, undefined, other);
+    expect(other.join()).toContain("是标题，不能放入答案");
+  });
   it("lets an unmarked line continue the analysis printed just before it, but not start or skip into one", () => {
     const source = { ...unit([paragraph("q1", "1. 求值"), paragraph("label", "【解析】先移项，"), paragraph("tail", "得到 x=1，"), paragraph("choice", "故选 B。"), paragraph("q2", "2. 下一题"), paragraph("opt", "A. 选项")]),
       sourceRoles: { q1: "body" as const, label: "analysis" as const, tail: "body" as const, choice: "body" as const, q2: "body" as const, opt: "body" as const }, sourceQuestionNumbers: { q1: "1", label: "1", tail: "1", choice: "1", q2: "2", opt: "2" } };
@@ -618,6 +629,16 @@ describe("lossless Word source plans", () => {
       part("(1)", "p1", "a1"), { type: "question", number: "(2)", stem: [{ ref: "p2" }] }, part("（ⅰ）", "i", first), part("（ⅱ）", "ii", second)] }];
     expect(() => assertWordImportPlan(plan("ai", "aii"), source)).not.toThrow();
     expect(() => assertWordImportPlan(plan("aii", "ai"), source)).toThrow("不能移入");
+  });
+  it("lets working under the parent's number go to the part it explains", () => {
+    const source = { ...unit([paragraph("q", "26. 已知函数。"), paragraph("p1", "（1）求值；"), paragraph("p2", "（2）证明。"), paragraph("label", "【小问1详解】"), paragraph("work", "由题意得 x=1。")]),
+      sourceRoles: { q: "body" as const, p1: "body" as const, p2: "body" as const, label: "analysis" as const, work: "analysis" as const },
+      sourceQuestionNumbers: { q: "26", p1: "26", p2: "26", label: "26", work: "26" } };
+    const doubts: string[] = [];
+    assertWordImportPlan([{ type: "questionGroup", number: "26", material: [{ ref: "q", stripPrefix: "26." }], questions: [
+      { type: "question", number: "(1)", stem: [{ ref: "p1", stripPrefix: "（1）" }], analysis: [{ ref: "label" }, { ref: "work" }] },
+      { type: "question", number: "(2)", stem: [{ ref: "p2", stripPrefix: "（2）" }] }] }], source, undefined, doubts);
+    expect(doubts).toEqual([]);
   });
   it("lets a circled part inside a printed subquestion be its own question", () => {
     const source = { ...unit([paragraph("q", "11．某实验小组探究加速度。"), paragraph("p2", "（2）利用图乙装置进行实验。"), paragraph("c1", "①t=4 s 时，物体处于____状态；"), paragraph("c2", "②其图像为图线____。"),
