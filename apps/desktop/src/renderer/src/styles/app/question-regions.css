@@ -772,6 +772,32 @@
   background: transparent;
 }
 
+/* 带框题目的解答位置由应用排定，设计 CSS 改不动（2026-11-22）：只改其中几项边距时，解答会一半在框里、一半向下盖住框线，
+   看起来像穿出了题框。这几项边距在这里整套生效；底色、字号、内距等外观仍以设计 CSS 为准。 */
+@layer chalklee-frame-solutions {
+  .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"],
+  .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"] {
+    margin-left: calc(-1 * (var(--chalklee-question-padding-left) + var(--chalklee-frame-width))) !important;
+    margin-right: calc(-1 * (var(--chalklee-question-padding-right) + var(--chalklee-frame-width))) !important;
+  }
+
+  .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"] { margin-top: 12px !important; }
+  .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"] { margin-top: calc(-1 * var(--chalklee-question-gap, 0px)) !important; }
+
+  .chalklee-question-object[data-question-frame]:not(:has(> .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"])) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"],
+  .chalklee-paper.hide-answers .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"],
+  #chalklee-print-root .chalklee-question-object[data-question-frame]:has(> .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"][data-print-empty="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"] {
+    margin-top: 12px !important;
+  }
+
+  .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"],
+  .chalklee-question-object[data-question-frame]:not(:has(> .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"])) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"],
+  .chalklee-paper.hide-analysis .chalklee-question-object[data-question-frame] > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"],
+  #chalklee-print-root .chalklee-question-object[data-question-frame]:has(> .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="analysis"][data-print-empty="true"]) > .chalklee-question-object-content > [data-node-view-content-react] > [data-chalklee-region="answer"] {
+    margin-bottom: calc(-1 * (var(--chalklee-question-padding-bottom) + var(--chalklee-frame-width))) !important;
+  }
+}
+
 /* Layered !important wins over the unlayered document design, even when its
    selectors use IDs or !important. Visibility is owned by the editor controls. */
 @layer chalklee-visibility {
