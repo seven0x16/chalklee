@@ -249,14 +249,17 @@ export function mergeAdjacentBlanks(content: ChalkLeeInlineNode[], unbracketed =
   return output;
 }
 
+const NUMBER_LABEL = /^(?:(?:\(\))?\d+[.、)](?:[A-H][.、:：)])?|(?:\(\d+\))?(?:\(\d+\)|\((?:I{1,3}|IV|VI{0,3}|IX|X|[Ⅰ-Ⅻⅰ-ⅻ])\)|[①-⑳])|\([A-H]\)|[A-H][.、:：)])$/i;
 const compactPrefix = (s: string) => s.replace(/\s/g, "").replace(/．/g, ".").replace(/（/g, "(").replace(/）/g, ")");
 export function wordPrefixLength(text: string, prefix: string): number {
   const label = compactPrefix(prefix);
   if (/^\s*\d+\.\d/.test(text) && /^\d+\.$/.test(label)) throw new Error("小数的整数部分不能当作题号移除。");
   const bareNumber = /^\d{1,3}$/.test(prefix.trim()) && new RegExp(`^\\s*${label}\\s+\\S`).test(text);
-  if ((wordAnswerLabel.test(prefix) || wordAnalysisLabel.test(prefix)) && prefix.replace(wordAnswerLabel, "").replace(wordAnalysisLabel, "").trim()) throw new Error("stripPrefix不能包含答案正文。");
+  // An answer or analysis label may take the number after it ("【答案】（1）"), never any of the answer itself.
+  const afterLabel = compactPrefix(prefix.replace(wordAnswerLabel, "").replace(wordAnalysisLabel, ""));
+  if ((wordAnswerLabel.test(prefix) || wordAnalysisLabel.test(prefix)) && afterLabel && !NUMBER_LABEL.test(afterLabel)) throw new Error("stripPrefix不能包含答案正文。");
   // Part numbers too: "①", "(ⅰ)", and a nested one written with its parent, "(2)(ⅰ)" or "(2)①".
-  if (!bareNumber && !/^(?:(?:\(\))?\d+[.、)](?:[A-H][.、:：)])?|(?:\(\d+\))?(?:\(\d+\)|\((?:I{1,3}|IV|VI{0,3}|IX|X|[Ⅰ-Ⅻⅰ-ⅻ])\)|[①-⑳])|\([A-H]\)|[A-H][.、:：)])$/i.test(label) && !/^\s*(?:[A-H]|\d{1,3})\s+$/.test(prefix) && !wordAnswerLabel.test(prefix) && !wordAnalysisLabel.test(prefix)) throw new Error("只允许移除题号、选项号或答案解析标签，不能删除正文。");
+  if (!bareNumber && !NUMBER_LABEL.test(label) && !/^\s*(?:[A-H]|\d{1,3})\s+$/.test(prefix) && !wordAnswerLabel.test(prefix) && !wordAnalysisLabel.test(prefix)) throw new Error("只允许移除题号、选项号或答案解析标签，不能删除正文。");
   let cursor = 0, matched = "";
   while (cursor < text.length && matched.length < label.length) {
     matched += compactPrefix(text[cursor++]);

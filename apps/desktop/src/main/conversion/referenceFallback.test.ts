@@ -155,6 +155,23 @@ describe("organizing what the agent left", () => {
     ]);
   });
 
+  it("drops a part's own number after the answer label, as it would with no label before it", () => {
+    const input = prepared(["26. 已知点 A、B。", "（1）求 a，b 的值；", "（2）证明 CD=AD。", "【答案】（1）-3；3", "（2）见解析"]);
+    const answerOf = (stripPrefix?: string, part = "(1)") => {
+      const draft = { ...newAutonomousDraft(), seenUnits: ["part_1"], fragments: [{ key: "q26", order: 0, unitIds: ["part_1"], continuesPrevious: false, warnings: [], blocks: [
+        { type: "questionGroup", number: "26", material: [{ ref: "source_1", stripPrefix: "26." }], questions: [
+          { type: "question", number: "(1)", kind: "solution", stem: [{ ref: "source_2", stripPrefix: "（1）" }], ...(part === "(1)" ? { answer: [{ ref: "source_4", ...(stripPrefix ? { stripPrefix } : {}) }] } : {}) },
+          { type: "question", number: "(2)", kind: "solution", stem: [{ ref: "source_3", stripPrefix: "（2）" }], answer: [...(part === "(2)" ? [{ ref: "source_4", ...(stripPrefix ? { stripPrefix } : {}) }] : []), { ref: "source_5", stripPrefix: "（2）" }] }] }] }] };
+      const group = questions(compileAutonomousDraft(input, template(input), draft as any).document)[0];
+      const parts = group.content.find((region: any) => region.type === "subQuestionList").content;
+      return importText(parts[part === "(1)" ? 0 : 1].content.find((region: any) => region.type === "questionAnswer")).trim();
+    };
+    expect(answerOf()).toBe("-3；3");
+    expect(answerOf("【答案】")).toBe("-3；3");
+    // Another part's number is what the paper prints there, not a label.
+    expect(answerOf("【答案】", "(2)")).toContain("（1）-3；3");
+  });
+
   it("drops the number an answer key misprinted once the answer is in the question the count expects", () => {
     const input = prepared(["40. She is so ____ (cheer).", "41. She decided ____ (make) a change.", "参考答案", "36. cleaner", "37. her", "38. the", "39. herself", "40. cheerful", "37. to make", "42. so"]);
     const roles = input.units[0].sourceRoles!;

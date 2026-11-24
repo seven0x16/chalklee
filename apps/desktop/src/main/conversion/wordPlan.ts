@@ -411,6 +411,16 @@ export function normalizeWordImportPlan(value: any, unit?: ImportUnit, misprinte
         : printedQuestion && misprintedHere(printedQuestion[1]) ? printedQuestion[0] : undefined);
       if (prefix) { wordPrefixLength(text, prefix); node.stripPrefix = prefix; }
     }
+    // "【答案】（1）-3；3" in part (1): its own number after the label goes too, as it would with no label before it.
+    if (node.ref && typeof node.stripPrefix === "string" && ["answer", "analysis"].includes(region ?? "")
+      && !node.stripPrefix.replace(wordAnswerLabel, "").replace(wordAnalysisLabel, "").trim() && (wordAnswerLabel.test(node.stripPrefix) || wordAnalysisLabel.test(node.stripPrefix))) {
+      const text = source.get(node.ref) ?? "";
+      const rest = text.slice(wordPrefixLength(text, node.stripPrefix));
+      const own = rest.match(/^\s*(?:(\d{1,3})[ \t]*(?:\.(?!\d)|[．、])|[（(]\s*(\d{1,3}|I{1,3}|IV|VI{0,3}|IX|X|[Ⅰ-Ⅻ])\s*[）)])[ \t]*/i);
+      const ownNumber = own && (own[1] ?? own[2]).normalize("NFKC").toUpperCase() === (number ?? "").normalize("NFKC").replace(/[()\s]/g, "").replace(/[.．、]$/, "").toUpperCase()
+        && (!own[2] || /^[（(]/.test(number ?? ""));
+      if (ownNumber && rest.slice(own[0].length).trim()) node.stripPrefix = text.slice(0, text.length - rest.length) + own[0];
+    }
     for (const [key, value] of Object.entries(node)) if (value && typeof value === "object") labels(value, number, option, ["stem", "material", "answer", "analysis"].includes(key) ? key : region, answerEntry);
   };
   labels(result);
