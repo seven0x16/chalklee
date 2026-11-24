@@ -47,8 +47,9 @@ export function buildChalkLeeOutline(doc: ProseMirrorNode): OutlineItem[] {
         node.descendants(child => {
           if (child.type.name !== "question") return true;
           const blankId = typeof child.attrs.sourceBlankId === "string" && child.attrs.sourceBlankId ? child.attrs.sourceBlankId : null;
-          items.push({ id: String(child.attrs.id), label: questionOutlineLabel(child, sub(), node), level, kind: "question", target: String(child.attrs.id), parentId: headings.at(-1)?.id, groupId: id,
-            ...(blankId ? { blankId } : {}) });
+          const place = sub();
+          items.push({ id: String(child.attrs.id), label: questionOutlineLabel(child, place, node), level, kind: "question", target: String(child.attrs.id), parentId: headings.at(-1)?.id, groupId: id,
+            ...printedNumber(child, place), ...(blankId ? { blankId } : {}) });
           return false;
         });
         return;
@@ -59,12 +60,12 @@ export function buildChalkLeeOutline(doc: ProseMirrorNode): OutlineItem[] {
         for (const child of numbered) {
           const blankId = typeof child.attrs.sourceBlankId === "string" && child.attrs.sourceBlankId ? child.attrs.sourceBlankId : null;
           items.push({ id: String(child.attrs.id), label: questionOutlineLabel(child, index, node), level, kind: "question", target: String(child.attrs.id), parentId: headings.at(-1)?.id, groupId: id,
-            ...(blankId ? { blankId } : {}) });
+            ...printedNumber(child, index), ...(blankId ? { blankId } : {}) });
         }
         return;
       }
       items.push({ id, label: questionOutlineLabel(node, index), questionGroup: isGroup, level,
-        kind: "question", target: id, parentId: headings.at(-1)?.id, childQuestionIds });
+        kind: "question", target: id, parentId: headings.at(-1)?.id, childQuestionIds, ...printedNumber(node, index) });
       // A question group is one navigation target. Its internal headings and
       // subquestions belong to the paper, not the document's section outline.
       return;
@@ -90,6 +91,12 @@ function outlineExcerpt(region: ProseMirrorNode | undefined): string {
 function fixedNumber(node: ProseMirrorNode): string | null {
   const number = node.attrs.number && typeof node.attrs.number === "object" ? node.attrs.number as { mode?: unknown; label?: unknown } : null;
   return number?.mode === "fixed" && typeof number.label === "string" && number.label.trim() ? number.label.trim() : null;
+}
+
+/** The number printed for a question: its own when set by hand, otherwise the count; none for an unnumbered one. */
+function printedNumber(node: ProseMirrorNode, questionIndex: number): { number?: string } {
+  if ((node.attrs.number as { mode?: unknown } | null)?.mode === "none") return {};
+  return { number: fixedNumber(node) ?? String(questionIndex) };
 }
 
 /** A question in a passage without its own words is previewed by the passage. */

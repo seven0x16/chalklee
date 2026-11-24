@@ -103,5 +103,7 @@ describe("ChalkLee section navigation", () => {
     expect(outline[1]).toMatchObject({ label: "题组 20", target: "g", childQuestionIds: ["a", "b"] });
     expect(outline[2].label).toMatch(/^第 3 题/);
     expect(outline[2].parentId).toBeUndefined();
+    // The number on the paper, counted or set by hand, finds a question a conversion note names.
+    expect(outline.map(item => item.number)).toEqual(["1", "20", "3", undefined]);
   });
 });

@@ -2018,8 +2018,9 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     revealConversionPlace: ({ question, page }) => {
       if (!editor) return false;
       const heading = keptPageHeading(page);
-      let id: string | undefined;
-      editor.state.doc.descendants(node => {
+      // Most questions are numbered by their place on the paper, so the number is the one the outline shows.
+      let id = question ? buildChalkLeeOutline(editor.state.doc).find(item => item.kind === "question" && item.number === question)?.id : undefined;
+      if (!id) editor.state.doc.descendants(node => {
         const matches = question ? ["question", "questionGroup"].includes(node.type.name) && node.attrs.number?.label === question
           : node.type.name === "heading" && node.textContent === heading;
         if (!id && matches) id = node.attrs.id;
@@ -2034,8 +2035,9 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
         if (blank === null && node.type.name === "blank" && node.attrs.id === blankId) blank = position;
         return blank === null;
       });
-      controller.goToOutline(id);
+      // Marked before scrolling: an update after it would stop the smooth scroll where it started.
       editor.view.dispatch(chalkLeeNodeHighlightTransaction(editor.state, blank));
+      controller.goToOutline(id);
       return true;
     },
     scrollElement: () => scrollerRef.current,

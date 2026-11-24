@@ -14,6 +14,8 @@ export interface OutlineItem {
   groupId?: string;
   /** A passage question answered only at a blank in the passage shows on the paper as that blank. */
   blankId?: string;
+  /** The number a question shows on the paper, counted or set by hand; absent where none is printed. */
+  number?: string;
   target?: unknown;
 }
 
@@ -25,6 +27,7 @@ export function outlinesEqual(current: OutlineItem[], next: OutlineItem[]): bool
       && item.label === candidate.label
       && item.level === candidate.level
       && item.kind === candidate.kind
+      && item.number === candidate.number
       && item.parentId === candidate.parentId
       && item.questionGroup === candidate.questionGroup
       && item.groupId === candidate.groupId
