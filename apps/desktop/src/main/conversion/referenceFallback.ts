@@ -220,14 +220,19 @@ function searchableText(text: string) {
   return (unnumbered.replace(/\s/g, "").length >= 4 ? unnumbered : part).slice(0, 40);
 }
 
+/** The question or sub-question a passage was put in against the number printed on it. */
+const movedTo = (concern: string) => concern.match(/不能移入第\s*(\S+?)\s*题/)?.[1];
+
 /** What a check found, in the words of someone looking at the paper. */
 function concernReason(concern: string, textOf: (ref: string) => string | undefined): string {
   const passage = () => quoted(textOf(concern.match(CONCERN_REF)?.[0] ?? ""));
-  const moved = concern.match(/不能移入第\s*(\S+?)\s*题/)?.[1];
+  const moved = movedTo(concern), from = concern.match(/属于第\s*(\S+?)\s*题(?:的小问\s*\((\S+?)\))?/);
   if (concern.includes("留在了题外")) return "没有整理成题目";
   if (concern.includes("已保留在原答案位置待核对")) return "答案没有归到题目里";
   if (concern.includes("答案印了两遍")) return "原稿印了两遍答案，请核对";
   if (concern.includes("两处答案不一致")) return "原稿两处答案不一致，请核对";
+  // Told at the question the passage went into, so it names where else it may belong.
+  if (moved && /^\d+$/.test(moved) && from) return `${passage()}可能属于第 ${from[1]} 题${from[2] ? `的小问 (${from[2]})` : ""}，请核对`;
   if (moved) return `${passage()}放在了第 ${moved} ${/^\d+$/.test(moved) ? "题" : "小问"}，请核对`;
   const heading = concern.match(/是标题，不能放入(答案|解析)/)?.[1];
   if (heading) return `标题${passage()}放进了${heading}，请核对`;
@@ -261,7 +266,9 @@ export function referenceFollowUp(input: PreparedImport, numbers: string[], conc
     const named = [...concern.matchAll(/第\s*(\d{1,3})(?:\s*[–～~-]\s*\d{1,3})?\s*[题空]/g)].map(match => match[1]);
     const owned = [...concern.matchAll(/(?<![\w-])[\w-]*source_[\w-]+/g)].flatMap(match => owner.get(match[0]) ?? []);
     const line = byRef.get(concern.match(CONCERN_REF)?.[0] ?? "");
-    for (const number of named.length ? named : owned) {
+    // A passage put in another question is looked at there, once, rather than also at the number printed on it.
+    const moved = movedTo(concern);
+    for (const number of moved && /^\d+$/.test(moved) ? [moved] : named.length ? named : owned) {
       if (!reasons.has(number) && line) located.set(number, line);
       note(number, concernReason(concern, ref => byRef.get(ref)?.text));
     }

@@ -162,6 +162,18 @@ describe("organizing what the agent left", () => {
     ]);
   });
 
+  it("tells a passage put in another question once, at the question it went into", () => {
+    const input = prepared(["40. 第四十题", "41. 第四十一题", "36. cleaner 37. her 38. the 39. herself 40. cheerful", "37. to make 42. so 43. are 44. on 45. wrote"]);
+    const doubt = "结构存疑（核对原稿后，确属这样可以保留）：原稿片段 source_4 属于第 37 题，不能移入第 41 题。请保留实际印刷题号，不按顺序或答案表改号。";
+    expect(referenceFollowUp(input, [], [doubt], [])!.items?.map(({ question, reason }) => ({ question, reason }))).toEqual([
+      { question: "41", reason: "原稿答案的题号印成了 37，请核对这题和第 37 题的答案" }
+    ]);
+    const plain = prepared(["5. 第五题", "这一段说明", "6. 第六题"]);
+    expect(referenceFollowUp(plain, [], ["原稿片段 source_2 属于第 5 题，不能移入第 6 题。这一段没有印刷题号。"], [])!.items).toEqual([
+      { question: "6", sourceText: "这一段说明", reason: "“这一段说明”可能属于第 5 题，请核对" }
+    ]);
+  });
+
   it("points to the first question when a passage was left outside a run of questions", () => {
     const input = prepared(["1. 一", "6. 二", "7. 三"]);
     const followUp = referenceFollowUp(input, [], ["第6–7题前有 45 段正文不在任何题目中，像是这几题共用的阅读材料：整理为一个题组。"], [])!;

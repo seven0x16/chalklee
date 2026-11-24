@@ -208,6 +208,15 @@
   outline-offset: 3px;
 }
 
+/* The place a conversion note points to (a question's blank in its passage), marked as a selected object is. */
+.chalklee-editor-content .chalklee-found-place {
+  border-radius: 2px;
+  outline: 2px solid rgb(var(--cm-theme-accent-rgb) / .42);
+  outline-offset: 2px;
+}
+#chalklee-print-root .chalklee-found-place { outline: none; }
+@media print { .chalklee-found-place { outline: none !important; } }
+
 .chalklee-question-object {
   --chalklee-question-padding-top: 0pt;
   --chalklee-question-padding-left: 0pt;

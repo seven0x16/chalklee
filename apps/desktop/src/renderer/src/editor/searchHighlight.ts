@@ -60,6 +60,14 @@ export function chalkLeeSearchHighlightTransaction(state: EditorState, questionI
     .setMeta("addToHistory", false);
 }
 
+/** Marks one inline object, such as the blank a passage question is answered at, until the teacher types or presses Esc. */
+export function chalkLeeNodeHighlightTransaction(state: EditorState, position: number | null): Transaction {
+  const node = position === null ? null : state.doc.nodeAt(position);
+  return state.tr.setMeta(chalkLeeSearchHighlightKey, node && position !== null
+    ? DecorationSet.create(state.doc, [Decoration.node(position, position + node.nodeSize, { class: "chalklee-found-place" })])
+    : DecorationSet.empty).setMeta("addToHistory", false);
+}
+
 /**
  * Search hits found through question search stay visible while the teacher
  * reads the question, follow structural edits, and disappear once they type

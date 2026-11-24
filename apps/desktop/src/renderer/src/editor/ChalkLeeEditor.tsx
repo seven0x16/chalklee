@@ -62,7 +62,7 @@ import { ChalkLeeImageAssistantBindingContext, ChalkLeeQuestionAssistantBindingC
 import { CHALKLEE_REGION_ASSISTANT_EVENT, type ChalkLeeRegionAssistantDetail } from "./regionAssistant";
 import { ChalkLeeFindBar } from "./ChalkLeeFindBar";
 import { ChalkLeeTableSizePicker } from "./ChalkLeeTableSizePicker";
-import { chalkLeeSearchHighlightTransaction } from "./searchHighlight";
+import { chalkLeeNodeHighlightTransaction, chalkLeeSearchHighlightTransaction } from "./searchHighlight";
 import type { AgentEditorRequest, AgentEditorSnapshot } from "../../../shared/agent/editing";
 import { chalkLeeAgentAppearanceTransaction, chalkLeeAgentContentTransaction, chalkLeeAgentDocumentTransaction, chalkLeeAgentQuestionTransaction, chalkLeeAgentRunStep, chalkLeeEndsAgentRun, type ChalkLeeAgentRun } from "./agentTransaction";
 import { chalkLeeDesignLayoutCss } from "./designLayout";
@@ -2025,9 +2025,18 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
         if (!id && matches) id = node.attrs.id;
         return !id;
       });
-      // A question answered at its blank has no height of its own; going to it as an outline item lands on the blank.
-      if (id) controller.goToOutline(id);
-      return !!id;
+      if (!id) return false;
+      // A question answered at its blank has no height of its own; going to it as an outline item lands on the blank,
+      // which is marked so it stands out in the passage around it.
+      const blankId = editor.state.doc.nodeAt(findChalkLeeQuestionContext(editor.state.doc, id)?.position ?? -1)?.attrs.sourceBlankId;
+      let blank: number | null = null;
+      if (typeof blankId === "string") editor.state.doc.descendants((node, position) => {
+        if (blank === null && node.type.name === "blank" && node.attrs.id === blankId) blank = position;
+        return blank === null;
+      });
+      controller.goToOutline(id);
+      editor.view.dispatch(chalkLeeNodeHighlightTransaction(editor.state, blank));
+      return true;
     },
     scrollElement: () => scrollerRef.current,
     goToOutline: (target) => {
