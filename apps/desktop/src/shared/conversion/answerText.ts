@@ -133,10 +133,12 @@ function expandAnswerGrids(blocks: ChalkLeeBlockNode[], expanded?: (ref: string,
 export function expandWordAnswerSources(blocks: ChalkLeeBlockNode[], expanded?: (ref: string, number?: string) => void, answerStarts = new Set<string>()): ChalkLeeBlockNode[] {
   let answerSection = false, answerRows = false;
   let scoringSection = false;
+  // Lines under an answer label, until a heading, an analysis or the next numbered question: a key may go on there.
+  let keyNearby = false;
   const rows = expandAnswerGrids(blocks, expanded), questionAnswers = wordQuestionAnswerLabels(rows);
   return rows.flatMap<ChalkLeeBlockNode>(block => {
     if (answerStarts.has(block.attrs.id)) { answerSection = true; scoringSection = false; }
-    if (questionAnswers.has(block.attrs.id)) { answerRows = false; return [block]; }
+    if (questionAnswers.has(block.attrs.id)) { answerRows = false; keyNearby = true; return [block]; }
     if (block.type !== "paragraph" && block.type !== "heading") return [block];
     const content = block.content ?? [];
     if (content.some(node => !["text", "mathInline", "imageInline"].includes(node.type))) return [block];
@@ -145,11 +147,17 @@ export function expandWordAnswerSources(blocks: ChalkLeeBlockNode[], expanded?: 
     if (isImportSampleHeading(text) || importSectionLabel(text)) scoringSection = false;
     if (answerSection && isImportScoringSection(text)) scoringSection = true;
     if (scoringSection) return [block];
-    if (wordAnalysisLabel.test(text)) { answerSection = answerRows = false; return [block]; }
-    if (block.type === "heading") { answerRows = false; return [block]; }
+    if (wordAnalysisLabel.test(text)) { answerSection = answerRows = keyNearby = false; return [block]; }
+    if (block.type === "heading") { answerRows = keyNearby = false; return [block]; }
     const label = text.match(wordAnswerLabel)?.[0] ?? (answerSection ? text.match(/^\s*(?:[·•-]\s*)?(?:[A-H]\s*篇|第[一二三四五六七八九十]+节)\s*[:：]\s*/)?.[0] : undefined) ?? "";
-    if (label) answerRows = true;
-    const entries = answerSection || answerRows ? compactImportAnswers(text.slice(label.length), true) : undefined;
+    if (label) answerRows = keyNearby = true;
+    let entries = answerSection || answerRows ? compactImportAnswers(text.slice(label.length), true) : undefined;
+    // "19. C　20. 而一经……" below the long answer of 18 still lists answers: no question opens with a choice letter.
+    if (!entries && !answerSection && !answerRows && keyNearby) {
+      const row = compactImportAnswers(text);
+      if (row && /^[A-H]+$/.test(row[0].text)) entries = row;
+      else if (/^\s*[（(]?\s*\d{1,3}\s*[.．、)）]/.test(text)) keyNearby = false;
+    }
     // Rows of a key run on line after line from its label. A label followed by its own answer ("【答案】B",
     // "【参考答案】观点：…") or a line that is not a row ends them: the next "15.下列…(3分)" is a question.
     if (!entries && answerRows && (!label || text.slice(label.length).trim())) answerRows = false;

@@ -31,6 +31,23 @@ describe("source-only compact answers", () => {
     }
     for (const text of ["请参考试卷答案", "不要抄写考试参考答案", "根据材料写出答案", "英语考试说明"]) expect(isImportAnswerHeading(text)).toBe(false);
   });
+  it("splits a row of two answers below the long answer that ended the label's rows", () => {
+    const paragraph = (id: string, text: string): ChalkLeeBlockNode => ({ type: "paragraph", attrs: { id }, content: [{ type: "text", text }] });
+    const blocks = [
+      paragraph("q18", "18. 文中第一段有三个含错别字的成语，请找出并改正。"),
+      paragraph("key", "【答案】18. “偷机取巧”改为“投机取巧”；“不甚枚举”改为“不胜"), paragraph("tail", "枚举”。"),
+      paragraph("row1", "19. C　20. 而一经诗人的加工创制，又成了不朽的名句。"),
+      paragraph("row2", "21. C　22. 示例：过去，有不少青年学子躲在象牙塔里；如今，我们结合所学投"), paragraph("tail2", "身社会。"),
+      paragraph("analysis", "【解析】"), paragraph("after", "1. A 2. B 不在答案旁，照原样保留")
+    ];
+    const result = expandWordAnswerSources(blocks);
+    expect(result.filter(block => /_answer_/.test(block.attrs.id)).map(block => [block.attrs.id, wordSourceText(block)])).toEqual([
+      ["row1_answer_19", "19. C"], ["row1_answer_20", "20. 而一经诗人的加工创制，又成了不朽的名句。"],
+      ["row2_answer_21", "21. C"], ["row2_answer_22", "22. 示例：过去，有不少青年学子躲在象牙塔里；如今，我们结合所学投"]
+    ]);
+    expect(result.find(block => block.attrs.id === "after")).toEqual(blocks.at(-1));
+  });
+
   it("expands consecutive ranges with exact counts and source offsets", () => {
     const line = "1–5 B C A D B\t6-10 ACCBD";
     const entries = compactImportAnswers(line)!;
