@@ -98,11 +98,17 @@ describe("search settings and credentials", () => {
     await addDeepSeekSearch("sk-model");
     expect((await getSearchSettings()).choice).toBe("off");
   });
-  it("supports the conversation model's built-in OpenAI Responses search and preserves that choice when companion services are added", async () => {
+  it("supports the conversation model's built-in OpenAI Responses search (including relays) and preserves that choice when companion services are added", async () => {
     expect(await chooseSearch("chat-model")).toEqual({ choice: "chat-model", configs: [] });
     expect(await searchCredentials(async () => ({
       provider: "openai", api: "openai-responses", baseUrl: "https://api.openai.com/v1", model: "gpt-6.1-sol", apiKey: "sk-openai"
     }))).toEqual({ provider: "openai-responses", baseUrl: "https://api.openai.com/v1", model: "gpt-6.1-sol", apiKey: "sk-openai" });
+    expect(await searchCredentials(async () => ({
+      provider: "openai-compatible", api: "openai-responses", baseUrl: "https://sub2api.example.com/v1", model: "gpt-6.1-sol", apiKey: "sk-sub2api"
+    }))).toEqual({ provider: "openai-responses", baseUrl: "https://sub2api.example.com/v1", model: "gpt-6.1-sol", apiKey: "sk-sub2api" });
+    await expect(searchCredentials(async () => ({
+      provider: "openai-compatible", api: "openai-completions", baseUrl: "https://sub2api.example.com/v1", model: "gpt-6.1-sol", apiKey: "sk-sub2api"
+    }))).rejects.toMatchObject({ settings: true, message: expect.stringContaining("不支持自带联网搜索") });
     await expect(searchCredentials(async () => ({
       provider: "deepseek", api: "openai-completions", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-flash", apiKey: "sk-ds"
     }))).rejects.toMatchObject({ settings: true, message: expect.stringContaining("不支持自带联网搜索") });

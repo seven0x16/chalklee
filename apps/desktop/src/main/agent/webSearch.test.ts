@@ -133,20 +133,34 @@ it("reads a Doubao page and distinguishes the target website's error from API au
 });
 
 describe("OpenAI Responses built-in web search", () => {
-  it("calls the Responses API web_search tool, collects cited and searched sources, and uses the model proxy transport", async () => {
-    const proxied = vi.fn(async () => Response.json({
-      output: [
-        { type: "web_search_call", action: { type: "search", sources: [{ title: "备选来源", url: "https://other.org/exam" }, { title: "重复移动版", url: "https://m.example.org/paper#top" }] } },
-        {
-          type: "message",
-          content: [{
-            type: "output_text",
-            text: "2025年深圳三模英语第12题原题整理如下。",
-            annotations: [{ type: "url_citation", title: "深圳三模", url: "https://example.org/paper" }]
-          }]
+  const sse = (events: Array<{ event?: string; data: unknown }>) => new Response(
+    events.map(({ event, data }) => `${event ? `event: ${event}\n` : ""}data: ${typeof data === "string" ? data : JSON.stringify(data)}\n\n`).join(""),
+    { status: 200, headers: { "Content-Type": "text/event-stream" } }
+  );
+
+  it("streams the Responses API web_search tool with list input, collects cited and searched sources, and uses the model proxy transport", async () => {
+    const proxied = vi.fn(async () => sse([
+      { event: "response.web_search_call.in_progress", data: { type: "response.web_search_call.in_progress" } },
+      {
+        event: "response.completed",
+        data: {
+          type: "response.completed",
+          response: {
+            output: [
+              { type: "web_search_call", action: { type: "search", sources: [{ title: "备选来源", url: "https://other.org/exam" }, { title: "重复移动版", url: "https://m.example.org/paper#top" }] } },
+              {
+                type: "message",
+                content: [{
+                  type: "output_text",
+                  text: "2025年深圳三模英语第12题原题整理如下。",
+                  annotations: [{ type: "url_citation", title: "深圳三模", url: "https://example.org/paper" }]
+                }]
+              }
+            ]
+          }
         }
-      ]
-    }));
+      }
+    ]));
     const fallback = vi.fn();
     const service = new WebSearchService(async () => ({
       provider: "openai-responses" as const, apiKey: "sk-openai", baseUrl: "https://api.openai.com/v1", model: "gpt-6.1-sol", fetch: proxied
@@ -154,15 +168,37 @@ describe("OpenAI Responses built-in web search", () => {
     const result = await service.run({ query: "深圳三模英语", count: 5 });
     expect(fallback).not.toHaveBeenCalled();
     expect(proxied).toHaveBeenCalledWith("https://api.openai.com/v1/responses", expect.objectContaining({
-      headers: { Authorization: "Bearer sk-openai", "Content-Type": "application/json" }
+      headers: expect.objectContaining({ Authorization: "Bearer sk-openai", "Content-Type": "application/json" })
     }));
-    const body = JSON.parse(String((proxied.mock.calls[0] as unknown[])[1] && ((proxied.mock.calls[0] as unknown[])[1] as RequestInit).body));
-    expect(body).toMatchObject({ model: "gpt-6.1-sol", store: false, tools: [{ type: "web_search" }], tool_choice: "required", include: ["web_search_call.action.sources"] });
+    const body = JSON.parse(String(((proxied.mock.calls[0] as unknown[])[1] as RequestInit).body));
+    expect(body).toMatchObject({
+      model: "gpt-6.1-sol", store: false, stream: true, tools: [{ type: "web_search" }], tool_choice: "auto", include: ["web_search_call.action.sources"],
+      input: [{ role: "user", content: [{ type: "input_text", text: expect.stringContaining("深圳三模英语") }] }]
+    });
     expect(result.summary).toBe("2025年深圳三模英语第12题原题整理如下。");
     expect(result.sources.map(item => ({ title: item.title, url: item.url }))).toEqual([
       { title: "深圳三模", url: "https://example.org/paper" },
       { title: "备选来源", url: "https://other.org/exam" }
     ]);
+  });
+
+  it("retries without include when a Responses relay rejects web_search_call.action.sources and assembles streamed items", async () => {
+    const request = vi.fn()
+      .mockResolvedValueOnce(Response.json({ error: { message: "Unsupported include parameter: web_search_call.action.sources" } }, { status: 400 }))
+      .mockResolvedValueOnce(sse([
+        { data: { type: "response.output_text.delta", delta: "来自中转站的检索结果。" } },
+        { data: { type: "response.output_text.annotation.added", annotation: { type: "url_citation", title: "真题来源", url: "https://relay.example.org/paper" } } },
+        { data: "[DONE]" }
+      ]));
+    const service = new WebSearchService(async () => ({
+      provider: "openai-responses" as const, apiKey: "sk-sub2api", baseUrl: "https://sub2api.example.com/v1", model: "gpt-6.1-sol"
+    }), request);
+    const result = await service.run({ query: "三模", count: 3 });
+    expect(request).toHaveBeenCalledTimes(2);
+    const secondBody = JSON.parse(String(((request.mock.calls[1] as unknown[])[1] as RequestInit).body));
+    expect(secondBody.include).toBeUndefined();
+    expect(result.summary).toBe("来自中转站的检索结果。");
+    expect(result.sources).toMatchObject([{ title: "真题来源", url: "https://relay.example.org/paper" }]);
   });
 
   it("rejects direct page reads and reports unsupported models cleanly", async () => {

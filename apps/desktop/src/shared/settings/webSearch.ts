@@ -32,9 +32,10 @@ export const SEARCH_BUILT_IN_LABELS: Record<string, string> = {
   [SEARCH_NONE]: "关闭",
   [SEARCH_CHAT_MODEL]: "AI 大模型"
 };
-/** Conversation models whose own API includes a hosted web search tool. */
+const RESPONSES_SEARCH_PROVIDERS = new Set(["openai", "openai-compatible", "custom"]);
+/** Conversation models whose Responses API may include a hosted web search tool (including relays like sub2api). */
 export function supportsBuiltInWebSearch(service: { provider?: string; api?: string } | undefined): boolean {
-  return service?.provider === "openai" && service.api === "openai-responses";
+  return Boolean(service?.provider && RESPONSES_SEARCH_PROVIDERS.has(service.provider) && service.api === "openai-responses");
 }
 
 export interface SearchConfigView {
