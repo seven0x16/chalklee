@@ -346,11 +346,12 @@
 
   .chalklee-toolbar-primary-row > em { display: none; }
 
-  .chalklee-toolbar-file-group button > span {
+  /* 只把工具栏上的按钮收成图标；导出和保存的弹出菜单也在这一组里，菜单项要保留文字 */
+  .chalklee-toolbar-file-group button:not(.app-select-menu button, .chalklee-save-popover button) > span {
     display: none;
   }
 
-  .chalklee-toolbar-file-group button {
+  .chalklee-toolbar-file-group button:not(.app-select-menu button, .chalklee-save-popover button) {
     width: var(--chalklee-toolbar-h);
     min-width: var(--chalklee-toolbar-h);
     padding: 0;
