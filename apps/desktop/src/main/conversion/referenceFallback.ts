@@ -128,6 +128,46 @@ export function settleNumberedChoices(input: PreparedImport, template: ChalkLeeD
   return draft;
 }
 
+/** "(4)", "（4）", "⑷": the number of a part printed under its question. */
+const partNumber = (number: unknown) => typeof number === "string" ? number.normalize("NFKC").match(/^\s*\(\s*(\d{1,2})\s*\)\s*$/)?.[1] : undefined;
+
+/**
+ * A part placed after its question as a question of its own: "【拓展运用】(4)…" after question 20 whose parts end at (3),
+ * as when the paper was organized in parts cut between them. It can only be that question's next part, so it moves in
+ * with the titles printed just before it. A section title, any other content between them, or a number that does not
+ * follow on leaves it where it is.
+ */
+export function settleStrandedParts(input: PreparedImport, template: ChalkLeeDocument, draft: AutonomousDraft): AutonomousDraft {
+  const entries = new Map(referenceSourceEntries(workingReferenceInput(input, draft.sourceRevisions)).map(entry => [entry.ref, entry]));
+  const fragments = new Map(draft.fragments.map(fragment => [fragment.key, structuredClone(fragment)]));
+  const moved = new Set<unknown>();
+  let parent: { fragment: AutonomousFragment; questions: any[] } | undefined, titles: any[] = [];
+  for (const fragment of [...fragments.values()].sort((a, b) => a.order - b.order || a.key.localeCompare(b.key))) for (const block of fragment.blocks as any[]) {
+    const number = block?.type === "question" ? partNumber(block.number) : undefined, last = partNumber(parent?.questions.at(-1)?.number);
+    const entry = typeof block?.ref === "string" ? entries.get(block.ref) : undefined;
+    if (parent && number && last && Number(number) === Number(last) + 1) {
+      const { type: _type, ...part } = block;
+      parent.questions.push({ ...part, stem: [...titles, ...(Array.isArray(block.stem) ? block.stem : [])] });
+      for (const ref of collectSourceRefs([...titles, block])) {
+        const unit = entries.get(ref)?.unitId;
+        if (unit && !parent.fragment.unitIds.includes(unit)) parent.fragment.unitIds.push(unit);
+      }
+      [...titles, block].forEach(item => moved.add(item)); titles = [];
+    } else if (parent && entry && (block.as === "heading" || block.as === undefined && entry.role === "heading") && !importSectionLabel(entry.text)) titles.push(block);
+    else if (["question", "questionGroup"].includes(block?.type) && Array.isArray(block.questions) && block.questions.length) { parent = { fragment, questions: block.questions }; titles = []; }
+    else { parent = undefined; titles = []; }
+  }
+  if (!moved.size) return draft;
+  const kept = draft.fragments.map(fragment => fragments.get(fragment.key)!).map(fragment => ({ ...fragment, blocks: fragment.blocks.filter(block => !moved.has(block)) })).filter(fragment => fragment.blocks.length);
+  const settled = { ...draft, fragments: kept, sourceChecks: draft.sourceChecks.map(check => ({ ...check, fragmentKeys: kept.filter(fragment => fragment.unitIds.includes(check.unitId)).map(fragment => fragment.key) })) };
+  try { assertImportDocument(compileAutonomousDraft(input, template, withOriginalParagraphs(input, settled), true).document); return settled; }
+  catch { return draft; }
+}
+
+/** What the program puts right before a draft is delivered, without retyping a word. */
+export const settleReferenceDraft = (input: PreparedImport, template: ChalkLeeDocument, draft: AutonomousDraft) =>
+  settleStrandedParts(input, template, settleNumberedChoices(input, template, draft));
+
 export interface ReferenceFill {
   draft: AutonomousDraft;
   /** Printed numbers the program turned into questions. */
@@ -148,7 +188,7 @@ export function organizeRemainingReferences(input: PreparedImport, template: Cha
     catch { return false; }
   };
   // An agent's draft that no longer compiles is left out, as the unfinished paper leaves it out.
-  const base = compiles(written) ? settleNumberedChoices(input, template, written) : { ...written, fragments: [] };
+  const base = compiles(written) ? settleReferenceDraft(input, template, written) : { ...written, fragments: [] };
   const known = new Set(compileAutonomousDraft(input, template, base, true).summary.mainQuestions);
   const entries = referenceSourceEntries(workingReferenceInput(input, base.sourceRevisions));
   const placed = new Set(base.fragments.flatMap(fragment => collectSourceRefs(fragment.blocks)));

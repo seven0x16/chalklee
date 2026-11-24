@@ -30,7 +30,7 @@ import { assignPdfSourceRoles } from "./pdfReferenceSource";
 import { pdfNativeCheckLines } from "./pdfNativeText";
 import { preserveImportPage } from "./draft";
 import { assemblyProgress, compileUnfinishedReferenceDraft, damagedContentIssues, keptConcerns, sourceLayoutLabels, structureConcerns } from "./referenceDraft";
-import { referenceFollowUp, settleNumberedChoices } from "./referenceFallback";
+import { referenceFollowUp, settleReferenceDraft } from "./referenceFallback";
 
 /** Source pixels and template are immutable. Copy editable state only so each
  * write remains atomic without duplicating every page's encoded image. */
@@ -471,9 +471,10 @@ export class ExternalImportService {
         }
         assignPdfSourceRoles(session.input.units); session.pdfSources!.ready = true;
       }
-      // As before ChalkLee AI delivers: loose "41. A. …" lines followed by B, C and D can only be a question.
+      // As before ChalkLee AI delivers: loose "41. A. …" lines followed by B, C and D can only be a question, and a "(4)" placed
+      // after its question whose parts end at (3) can only be its next part.
       if (!draft) {
-        const settled = settleNumberedChoices(session.input, session.template, session.draft);
+        const settled = settleReferenceDraft(session.input, session.template, session.draft);
         if (settled !== session.draft) { session.draft = settled; await this.store(session); }
       }
       const compiled = draft && session.input.units.every(unit => unit.nativeReferences)

@@ -10,7 +10,7 @@ import { assessAutonomousDraft, autonomousFragmentBlocks, autonomousIssueId, com
 import { referenceSourceEntries as sourceEntries, collectSourceRefs as collectRefs, sourceLayoutLabels, assemblyProgress, damagedContentIssues, keptConcerns, structureConcerns } from "./referenceDraft";
 export { compileUnfinishedReferenceDraft, withOriginalParagraphs } from "./referenceDraft";
 import { importNumberedFirstOption, importPunctuatedQuestionStart } from "../../shared/conversion/questionAnchors";
-import { settleNumberedChoices } from "./referenceFallback";
+import { settleReferenceDraft } from "./referenceFallback";
 import { runImportWithRecovery } from "./retry";
 import { appendSourceRevisions, SourceFragmentEditSchema, sourceImageHash, sourceRevisionChanges, workingReferenceInput } from "./referenceSources";
 import { importCropRect, pixelCropBox, type PixelBox } from "./crop";
@@ -241,7 +241,7 @@ export async function draftWithReferences(options: {
    * paper with those places marked. Where it only differs from the program's reading, it may keep its placement with a reason.
    */
   const deliveryProblem = async (): Promise<string | undefined> => {
-    draft = settleNumberedChoices(input, template, draft);
+    draft = settleReferenceDraft(input, template, draft);
     const state = status();
     if (state.missing.length) return `还有 ${state.missing.length} 段原稿没有写入：${state.missing.slice(0, 12).map(entry => `${entry.ref}（${entry.text.slice(0, 30)}）`).join("、")}`;
     if (options.preview) {

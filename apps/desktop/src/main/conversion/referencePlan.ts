@@ -1,4 +1,5 @@
 import { importSectionLabel, isImportAnswerHeading } from "../../shared/conversion/answerSource";
+import { importPunctuatedQuestionStart } from "../../shared/conversion/questionAnchors";
 import { runImportAgent, type ImportCallObserver, type ImportCredentials } from "./model";
 
 /**
@@ -25,7 +26,13 @@ export interface ReferencePlan {
 const PART_SIZE = 110;
 const MAX_PARTS = 6;
 
-const startsSection = (entry: PlanEntry) => entry.role === "heading" || Boolean(importSectionLabel(entry.text)) || entry.role !== "answer" && isImportAnswerHeading(entry.text);
+/** "【拓展运用】" before "(4)…": a title printed inside a question; a part cut there leaves the question's last parts to the next one. */
+const titleInQuestion = (entry: PlanEntry, next: PlanEntry | undefined) => /^\s*【[^【】]{1,12}】\s*$/.test(entry.text)
+  && !(next && (next.role === "heading" || importSectionLabel(next.text) || importPunctuatedQuestionStart(next.text)));
+const startsSection = (entries: PlanEntry[], index: number) => {
+  const entry = entries[index];
+  return entry.role === "heading" && !titleInQuestion(entry, entries[index + 1]) || Boolean(importSectionLabel(entry.text)) || entry.role !== "answer" && isImportAnswerHeading(entry.text);
+};
 const startsQuestion = (entry: PlanEntry, previous: PlanEntry | undefined) =>
   entry.role === "body" && entry.questionNumber !== undefined && entry.questionNumber !== previous?.questionNumber;
 
@@ -40,7 +47,7 @@ export function referencePlanRanges(entries: PlanEntry[]): { from: number; to: n
     const target = Math.round(entries.length * part / parts), window = Math.floor(entries.length / parts / 2);
     let best: number | undefined, bestScore = Infinity;
     for (let index = Math.max(cuts.at(-1)! + 1, target - window); index <= Math.min(entries.length - 1, target + window); index++) {
-      const kind = startsSection(entries[index]) ? 0 : startsQuestion(entries[index], entries[index - 1]) ? 1 : undefined;
+      const kind = startsSection(entries, index) ? 0 : startsQuestion(entries[index], entries[index - 1]) ? 1 : undefined;
       if (kind === undefined) continue;
       const score = kind * window + Math.abs(index - target);
       if (score < bestScore) { best = index; bestScore = score; }
@@ -55,7 +62,7 @@ function splitPoint(entries: PlanEntry[], range: { from: number; to: number }): 
   const target = Math.floor((range.from + range.to) / 2), window = Math.floor((range.to - range.from) / 4);
   let best = target, bestScore = Infinity;
   for (let index = Math.max(range.from + 1, target - window); index <= Math.min(range.to - 1, target + window); index++) {
-    const kind = startsSection(entries[index]) ? 0 : startsQuestion(entries[index], entries[index - 1]) ? 1 : undefined;
+    const kind = startsSection(entries, index) ? 0 : startsQuestion(entries[index], entries[index - 1]) ? 1 : undefined;
     if (kind === undefined) continue;
     const score = kind * window + Math.abs(index - target);
     if (score < bestScore) { best = index; bestScore = score; }

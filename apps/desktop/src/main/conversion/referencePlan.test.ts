@@ -25,6 +25,16 @@ describe("reference plan parts", () => {
     expect(ranges[0].to).toBe(ranges[1].from);
   });
 
+  it("does not cut at a title printed inside a question, such as 【拓展运用】 before its (4)", () => {
+    const entries = paper(220, [125]);
+    entries[109] = { ref: "s109", text: "【拓展运用】", role: "heading" };
+    entries[110] = { ref: "s110", text: "(4)如图4，求比值.", role: "body" };
+    expect(referencePlanRanges(entries)[1].from).toBe(125);
+    // The same brackets over a run of questions are a section of the paper.
+    entries[110] = { ref: "s110", text: "1. 计算.", role: "body", questionNumber: "1" };
+    expect(referencePlanRanges(entries)[1].from).toBe(109);
+  });
+
   it("does not ask again or in halves when the service itself fails", async () => {
     vi.mocked(runImportAgent).mockReset().mockRejectedValue(new Error('402: {"message":"Insufficient Balance"}'));
     const plan = await planReferenceFragments({ entries: paper(100, [48]), source: "原文", sourceName: "试卷", systemPrompt: "", credentials: { baseUrl: "", model: "m", apiKey: "k" }, signal: new AbortController().signal });

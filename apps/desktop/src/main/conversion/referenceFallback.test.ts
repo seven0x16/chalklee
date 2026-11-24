@@ -6,7 +6,7 @@ import { wordSourceEntries } from "../../shared/conversion/wordSource";
 import { assessAutonomousDraft, compileAutonomousDraft, newAutonomousDraft } from "./autonomous/state";
 import { makeDocument } from "./documentImport";
 import { compileUnfinishedReferenceDraft } from "./referenceDraft";
-import { organizeRemainingReferences, referenceFollowUp, settleNumberedChoices } from "./referenceFallback";
+import { organizeRemainingReferences, referenceFollowUp, settleNumberedChoices, settleStrandedParts } from "./referenceFallback";
 
 const paragraphs = (texts: string[]) => texts.map((text, index) => ({ type: "paragraph", attrs: { id: `source_${index + 1}` }, content: [{ type: "text", text }] })) as ChalkLeeBlockNode[];
 const prepared = (texts: string[]): PreparedImport => {
@@ -127,6 +127,49 @@ describe("organizing what the agent left", () => {
       const notes = prepared(["1. A. 这是说明", "这一行不是选项"]);
       const draft = { ...newAutonomousDraft(), seenUnits: ["part_1"], fragments: [{ key: "notes", order: 0, unitIds: ["part_1"], continuesPrevious: false, warnings: [], blocks: [{ ref: "source_1" }, { ref: "source_2" }] }] };
       expect(settleNumberedChoices(notes, template(notes), draft as any)).toBe(draft);
+    });
+  });
+
+  describe("a part placed after its question", () => {
+    const lines = ["20. 探究矩形内互相垂直的线段。", "(1) 正方形中求比值；", "(2) 矩形中求证；", "(3) 折叠后求折痕长；", "【拓展运用】", "(4) 四边形中求比值。", "21. 下一题。", "【答案】(1) 1 (4) 4/5"];
+    const paper = () => {
+      const input = prepared(lines), unit = input.units[0];
+      unit.blocks[4] = { ...unit.blocks[4], type: "heading", attrs: { ...unit.blocks[4].attrs, level: 3 } } as ChalkLeeBlockNode;
+      unit.sourceRoles = { ...unit.sourceRoles, source_5: "heading" };
+      return input;
+    };
+    const fragment = (key: string, order: number, blocks: unknown[]) => ({ key, order, unitIds: ["part_1"], continuesPrevious: false, warnings: [], blocks });
+    const question20 = fragment("q20", 0, [{ type: "question", number: "20", kind: "composite", stem: [{ ref: "source_1", stripPrefix: "20." }],
+      questions: [2, 3, 4].map(at => ({ number: `(${at - 1})`, kind: "free-response", stem: [{ ref: `source_${at}`, stripPrefix: `(${at - 1})` }] })) }]);
+    const draft = (stranded: unknown[]) => ({ ...newAutonomousDraft(), seenUnits: ["part_1"], sourceChecks: [{ unitId: "part_1", fragmentKeys: ["q20", "q20-2", "q21"], questionNumbers: [], note: "按片段来源自动统计" }], fragments: [
+      question20, fragment("q20-2", 4, stranded), fragment("q21", 6, [{ type: "question", number: "21", kind: "free-response", stem: [{ ref: "source_7", stripPrefix: "21." }] }])
+    ] });
+    const title = { ref: "source_5", as: "heading", level: 3 }, part4 = { type: "question", number: "(4)", kind: "free-response", stem: [{ ref: "source_6", stripPrefix: "(4)" }] };
+
+    it("becomes its next part, with the title printed before it", () => {
+      const input = paper(), base = template(input);
+      const settled = settleStrandedParts(input, base, draft([title, part4]) as any);
+      expect(settled.fragments.map(fragment => fragment.key)).toEqual(["q20", "q21"]);
+      expect(settled.sourceChecks[0].fragmentKeys).toEqual(["q20", "q21"]);
+      const [group, next] = questions(compileAutonomousDraft(input, base, settled).document);
+      const parts = group.content.find((region: any) => region.type === "subQuestionList").content;
+      expect(parts.map((part: any) => part.attrs.number.label)).toEqual(["(1)", "(2)", "(3)", "(4)"]);
+      expect(importText(parts[3])).toMatch(/拓展运用[\s\S]*四边形中求比值/);
+      expect(next.attrs.number.label).toBe("21");
+      // What else its fragment holds stays there: the answer still finds question 20.
+      const withAnswer = settleStrandedParts(input, base, draft([title, part4, { type: "answerEntry", number: "20", answer: [{ ref: "source_8", stripPrefix: "【答案】" }] }]) as any);
+      expect(withAnswer.fragments.map(fragment => fragment.key)).toEqual(["q20", "q20-2", "q21"]);
+      const [answered] = questions(compileAutonomousDraft(input, base, withAnswer).document);
+      expect(answered.content.find((region: any) => region.type === "subQuestionList").content).toHaveLength(4);
+      expect(importText(answered.content.find((region: any) => region.type === "questionAnswer"))).toContain("4/5");
+    });
+
+    it("stays where it is when its number does not follow on or something else stands between", () => {
+      const input = paper(), base = template(input);
+      const skipped = draft([title, { ...part4, number: "(5)" }]);
+      expect(settleStrandedParts(input, base, skipped as any)).toBe(skipped);
+      const between = draft([{ ref: "source_5", as: "paragraph" }, part4]);
+      expect(settleStrandedParts(input, base, between as any)).toBe(between);
     });
   });
 
