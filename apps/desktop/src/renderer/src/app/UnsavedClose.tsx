@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ImportDialog } from "../conversion/SingleImport";
 import { readChalkLeeAutoSavePreference } from "../editor/autoSave";
+import { flushQuestionCardEdit, hasQuestionCardEdit, subscribeQuestionCardEdit } from "../questionBank/questionCardEdits";
 import { prepareWorkspaceEditors } from "../workspace/editorSessions";
 import type { OpenTab } from "./tabs";
 
@@ -25,11 +26,14 @@ export function useUnsavedClose(tabs: readonly OpenTab[]) {
   const [prompt, setPrompt] = useState<{ saving: boolean; error: string | null } | null>(null);
   const promptRef = useRef(prompt);
   promptRef.current = prompt;
+  // A question open on its library card counts too; it is saved before anything is asked.
+  const cardEditing = useSyncExternalStore(subscribeQuestionCardEdit, hasQuestionCardEdit);
   const unsaved = tabs.some(tab => tab.dirty);
 
-  useEffect(() => { window.chalkLee.reportUnsavedChanges(unsaved); }, [unsaved]);
+  useEffect(() => { window.chalkLee.reportUnsavedChanges(unsaved || cardEditing); }, [unsaved, cardEditing]);
 
   const savingRef = useRef(false);
+  const flushingRef = useRef(false);
   const answer = (proceed: boolean) => { setPrompt(null); window.chalkLee.answerCloseRequest(proceed); };
   /** Shown saves keep the question open with its progress; a failure stays in it for the teacher to decide. */
   const save = async (shown: boolean) => {
@@ -42,10 +46,20 @@ export function useUnsavedClose(tabs: readonly OpenTab[]) {
   };
 
   useEffect(() => window.chalkLee.onCloseRequest(() => {
-    if (promptRef.current || savingRef.current) return;
-    if (!tabsRef.current.some(tab => tab.dirty)) window.chalkLee.answerCloseRequest(true);
-    else if (readChalkLeeAutoSavePreference()) void save(false);
-    else setPrompt({ saving: false, error: null });
+    if (promptRef.current || savingRef.current || flushingRef.current) return;
+    const decide = () => {
+      if (!tabsRef.current.some(tab => tab.dirty)) window.chalkLee.answerCloseRequest(true);
+      else if (readChalkLeeAutoSavePreference()) void save(false);
+      else setPrompt({ saving: false, error: null });
+    };
+    if (!hasQuestionCardEdit()) { decide(); return; }
+    flushingRef.current = true;
+    void flushQuestionCardEdit().then(saved => {
+      flushingRef.current = false;
+      // The card stays open and says why it could not save.
+      if (saved) decide();
+      else window.chalkLee.answerCloseRequest(false);
+    });
   }), []);
 
   // Auto-save may finish the last document while the question is open: nothing is left to decide.

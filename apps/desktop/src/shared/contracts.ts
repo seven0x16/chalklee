@@ -6,6 +6,7 @@ import type { AboutInfo, McpSettingsView } from "./settings/app";
 import type { ConversionBatchAction, ConversionPreparationReply, ConversionPreparationRequest, ConversionTask, StartConversionRequest } from "./conversion/tasks";
 import type { AgentEditorReply, AgentEditorRequest } from "./agent/editing";
 import type { QuestionTagTree } from "./questionBank/tagTree";
+import type { QuestionContentNode, QuestionContentSaveResult, QuestionForEdit } from "./questionBank/contentEdit";
 import type { QuestionAttributePatch, QuestionAttributeSaveResult, QuestionAttributeUndoResult, QuestionBankChange, QuestionBankEntry, QuestionBankOverview, QuestionBankSearchRequest, QuestionBankSearchResponse, QuestionBasketItem, QuestionBasketReference, QuestionSnapshot, QuestionThumbnail } from "./questionBank/search";
 import type { DocumentVersions } from "./document/versions";
 import type { InstalledPlugin, PluginManifest, PluginReview } from "./plugins/manifest";
@@ -360,6 +361,11 @@ export interface ChalkLeeDesktopApi {
   /** Saves on every copy of the question that disagrees; several papers changed come back with an undo. */
   updateQuestionAttributes(path: string, questionId: string, attrs: QuestionAttributePatch): Promise<QuestionAttributeSaveResult>;
   undoQuestionAttributes(undoId: string): Promise<QuestionAttributeUndoResult>;
+  /** A question as its document holds it now, unsaved edits included, for editing on its library card. */
+  readQuestionForEdit(path: string, questionId: string): Promise<QuestionForEdit>;
+  /** Saves a card's edit to its document and to the copies that read the same; `before` is what was opened. */
+  saveQuestionContent(path: string, questionId: string, before: QuestionContentNode, after: QuestionContentNode): Promise<QuestionContentSaveResult>;
+  undoQuestionContent(undoId: string): Promise<QuestionAttributeUndoResult>;
   /** The question library's tag groups for the open workspace. */
   readQuestionTagTree(): Promise<QuestionTagTree>;
   /** Saves the tag groups; resolves with the tree as stored (normalized). */

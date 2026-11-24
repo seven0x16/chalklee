@@ -60,7 +60,24 @@ export function QuestionBankText({ text, highlight, formatFormulas = true }: { t
   })}</>;
 }
 
-type Node = { type?: string; text?: string; attrs?: Record<string, any>; marks?: Array<{ type: string }>; content?: Node[] };
+type Node = { type?: string; text?: string; attrs?: Record<string, any>; marks?: Array<{ type: string; attrs?: Record<string, any> }>; content?: Node[] };
+
+const NEAR_BLACK = /^(#0{3}(0{3})?|black|rgb\(0,\s*0,\s*0\))$/i;
+/** The look a text run carries on the paper. Plain black follows the card, so it stays readable in dark appearance. */
+function textRunStyle(attrs: Record<string, any> | undefined, bodySizePt: number | undefined): CSSProperties {
+  const style: CSSProperties = {};
+  if (attrs?.fontFamily) style.fontFamily = String(attrs.fontFamily);
+  if (attrs?.fontWeight === "normal") style.fontWeight = 400;
+  if (attrs?.fontSizePt && bodySizePt) style.fontSize = `${Number(attrs.fontSizePt) / bodySizePt}em`;
+  if (attrs?.color && !NEAR_BLACK.test(String(attrs.color))) style.color = String(attrs.color);
+  if (attrs?.backgroundColor) { style.backgroundColor = String(attrs.backgroundColor); style.color ??= "#000"; }
+  return style;
+}
+const pt = (value: unknown) => typeof value === "number" && value !== 0 ? `${value}pt` : undefined;
+const blockStyle = (attrs: Record<string, any> | undefined): CSSProperties => ({
+  textAlign: attrs?.textAlign ?? undefined, paddingLeft: pt(attrs?.indentLeftPt), paddingRight: pt(attrs?.indentRightPt), textIndent: pt(attrs?.firstLineIndentPt)
+});
+const figureAlign = (align: unknown) => align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
 
 const region = (node: Node, type: string) => node.content?.find(child => child.type === type);
 const plainLength = (node: Node | undefined): number => !node ? 0 : node.type === "text" ? (node.text ?? "").length
@@ -73,7 +90,14 @@ function questionNumber(node: Node, ordinal: number) {
   return String(ordinal);
 }
 
-/** Read-only rendering of a saved question, close to the paper but compact enough for the sidebar. */
+function tableColumns(table: Node) {
+  const widths = Array.isArray(table.attrs?.columnWidthsPt) ? table.attrs!.columnWidthsPt.map(Number) as number[] : [];
+  const total = widths.reduce((sum, width) => sum + width, 0);
+  if (!total || widths.some(width => !Number.isFinite(width) || width <= 0)) return null;
+  return <colgroup>{widths.map((width, index) => <col key={index} style={{ width: `${width / total * 100}%` }} />)}</colgroup>;
+}
+
+/** Read-only rendering of a saved question: the paper's type, formats, figures, tables and option layout, without its page layout. */
 export function QuestionSnapshotView({ snapshot: preview, highlight, showSolutions }: { snapshot: QuestionSnapshot; highlight: QuestionBankHighlight; showSolutions: QuestionSolutionVisibility }) {
   const [loaded, setLoaded] = useState<{ preview: QuestionSnapshot; full: QuestionSnapshot | null }>();
   const requested = useRef<{ preview: QuestionSnapshot; promise: Promise<QuestionSnapshot | null> }>();
@@ -110,11 +134,14 @@ export function QuestionSnapshotView({ snapshot: preview, highlight, showSolutio
           else if (mark.type === "strike") content = <s>{content}</s>;
           else if (mark.type === "superscript") content = <sup>{content}</sup>;
           else if (mark.type === "subscript") content = <sub>{content}</sub>;
+          else if (mark.type === "textStyle") content = <span style={textRunStyle(mark.attrs, snapshot.paper?.fontSizePt)}>{content}</span>;
+          // Reads as a link, as on the paper, without leaving the app from a list of questions.
+          else if (mark.type === "link") content = <span className="question-bank-link-text" title={String(mark.attrs?.href ?? "")}>{content}</span>;
         }
         return <Fragment key={index}>{content}</Fragment>;
       }
       case "mathInline": return <Formula key={index} latex={String(node.attrs?.latex ?? "")} highlight={highlight} />;
-      case "blank": return <span key={index} className="question-bank-blank">{node.attrs?.label ? `(${node.attrs.label})` : ""}</span>;
+      case "blank": return <span key={index} className="question-bank-blank" style={{ width: `${Number(node.attrs?.widthPt ?? 72)}pt` }}>{node.attrs?.label ?? ""}</span>;
       case "hardBreak": return <br key={index} />;
       case "imageInline": return image(node, index, true);
       default: return <Fragment key={index}>{inline(node.content)}</Fragment>;
@@ -132,19 +159,27 @@ export function QuestionSnapshotView({ snapshot: preview, highlight, showSolutio
       urls.set(urlKey, url);
     }
     const widthPt = Number(node.attrs?.widthPt);
-    const style = (Number.isFinite(widthPt) && widthPt > 0 ? { "--question-image-width": `${Math.round(widthPt * 4 / 3)}px` } : {}) as CSSProperties;
+    const sized = Number.isFinite(widthPt) && widthPt > 0;
+    const style = (sized ? { "--question-image-width": `${Math.round(widthPt * 4 / 3)}px`, width: `${Math.round(widthPt * 4 / 3)}px`, ...(inlineImage ? { maxHeight: "none" } : {}) } : {}) as CSSProperties;
     return <img key={key} className={inlineImage ? "question-bank-image inline" : "question-bank-image"} src={url} alt={String(node.attrs?.alt ?? "题目配图")} style={style} draggable={false} />;
   }
 
-  const blocks = (nodes: Node[] | undefined): ReactNode => (nodes ?? []).map((node, index) => {
+  const blocks = (nodes: Node[] | undefined): ReactNode => {
+    let listNumber = 0;
+    return (nodes ?? []).map((node, index) => {
+    const listType = node.type === "paragraph" ? node.attrs?.listType : undefined;
+    if (listType === "ordered") listNumber = nodes![index - 1]?.attrs?.listType === "ordered" ? listNumber + 1 : Number(node.attrs?.listStart ?? 1);
     switch (node.type) {
-      case "paragraph": case "heading": return <p key={index}>{inline(node.content)}</p>;
-      case "blockMath": return <div key={index} className="question-bank-math-row"><Formula latex={String(node.attrs?.latex ?? "")} highlight={highlight} block /></div>;
-      case "image": return <div key={index} className="question-bank-figure">{image(node, index)}</div>;
-      case "graphic": return <div key={index} className="question-bank-figure"><img className="question-bank-image" src={chalkLeeGraphicPicture(String(node.attrs?.svg ?? ""))}
+      case "paragraph": return <p key={index} style={blockStyle(node.attrs)} className={listType ? "question-bank-list-item" : undefined}>
+        {listType ? <span className="question-bank-list-mark">{listType === "ordered" ? `${listNumber}.` : "•"}</span> : null}{inline(node.content)}
+      </p>;
+      case "heading": return <p key={index} className="question-bank-heading" style={blockStyle(node.attrs)}>{inline(node.content)}</p>;
+      case "blockMath": return <div key={index} className="question-bank-math-row" style={{ textAlign: node.attrs?.textAlign ?? "center" }}><Formula latex={String(node.attrs?.latex ?? "")} highlight={highlight} block /></div>;
+      case "image": return <div key={index} className="question-bank-figure" style={{ justifyContent: figureAlign(node.attrs?.textAlign) }}>{image(node, index)}</div>;
+      case "graphic": return <div key={index} className="question-bank-figure" style={{ justifyContent: figureAlign(node.attrs?.textAlign) }}><img className="question-bank-image" src={chalkLeeGraphicPicture(String(node.attrs?.svg ?? ""))}
         alt={String(node.attrs?.alt ?? node.attrs?.caption ?? "图形")} style={{ "--question-image-width": `${Number(node.attrs?.widthPercent ?? 100) * 4}px` } as CSSProperties} draggable={false} /></div>;
       case "table": return (
-        <div key={index} className="question-bank-table"><table><tbody>{(node.content ?? []).map((row, rowIndex) => (
+        <div key={index} className="question-bank-table"><table style={node.attrs?.widthPt ? { width: `${node.attrs.widthPt}pt`, maxWidth: "100%" } : undefined}>{tableColumns(node)}<tbody>{(node.content ?? []).map((row, rowIndex) => (
           <tr key={rowIndex}>{(row.content ?? []).map((cell, cellIndex) => (
             <td key={cellIndex} colSpan={cell.attrs?.colspan ?? undefined} rowSpan={cell.attrs?.rowspan ?? undefined}>{blocks(cell.content)}</td>
           ))}</tr>
@@ -155,7 +190,8 @@ export function QuestionSnapshotView({ snapshot: preview, highlight, showSolutio
       case "pageBreak": return null;
       default: return <Fragment key={index}>{blocks(node.content)}</Fragment>;
     }
-  });
+    });
+  };
 
   const options = (group: Node | undefined) => {
     const items = group?.content ?? [];
@@ -193,7 +229,8 @@ export function QuestionSnapshotView({ snapshot: preview, highlight, showSolutio
     </>;
   };
 
-  return <div className="question-bank-rich">{question(snapshot.node as Node)}</div>;
+  const paperType = snapshot.paper?.fontFamilies.length ? { fontFamily: snapshot.paper.fontFamilies.join(", ") } : undefined;
+  return <div className="question-bank-rich" style={paperType}>{question(snapshot.node as Node)}</div>;
 }
 
 /** The saved question read fresh from disk, answers and analysis folded; `children` adds actions below. */

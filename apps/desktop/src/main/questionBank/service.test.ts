@@ -62,7 +62,7 @@ describe("question bank background service", () => {
     await index.update(path.join(root, "试卷.chalklee"));
     await index.dispose();
     const cache = JSON.parse(await readFile(path.join(root, ".chalklee", "question-bank", "index.json"), "utf8"));
-    expect(cache).toMatchObject({ version: 8, documents: [{ entries: [{ questionId: "q1", stem: "等差数列的新内容" }] }] });
+    expect(cache).toMatchObject({ version: 10, documents: [{ entries: [{ questionId: "q1", stem: "等差数列的新内容" }] }] });
     services.splice(services.indexOf(index), 1);
     const reopened = service();
     await reopened.open(root, (await scanWorkspace(root)).root);

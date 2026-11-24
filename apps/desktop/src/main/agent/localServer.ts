@@ -26,6 +26,7 @@ const browserChannels = new Set([
   "document:read", "document:html-page-url", "document:write", "document:open-in-app", "document:create-chalklee", "workspace:create-directory", "chalklee:choose-image", "chalklee:export-pdf", "chalklee:export-docx",
   "question-bank:search", "question-bank:overview", "question-bank:snapshot", "question-bank:thumbnail", "question-bank:entry", "question-basket:read", "question-basket:write",
   "question-tags:read", "question-tags:write", "question-bank:update-question", "question-bank:undo-question-edit",
+  "question-bank:read-for-edit", "question-bank:update-content", "question-bank:undo-content-edit",
   "box-styles:list", "box-styles:save", "box-styles:rename", "box-styles:delete"
 ]);
 const contentTypes: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf" };

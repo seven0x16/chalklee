@@ -5,7 +5,7 @@ import { lstat, readdir, readFile, realpath, rm, rmdir, writeFile } from "node:f
 import path from "node:path";
 import JSZip from "jszip";
 import { parseWord, type WordBlock } from "@chalklee/word";
-import { chalkLeeOwnAppearanceItems, chalkLeePageDecorationArea, chalkLeePageSize, createChalkLeeArchive, normalizeChalkLeeDocument, readChalkLeeArchive, validateChalkLeeSemantics, type ChalkLeeArchiveAssetInput } from "@chalklee/format";
+import { chalkLeeOwnAppearanceItems, chalkLeePageDecorationArea, chalkLeePageSize, createChalkLeeArchive, normalizeChalkLeeDocument, readChalkLeeArchive, readChalkLeeArchiveMetadata, validateChalkLeeSemantics, type ChalkLeeArchiveAssetInput } from "@chalklee/format";
 import { assertImportDocument, validatedImportArchive } from "../../shared/conversion/importDocument";
 import { agentDocumentRevision, agentQuestionInventory, patchAgentQuestions, type AgentTextSnapshot, type AgentEditorSnapshot, type AgentQuestionEdit } from "../../shared/agent/editing";
 import type { AgentEditorBridge } from "./editorBridge";
@@ -28,7 +28,8 @@ import { questionReviewNotices } from "../../shared/conversion/questionReview";
 import type { PreviewView, SourcePages } from "../conversion/previewHost";
 import { chalkLeeFixedNumberRunsAfterEdit, chalkLeeSequentialNumbersAsAuto } from "../../shared/document/numbering";
 import type { DocumentOutputOptions } from "../../shared/document/output";
-import { questionAttributeValues, questionAttributesOf, questionCopyPatch, type QuestionAttributeChange, type QuestionCopyEdit } from "../../shared/questionBank/search";
+import { questionAttributeValues, questionAttributesOf, questionCopyPatch, questionPaperName, type QuestionAttributeChange, type QuestionCopyEdit } from "../../shared/questionBank/search";
+import { editedQuestionNode, questionContentKey, questionCopyWithEdit, questionFaceKey, type QuestionContentChange, type QuestionContentNode, type QuestionForEdit } from "../../shared/questionBank/contentEdit";
 
 /** Picture sources available for an edit besides PDF pages in the workspace. */
 export interface ImagePictures { attachment?: AgentImageSources["attachment"]; outside?: boolean }
@@ -454,6 +455,104 @@ export class AgentWorkspaceService {
       const node = agentQuestionInventory(document).find(question => question.id === change.questionId)?.node;
       if (!node || JSON.stringify(questionAttributesOf(questionAttributeValues(node.attrs), change.after)) !== JSON.stringify(change.after)) { left.kept = true; return document; }
       return patchAgentQuestions(document, [{ questionId: change.questionId, patch: { attrs: change.before } }]);
+    }, [change.questionId]);
+    return { ...result, kept: left.kept };
+  }
+  /** Each picture's hash in a saved document, so a copy's pictures can be recognized by what they show. */
+  private async assetHashes(candidate: string): Promise<Map<string, string>> {
+    const { manifest } = await readChalkLeeArchiveMetadata(await readFile((await this.entry(candidate)).path));
+    return new Map(manifest.assets.map(asset => [asset.id, asset.sha256]));
+  }
+  /** A question as its document holds it now, unsaved edits included, with how many documents an edit to it reaches. */
+  readQuestionForEdit(candidate: string, questionId: string, copies: ReadonlyArray<{ path: string; questionId: string }> = []) {
+    return this.run(async (): Promise<QuestionForEdit> => {
+      const current = await this.currentDocument(candidate, undefined, true);
+      const found = agentQuestionInventory(current.document).find(question => question.id === questionId);
+      if (!found) throw new Error("题目已不存在，请重新搜索。");
+      const node = structuredClone(found.node) as QuestionContentNode;
+      const ids = new Set<string>();
+      const collect = (part: QuestionContentNode) => { if (part.attrs?.assetId) ids.add(String(part.attrs.assetId)); part.content?.forEach(collect); };
+      collect(node);
+      const live = new Map(current.assets?.map(asset => [asset.id, asset]));
+      const assets = [...ids].flatMap(id => {
+        const liveAsset = live.get(id), saved = current.archive.manifest.assets.find(asset => asset.id === id);
+        const source = liveAsset ? Buffer.from(liveAsset.dataBase64, "base64") : saved ? current.archive.assets[id] : undefined;
+        const described = liveAsset ?? saved;
+        if (!source || !described) return [];
+        return [{ id, path: described.path, mediaType: described.mediaType, data: source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength) as ArrayBuffer }];
+      });
+      const hashes = new Map(current.archive.manifest.assets.map(asset => [asset.id, asset.sha256]));
+      const face = questionFaceKey(node, hashes);
+      let syncPapers = 1;
+      for (const copy of copies) {
+        if (copy.path === current.info.path && copy.questionId === questionId) continue;
+        try {
+          const other = await this.currentDocument(copy.path);
+          const otherNode = agentQuestionInventory(other.document).find(question => question.id === copy.questionId)?.node;
+          const otherHashes = new Map(other.archive.manifest.assets.map(asset => [asset.id, asset.sha256]));
+          if (otherNode && questionFaceKey(otherNode as QuestionContentNode, otherHashes) === face) syncPapers++;
+        } catch { /* A copy that cannot be read is reported when saving. */ }
+      }
+      const { provenance: _provenance, ...shell } = current.document;
+      return { path: current.info.path, questionId, node, assets, syncPapers,
+        document: { ...shell, content: { ...current.document.content, content: [found.node] } } as ChalkLeeDocument };
+    });
+  }
+  /**
+   * A question edited in the library, saved to its own document and then to the copies that read the same. A failure
+   * on the edited document changes nothing; a later one keeps what was saved and names the documents left out.
+   */
+  async saveQuestionContent(edit: { path: string; questionId: string; before: QuestionContentNode; after: QuestionContentNode }, copies: ReadonlyArray<{ path: string; questionId: string }>) {
+    const sourceHashes = await this.assetHashes(edit.path);
+    const replace = (node: QuestionContentNode, next: QuestionContentNode) => { node.attrs = next.attrs; node.content = next.content; };
+    const changes: QuestionContentChange[] = [], different: string[] = [], failed: string[] = [];
+    let error: string | null = null;
+    const own: { before?: QuestionContentNode; after?: QuestionContentNode } = {};
+    const saved = await this.updateDocument(edit.path, undefined, document => {
+      const node = agentQuestionInventory(document).find(question => question.id === edit.questionId)?.node as QuestionContentNode | undefined;
+      if (!node) throw new Error("题目已不存在，请重新搜索。");
+      if (questionContentKey(node, sourceHashes) !== questionContentKey(edit.before, sourceHashes)) throw new Error("这道题已在别处修改，请重新打开编辑。");
+      own.before = structuredClone(node);
+      own.after = structuredClone(editedQuestionNode(node, edit.after));
+      replace(node, structuredClone(own.after));
+      return document;
+    }, [edit.questionId]);
+    if (saved.saved) changes.push({ path: saved.path, questionId: edit.questionId, before: own.before!, after: own.after! });
+    const others = copies.filter(copy => !(copy.path === saved.path && copy.questionId === edit.questionId));
+    for (const [index, copy] of others.entries()) {
+      try {
+        const copyHashes = await this.assetHashes(copy.path);
+        const found: { before?: QuestionContentNode; after?: QuestionContentNode; partial?: boolean; apart?: boolean } = {};
+        const result = await this.updateDocument(copy.path, undefined, document => {
+          const node = agentQuestionInventory(document).find(question => question.id === copy.questionId)?.node as QuestionContentNode | undefined;
+          const merged = node ? questionCopyWithEdit(edit.before, edit.after, node, sourceHashes, copyHashes) : null;
+          if (!node || !merged) { found.apart = true; return document; }
+          found.before = structuredClone(node);
+          found.after = structuredClone(merged.node);
+          found.partial = merged.partial;
+          replace(node, structuredClone(merged.node));
+          return document;
+        }, [copy.questionId]);
+        if (found.apart || found.partial) different.push(questionPaperName(copy.path));
+        if (result.saved && found.before && found.after) changes.push({ path: result.path, questionId: copy.questionId, before: found.before, after: found.after });
+      } catch (reason) {
+        failed.push(...others.slice(index).map(other => questionPaperName(other.path)));
+        error = reason instanceof Error ? reason.message : String(reason);
+        break;
+      }
+    }
+    return { changes, different, failed, error };
+  }
+  /** Puts back what {@link saveQuestionContent} wrote, unless the question's content has changed since; then it is kept. */
+  async restoreQuestionContent(change: QuestionContentChange) {
+    const hashes = await this.assetHashes(change.path);
+    const left = { kept: false };
+    const result = await this.updateDocument(change.path, undefined, document => {
+      const node = agentQuestionInventory(document).find(question => question.id === change.questionId)?.node as QuestionContentNode | undefined;
+      if (!node || questionContentKey(node, hashes) !== questionContentKey(change.after, hashes)) { left.kept = true; return document; }
+      // Tags, difficulty and score may have been changed since; only the content goes back.
+      node.content = structuredClone(change.before.content);
+      return document;
     }, [change.questionId]);
     return { ...result, kept: left.kept };
   }

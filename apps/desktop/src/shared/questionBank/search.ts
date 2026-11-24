@@ -2,6 +2,7 @@ import type { ChalkLeeDocument } from "@chalklee/format";
 import type { QuestionTagGroup, QuestionTagTree } from "./tagTree";
 import { canonicalChalkLeeKind, chalkLeeGroupContinuesNumbers } from "@chalklee/format";
 import { chalkLeeQuestionPlaces } from "../document/numbering";
+import { estimateQuestionPaperSize, type QuestionPaperSize } from "./paperSize";
 
 /** Normalized question types offered as search filters; raw `kind` values vary by importer. */
 export type QuestionBankType =
@@ -81,6 +82,10 @@ export interface QuestionBankEntry {
   grades: number[];
   /** Changes whenever the question's saved content or attributes change. */
   contentHash: string;
+  /** Changes with anything drawn on the card, which `contentHash` leaves out: image sizes, alignment and the document's look. */
+  renderHash: string;
+  /** The room it takes on its document's page, for holding its place in the list. */
+  paper: QuestionPaperSize;
   /** Set when this question was inserted from another ChalkLee through the question bank. */
   copiedFrom: { relativePath: string; questionId: string } | null;
   /**
@@ -211,6 +216,10 @@ export interface QuestionSnapshot {
   assets: QuestionSnapshotAsset[];
   /** Assets left out of a folded preview because they appear only in answers or analysis. */
   deferredAssetIds?: string[];
+  /** The document's body type, so a card reads like the paper. */
+  paper?: { fontFamilies: string[]; fontSizePt: number };
+  /** The document's look holding only this question, for drawing it with the paper's own editor. */
+  document?: ChalkLeeDocument;
 }
 
 export interface QuestionBasketReference {
@@ -510,10 +519,11 @@ export function questionTagContext(tag: string): { year: number | null; grade: n
 
 export const isQuestionContextTag = (tag: string) => { const context = questionTagContext(tag); return context.year != null || context.grade != null; };
 
-/** `assetHashes` gives each picture's sha256 by asset id, so the same picture in another paper is known as such. */
-export function extractQuestionBankEntries(document: ChalkLeeDocument, file: { path: string; relativePath: string; documentTitle: string; assetHashes?: ReadonlyMap<string, string> }): QuestionBankEntry[] {
+/** `assetHashes` gives each picture's sha256 by asset id, so the same picture in another paper is known as such; `assetAspects` its height over width where the document does not say. */
+export function extractQuestionBankEntries(document: ChalkLeeDocument, file: { path: string; relativePath: string; documentTitle: string; assetHashes?: ReadonlyMap<string, string>; assetAspects?: ReadonlyMap<string, number> }): QuestionBankEntry[] {
   const entries: QuestionBankEntry[] = [];
   const nodes = document.content.content as JsonNode[];
+  const look = cyrb53(JSON.stringify(document.appearance) ?? "");
   const bankSources = new Map((document.provenance?.sources ?? []).filter(source => source.type === "chalklee" && source.relativePath).map(source => [source.id, source.relativePath!]));
   const copies = new Map<string, { relativePath: string; questionId: string }>();
   for (const anchor of document.provenance?.anchors ?? []) {
@@ -587,6 +597,8 @@ export function extractQuestionBankEntries(document: ChalkLeeDocument, file: { p
         years: taggedYears.length ? taggedYears : paper.years,
         grades: taggedGrades.length ? taggedGrades : paper.grades,
         contentHash: questionContentHash(node),
+        renderHash: cyrb53(`${look}${JSON.stringify(node)}`),
+        paper: estimateQuestionPaperSize(node, document.appearance, file.assetAspects),
         copiedFrom: copies.get(String(attrs.id ?? "")) ?? null,
         figures: [region(node, group ? "questionMaterial" : "questionStem"), region(node, "optionGroup"), ...subs.flatMap(sub => [region(sub, "questionStem"), region(sub, "optionGroup")])]
           .flatMap(part => figuresIn(part)),

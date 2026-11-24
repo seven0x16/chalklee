@@ -10,6 +10,7 @@ import { ListChevronsDownUp, ListChevronsUpDown } from "../ui/lucideBackports";
 import { RailSectionIcon } from "../ui/RailSectionIcon";
 import { libraryConditionLabels, questionKey as questionKeyOf, useQuestionLibrary } from "../questionBank/useQuestionLibrary";
 import { QuestionLibraryInspector } from "../questionBank/QuestionLibraryInspector";
+import { hasQuestionCardEdit } from "../questionBank/questionCardEdits";
 import { basketItemKey, questionBankHighlight, type QuestionBankHighlight } from "../questionBank/questionPresentation";
 import type { QuestionBasketInsertTarget } from "../questionBank/QuestionBasketPanel";
 import type { AssistantPanelRequest } from "../assistant/AssistantPanel";
@@ -570,7 +571,7 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
   const unsavedCloseDialog = useUnsavedClose(tabs);
   useEffect(() => {
     const warnBeforeClose = (event: BeforeUnloadEvent) => {
-      if (!tabs.some((tab) => tab.dirty)) return;
+      if (!tabs.some((tab) => tab.dirty) && !hasQuestionCardEdit()) return;
       event.preventDefault();
       event.returnValue = "";
     };

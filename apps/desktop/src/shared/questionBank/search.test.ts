@@ -244,6 +244,23 @@ describe("question bank search", () => {
     expect(items.map(item => [item.questionId, ...item.duplicates.map(copy => copy.questionId)]).sort()).toEqual([["p1"], ["p2", "q3"], ["q1"], ["q2"]]);
   });
 
+  it("notices a changed image size for the card without calling it a changed question", () => {
+    const withImage = (widthPt: number) => index(documentWith([{ ...choice("q", [text("如图，求阴影部分的面积")], ["1", "2"]), content: [
+      { type: "questionStem", attrs: { id: "q_stem" }, content: [paragraph("q_p", text("如图，求阴影部分的面积")), { type: "image", attrs: { id: "q_i", assetId: "a", widthPt } }] }
+    ] }]), "图.chalklee")[0];
+    const [small, large] = [withImage(150), withImage(300)];
+    expect(large.contentHash).toBe(small.contentHash);
+    expect(large.renderHash).not.toBe(small.renderHash);
+  });
+
+  it("notices a changed document look for the card without calling it a changed question", () => {
+    const plain = documentWith([choice("q", [text("求阴影部分的面积")], ["1", "2"])]);
+    const restyled = { ...plain, appearance: { ...plain.appearance, design: { css: "p { font-size: 16pt; }" } } };
+    const [before, after] = [index(plain, "卷.chalklee")[0], index(restyled, "卷.chalklee")[0]];
+    expect(after.contentHash).toBe(before.contentHash);
+    expect(after.renderHash).not.toBe(before.renderHash);
+  });
+
   it("forgives a slip only between versions of one document, and never in a word that changes the meaning", () => {
     const options = ["光合作用只在白天进行", "呼吸作用只在夜间进行", "两者都需要酶参与", "两者都释放氧气"];
     const before = () => choice("", [text("细胞是生物体结构和功能的基本单位，下列叙述符合这一观点的是")], ["病毒没有细胞结构", "草履虫能独立生活", "血液属于组织", "种子能够萌发"]);

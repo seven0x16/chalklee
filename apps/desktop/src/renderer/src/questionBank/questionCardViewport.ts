@@ -44,6 +44,67 @@ export function restoreQuestionListPosition(list: HTMLElement, content: HTMLElem
   list.scrollTop = position?.scrollTop ?? 0;
 }
 
+const FAST_SCROLL_PX_PER_MS = 5;
+const SPEED_WINDOW_MS = 80;
+const SCROLL_REST_MS = 400;
+const SCROLL_SETTLE_MS = 180;
+
+/**
+ * Each frame draws the card nearest the view and takes down the one farthest from it;
+ * neither happens while the list is flying past.
+ */
+export function createQuestionPaperQueue(list: () => HTMLElement | null) {
+  const jobs = new Map<Element, () => void>();
+  let frame = 0, timer = 0, sampleTop = 0, sampleAt = -Infinity, busyUntil = 0;
+  const schedule = () => {
+    if (frame || timer || !jobs.size) return;
+    const wait = busyUntil - performance.now();
+    if (wait > 0) timer = window.setTimeout(() => { timer = 0; schedule(); }, wait);
+    else frame = window.requestAnimationFrame(run);
+  };
+  const run = () => {
+    frame = 0;
+    const root = list();
+    if (!root?.clientHeight || !jobs.size) return;
+    if (performance.now() < busyUntil) { schedule(); return; }
+    const view = root.getBoundingClientRect();
+    let nearest: Element | null = null, farthest: Element | null = null, least = Infinity, most = -1;
+    for (const card of jobs.keys()) {
+      const rect = card.getBoundingClientRect();
+      const distance = rect.bottom < view.top ? view.top - rect.bottom : rect.top > view.bottom ? rect.top - view.bottom : 0;
+      if (distance < least) { least = distance; nearest = card; }
+      if (distance > most) { most = distance; farthest = card; }
+    }
+    for (const card of new Set([nearest!, farthest!])) {
+      const job = jobs.get(card)!;
+      jobs.delete(card);
+      job();
+    }
+    schedule();
+  };
+  return {
+    noteScroll(top: number) {
+      const now = performance.now();
+      const elapsed = now - sampleAt;
+      if (elapsed < SPEED_WINDOW_MS) return;
+      // The first move after a rest may be one jump to a new place, which should draw at once.
+      if (elapsed < SCROLL_REST_MS && Math.abs(top - sampleTop) / elapsed > FAST_SCROLL_PX_PER_MS) busyUntil = now + SCROLL_SETTLE_MS;
+      sampleTop = top;
+      sampleAt = now;
+    },
+    request(card: Element, job: () => void) { jobs.set(card, job); schedule(); },
+    cancel(card: Element) { jobs.delete(card); },
+    wake: schedule,
+    dispose() {
+      jobs.clear();
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      frame = timer = 0;
+    }
+  };
+}
+export type QuestionPaperQueue = ReturnType<typeof createQuestionPaperQueue>;
+
 /** Use one observer for the list. Format cards just before they are reached. */
 export function useQuestionCardViewport() {
   const observer = useRef<IntersectionObserver>();
@@ -84,5 +145,25 @@ export function useQuestionCardViewport() {
       reveal(card);
     }
   }, [reveal]);
-  return { observe, revealVisible };
+  // Only cards around the view keep a live paper; the rest hold their height.
+  const nearObserver = useRef<IntersectionObserver>();
+  const nearCallbacks = useRef(new Map<Element, (near: boolean) => void>());
+  const observeNear = useCallback((card: HTMLElement, callback: (near: boolean) => void) => {
+    const root = card.closest(".question-library-list");
+    if (!root || typeof IntersectionObserver === "undefined") { callback(true); return; }
+    const shared = nearObserver.current ??= new IntersectionObserver(entries => {
+      for (const entry of entries) nearCallbacks.current.get(entry.target)?.(entry.isIntersecting);
+    }, { root, rootMargin: "900px 0px" });
+    nearCallbacks.current.set(card, callback);
+    shared.observe(card);
+    return () => {
+      nearCallbacks.current.delete(card);
+      shared.unobserve(card);
+      if (!nearCallbacks.current.size && nearObserver.current === shared) {
+        shared.disconnect();
+        nearObserver.current = undefined;
+      }
+    };
+  }, []);
+  return { observe, observeNear, revealVisible };
 }

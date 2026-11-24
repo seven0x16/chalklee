@@ -12,7 +12,7 @@ import { chalkLeeElementScale } from "./viewport";
 import { chalkLeeImageWidthPreset } from "./editing";
 import { chalkLeeRecognizableImage, useChalkLeeImageAssistant } from "./questionAssistant";
 import { chalkLeeImageSizeTransaction, constrainChalkLeeImageSize, resizeChalkLeeImage, type ChalkLeeImageResizeGeometry, type ChalkLeeImageResizeHandle, type ChalkLeeImageSize } from "./imageResize";
-import { ChalkLeeImageDisplayContext } from "./imageDisplayUrls";
+import { ChalkLeeImageDisplayContext, ChalkLeeImagePictureEditingContext } from "./imageDisplayUrls";
 
 const handles = { nw: "左上角", ne: "右上角", sw: "左下角", se: "右下角" } as const;
 
@@ -61,6 +61,7 @@ export function ChalkLeeImageView({ editor, node, selected, getPos, updateAttrib
   const [loaded, setLoaded] = useState(false);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const displayUrls = useContext(ChalkLeeImageDisplayContext);
+  const picturesEditable = useContext(ChalkLeeImagePictureEditingContext);
   const source: string | null = node.attrs.src;
   const assetId: string | null = node.attrs.assetId;
   const attachImage = useCallback((image: HTMLImageElement | null) => {
@@ -319,8 +320,8 @@ export function ChalkLeeImageView({ editor, node, selected, getPos, updateAttrib
           {previous ? <button type="button" onClick={() => pairWith(String(previous.node.attrs.id))}>与上一题图并排</button> : null}
           {next ? <button type="button" onClick={() => pairWith(String(next.node.attrs.id))}>与下一题图并排</button> : null}
         </>}
-        {loaded ? <button type="button" title="裁剪图片，去掉多余的部分" onClick={() => setCrop(CHALKLEE_FULL_CROP)}><Crop size={12} />裁剪</button> : null}
-        <button type="button" title="换一张图片，大小和排版不变；也可选中图片后直接粘贴" onClick={() => editor.view.dom.dispatchEvent(new CustomEvent(CHALKLEE_REPLACE_IMAGE_EVENT, { detail: { nodeId: String(node.attrs.id) } }))}>替换</button>
+        {loaded && picturesEditable ? <button type="button" title="裁剪图片，去掉多余的部分" onClick={() => setCrop(CHALKLEE_FULL_CROP)}><Crop size={12} />裁剪</button> : null}
+        {picturesEditable ? <button type="button" title="换一张图片，大小和排版不变；也可选中图片后直接粘贴" onClick={() => editor.view.dom.dispatchEvent(new CustomEvent(CHALKLEE_REPLACE_IMAGE_EVENT, { detail: { nodeId: String(node.attrs.id) } }))}>替换</button> : null}
         {recognizable ? <button type="button" title="用 ChalkLee AI 把图中的题目转成可编辑的文字" onClick={() => askImageAssistant?.(String(node.attrs.id))}><Sparkles size={12} />识别题目</button> : null}
         <button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen(value => !value)}>说明</button>
         <button type="button" className="danger" title="删除图片" aria-label="删除图片" onClick={deleteNode}><Trash2 size={12} /></button>

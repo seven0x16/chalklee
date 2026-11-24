@@ -56,6 +56,7 @@ import { startWorkspaceWatcher } from "./workspace/watcher";
 import { WorkspaceArchiveValidationService } from "./workspace/archiveValidationService";
 import type { VerifyWorkspaceArchive } from "./workspace/archiveValidation";
 import { setConversionTagStore } from "./conversion/tagging";
+import type { QuestionContentChange, QuestionContentNode, QuestionContentSaveResult } from "../shared/questionBank/contentEdit";
 import { normalizeQuestionAttributePatch, questionPaperName, saveQuestionCopies, type QuestionAttributeChange, type QuestionAttributeSaveResult, type QuestionAttributeUndoResult } from "../shared/questionBank/search";
 import { AgentWorkspaceService } from "./agent/workspace";
 import { renderChalkLeePdf, renderChalkLeePreview, renderSourcePages } from "./conversion/externalSession";
@@ -1060,6 +1061,58 @@ function registerIpc(): void {
       for (const change of [...changes].reverse()) {
         try {
           const result = await documents.restoreQuestionAttributes(change);
+          if (result.kept) kept.push(questionPaperName(change.path));
+          else if (result.saved) written.add(change.path);
+        } catch { kept.push(questionPaperName(change.path)); }
+      }
+    } finally { await reindex(written); }
+    return { restored: written.size, kept };
+  }));
+  // Content edited on a library card: the same path again, reaching only the copies that read the same.
+  const libraryContentUndo = new Map<string, QuestionContentChange[]>();
+  const questionEditTarget = (filePath: unknown, questionId: unknown) => {
+    if (!workspaceRoot) throw new Error("尚未打开工作区。");
+    if (typeof filePath !== "string" || typeof questionId !== "string") throw new Error("请选择要修改的题目。");
+    return { root: workspaceRoot, filePath, questionId };
+  };
+  handleDesktop("question-bank:read-for-edit", async (_event, filePath: unknown, questionId: unknown) => {
+    const target = questionEditTarget(filePath, questionId);
+    const copies = await questionBank.copies(target.filePath, target.questionId);
+    return libraryDocuments(target.root).readQuestionForEdit(target.filePath, target.questionId, copies.map(copy => ({ path: copy.path, questionId: copy.questionId })));
+  });
+  handleDesktop("question-bank:update-content", (_event, filePath: unknown, questionId: unknown, before: unknown, after: unknown) => queueLibraryEdit(async (): Promise<QuestionContentSaveResult> => {
+    const target = questionEditTarget(filePath, questionId);
+    const isQuestion = (node: unknown): node is QuestionContentNode => {
+      const value = node as QuestionContentNode | null;
+      return Boolean(value) && (value!.type === "question" || value!.type === "questionGroup") && value!.attrs?.id === target.questionId && Array.isArray(value!.content);
+    };
+    if (!isQuestion(before) || !isQuestion(after)) throw new Error("题目内容无效，请重新打开编辑。");
+    const copies = await questionBank.copies(target.filePath, target.questionId);
+    const written = new Set<string>();
+    try {
+      const saved = await libraryDocuments(target.root).saveQuestionContent({ path: target.filePath, questionId: target.questionId, before, after }, copies.map(copy => ({ path: copy.path, questionId: copy.questionId })));
+      saved.changes.forEach(change => written.add(change.path));
+      let undoId: string | null = null;
+      if (saved.changes.length) {
+        undoId = randomUUID();
+        libraryContentUndo.set(undoId, saved.changes);
+        while (libraryContentUndo.size > 20) libraryContentUndo.delete(libraryContentUndo.keys().next().value!);
+      }
+      return { papers: saved.changes.length, undoId, different: saved.different, failed: saved.failed, error: saved.error };
+    } finally { await reindex(written); }
+  }));
+  handleDesktop("question-bank:undo-content-edit", (_event, undoId: unknown) => queueLibraryEdit(async (): Promise<QuestionAttributeUndoResult> => {
+    const root = workspaceRoot;
+    if (!root) throw new Error("尚未打开工作区。");
+    const changes = typeof undoId === "string" ? libraryContentUndo.get(undoId) : undefined;
+    if (!changes) throw new Error("这次修改已无法撤销。");
+    libraryContentUndo.delete(undoId as string);
+    const documents = libraryDocuments(root);
+    const kept: string[] = [], written = new Set<string>();
+    try {
+      for (const change of [...changes].reverse()) {
+        try {
+          const result = await documents.restoreQuestionContent(change);
           if (result.kept) kept.push(questionPaperName(change.path));
           else if (result.saved) written.add(change.path);
         } catch { kept.push(questionPaperName(change.path)); }

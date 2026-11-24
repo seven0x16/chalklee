@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { openChalkLeeArchiveForReading, readChalkLeeArchive, readChalkLeeArchiveMetadata, type ChalkLeeArchiveReader } from "@chalklee/format";
+import { openChalkLeeArchiveForReading, readChalkLeeArchive, type ChalkLeeArchiveReader, type ChalkLeeDocument } from "@chalklee/format";
 import type { WorkspaceDirectoryNode, WorkspaceFileNode } from "../../shared/contracts";
 import {
   assignDuplicateGroups,
@@ -27,6 +27,7 @@ import {
   type QuestionSnapshot,
   type QuestionThumbnail
 } from "../../shared/questionBank/search";
+import { figuresWithoutHeight, imageFileAspect } from "../../shared/questionBank/paperSize";
 import { documentKind, inspectWorkspaceDocument } from "../workspace/files";
 import { openWorkspaceArchiveValidationCache, type WorkspaceArchiveValidationCache } from "../workspace/archiveValidationCache";
 import { workspaceStorageDirectory } from "../workspace/storage";
@@ -34,7 +35,7 @@ import { EMPTY_QUESTION_TAG_TREE, normalizeQuestionTagTree, type QuestionTagTree
 import { pictureFigurePrint, sameFigurePrint } from "./figurePrints";
 
 // Bump when QuestionBankEntry changes shape or meaning so stale caches are re-indexed.
-const CACHE_VERSION = 8;
+const CACHE_VERSION = 10;
 const BASKET_VERSION = 1;
 const TAG_TREE_VERSION = 1;
 const MAX_BASKET_ITEMS = 300;
@@ -61,6 +62,8 @@ interface IndexCache {
   documents: Array<{ relativePath: string; size: number; modifiedAt: number; failed: boolean; entries: CachedEntry[] }>;
   /** Figure prints by figure id; null for a picture that cannot be compared by its look. */
   figures?: Record<string, string | null>;
+  /** Height over width of pictures whose documents do not say, by sha256; null when the file could not be read. */
+  aspects?: Record<string, number | null>;
 }
 
 type JsonNode = { type?: string; attrs?: Record<string, any>; content?: JsonNode[] };
@@ -91,6 +94,7 @@ export class QuestionBankIndex {
   private verifiedArchives?: Pick<WorkspaceArchiveValidationCache, "has">;
   /** How figures look, read only for questions whose wording already matches another paper's. */
   private figurePrints = new Map<string, string | null>();
+  private figureAspects = new Map<string, number | null>();
   private printing: Promise<void> | null = null;
 
   constructor(private readonly options: { changed?(change: QuestionBankChange): void; rebuildDelayMs?: number; persistDelayMs?: number } = {}) {}
@@ -111,16 +115,18 @@ export class QuestionBankIndex {
     this.archives.clear();
     this.verifiedArchives = undefined;
     this.figurePrints.clear();
+    this.figureAspects.clear();
     this.tagTree = EMPTY_QUESTION_TAG_TREE;
     this.tagTreeLoad = this.loadTagTree(root).then(tagTree => this.updateTagTree(tagTree, generation));
     const files = chalkLeeFiles(tree);
-    const [{ documents: cache, figures }, , verifiedArchives] = await Promise.all([
+    const [{ documents: cache, figures, aspects }, , verifiedArchives] = await Promise.all([
       this.readCache(root), this.tagTreeLoad,
       validationCacheDirectory ? openWorkspaceArchiveValidationCache(validationCacheDirectory, root) : undefined
     ]);
     if (generation !== this.generation) return;
     this.verifiedArchives = verifiedArchives;
     this.figurePrints = figures;
+    this.figureAspects = aspects;
     const pending: WorkspaceFileNode[] = [];
     for (const file of files) {
       const relativePath = this.relative(file.path);
@@ -161,6 +167,7 @@ export class QuestionBankIndex {
     this.archives.clear();
     this.verifiedArchives = undefined;
     this.figurePrints.clear();
+    this.figureAspects.clear();
     this.tagTree = EMPTY_QUESTION_TAG_TREE;
     this.status = { state: "idle", indexedDocuments: 0, totalDocuments: 0, questionCount: 0, failedDocuments: 0 };
   }
@@ -289,11 +296,15 @@ export class QuestionBankIndex {
       const data = await archive.readAsset(asset.id);
       assets.push({ id: asset.id, path: asset.path, mediaType: asset.mediaType, sha256: asset.sha256, data: data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer });
     }
+    const copy = structuredClone(node) as QuestionSnapshot["node"];
+    const { provenance: _provenance, ...shell } = archive.document;
     return {
       location,
       contentHash,
-      node: structuredClone(node) as QuestionSnapshot["node"],
+      node: copy,
       assets,
+      document: { ...shell, content: { ...shell.content, content: [copy] } } as ChalkLeeDocument,
+      paper: { fontFamilies: archive.document.appearance.body.fontFamilies, fontSizePt: archive.document.appearance.body.fontSizePt },
       ...(deferredAssetIds.length ? { deferredAssetIds } : {})
     };
   }
@@ -441,9 +452,19 @@ export class QuestionBankIndex {
     try {
       const { canonicalFile, fileStats } = await inspectWorkspaceDocument(root, filePath);
       createdAt = fileStats.birthtimeMs;
-      const { document, manifest } = await readChalkLeeArchiveMetadata(await readFile(canonicalFile));
+      const archive = await openChalkLeeArchiveForReading(await readFile(canonicalFile));
+      const { document, manifest } = archive;
       const assetHashes = new Map(manifest.assets.map(asset => [asset.id, asset.sha256]));
-      const entries = extractQuestionBankEntries(document, { path: filePath, relativePath, documentTitle: documentTitle(filePath), assetHashes });
+      const assetAspects = new Map<string, number>();
+      for (const id of figuresWithoutHeight(document.content.content as never)) {
+        const sha256 = assetHashes.get(id);
+        if (!sha256) continue;
+        // A picture that cannot be read only makes its card's reserved height a guess.
+        if (!this.figureAspects.has(sha256)) this.figureAspects.set(sha256, await archive.readAsset(id).then(imageFileAspect, () => null));
+        const aspect = this.figureAspects.get(sha256);
+        if (aspect) assetAspects.set(id, aspect);
+      }
+      const entries = extractQuestionBankEntries(document, { path: filePath, relativePath, documentTitle: documentTitle(filePath), assetHashes, assetAspects });
       if (generation !== this.generation) return;
       this.documents.set(filePath, { relativePath, size: fileStats.size, modifiedAt: fileStats.mtimeMs, createdAt, failed: false, questions: entries.map(indexQuestionBankEntry) });
     } catch (error) {
@@ -544,15 +565,16 @@ export class QuestionBankIndex {
   }
 
   private async readCache(root: string) {
-    const documents = new Map<string, IndexCache["documents"][number]>(), figures = new Map<string, string | null>();
+    const documents = new Map<string, IndexCache["documents"][number]>(), figures = new Map<string, string | null>(), aspects = new Map<string, number | null>();
     try {
       const file = path.join(await workspaceStorageDirectory(root, ["question-bank"], false), "index.json");
       const cache = JSON.parse(await readFile(file, "utf8")) as IndexCache;
-      if (cache?.version !== CACHE_VERSION || !Array.isArray(cache.documents)) return { documents, figures };
+      if (cache?.version !== CACHE_VERSION || !Array.isArray(cache.documents)) return { documents, figures, aspects };
       for (const document of cache.documents) if (typeof document?.relativePath === "string" && Array.isArray(document.entries)) documents.set(document.relativePath, document);
       for (const [figure, print] of Object.entries(cache.figures ?? {})) if (typeof print === "string" || print === null) figures.set(figure, print);
+      for (const [sha256, aspect] of Object.entries(cache.aspects ?? {})) if (typeof aspect === "number" || aspect === null) aspects.set(sha256, aspect);
     } catch { /* Missing or stale cache: index from the files. */ }
-    return { documents, figures };
+    return { documents, figures, aspects };
   }
 
   private async writeCache(root: string) {
@@ -566,7 +588,8 @@ export class QuestionBankIndex {
           return entry;
         })
       })),
-      figures: Object.fromEntries([...this.figurePrints].filter(([figure]) => used.has(figure)))
+      figures: Object.fromEntries([...this.figurePrints].filter(([figure]) => used.has(figure))),
+      aspects: Object.fromEntries([...this.figureAspects].filter(([sha256]) => used.has(`sha256:${sha256}`)))
     };
     const directory = await workspaceStorageDirectory(root, ["question-bank"], true);
     await writeAtomic(path.join(directory, "index.json"), JSON.stringify(cache));

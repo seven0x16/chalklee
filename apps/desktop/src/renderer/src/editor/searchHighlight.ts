@@ -10,14 +10,14 @@ export interface ChalkLeeSearchTerms { words: readonly string[]; tokens: readonl
 
 export const chalkLeeSearchHighlightKey = new PluginKey<DecorationSet>("chalkLeeSearchHighlight");
 
-const fold = (text: string) => text
+export const chalkLeeSearchFold = (text: string) => text
   .replace(/[！-～]/g, character => String.fromCharCode(character.charCodeAt(0) - 0xfee0))
   .toLowerCase();
 
 /** Inline marks for each search word in the question's text, plus node marks for matching formulas. */
 export function chalkLeeSearchDecorations(doc: ProseMirrorNode, questionId: string, terms: ChalkLeeSearchTerms): DecorationSet {
   const question = findChalkLeeQuestionContext(doc, questionId);
-  const words = [...new Set(terms.words.map(fold).filter(Boolean))].sort((left, right) => right.length - left.length);
+  const words = [...new Set(terms.words.map(chalkLeeSearchFold).filter(Boolean))].sort((left, right) => right.length - left.length);
   const tokens = terms.tokens.filter(token => token.length > 1);
   if (!question || (!words.length && !tokens.length)) return DecorationSet.empty;
   const decorations: Decoration[] = [];
@@ -33,7 +33,7 @@ export function chalkLeeSearchDecorations(doc: ProseMirrorNode, questionId: stri
     const positions: number[] = [];
     node.forEach((child, childOffset) => {
       if (child.isText) {
-        const value = fold(child.text ?? "");
+        const value = chalkLeeSearchFold(child.text ?? "");
         for (let index = 0; index < value.length; index++) positions.push(position + 1 + childOffset + index);
         text += value;
       } else {

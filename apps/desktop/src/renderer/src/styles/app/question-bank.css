@@ -290,11 +290,12 @@
   box-shadow: 0 0 0 1px var(--question-card-edge), 0 1px 3px rgb(var(--cm-theme-shadow-rgb) / .05);
   transition: box-shadow .14s ease;
 }
-.question-card[data-defer-layout] { content-visibility: auto; contain-intrinsic-block-size: auto 150px; overflow-clip-margin: 6px; }
 :root[data-appearance="dark"] .question-card { --question-card-edge: rgb(255 255 255 / .07); }
 .question-card:hover { box-shadow: 0 0 0 1px var(--question-card-edge), 0 2px 6px rgb(var(--cm-theme-shadow-rgb) / .07), 0 8px 20px rgb(var(--cm-theme-shadow-rgb) / .05); }
 .question-card.selected { box-shadow: 0 0 0 1.5px var(--cm-theme-accent), 0 0 0 4.5px var(--cm-theme-selection-surface), 0 2px 8px rgb(var(--cm-theme-shadow-rgb) / .06); }
 .question-card:focus-visible { box-shadow: 0 0 0 1.5px var(--cm-theme-accent), 0 0 0 4.5px var(--cm-theme-selection-border); }
+/* Cards out of view skip layout and keep the height they will have. */
+.question-card:not(.editing) { content-visibility: auto; contain-intrinsic-block-size: auto var(--question-card-block, 200px); overflow-clip-margin: 6px; }
 .question-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 26px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
 .question-card-number {
   flex: none; min-width: 24px; height: 20px; padding: 0 5px; box-sizing: border-box; display: inline-grid; place-items: center;
@@ -318,14 +319,67 @@
   border: 0; border-radius: 8px; color: var(--cm-ui-muted); background: transparent; cursor: pointer;
 }
 .question-card-basket.selected { border-color: transparent; color: var(--cm-theme-on-accent); background: var(--cm-theme-accent-strong); }
-.question-card-body { padding: 5px 1px 3px; contain-intrinsic-block-size: auto 80px; }
-/* Keep the measured height and selectable contents while Chromium skips off-screen card bodies. */
-.question-card-body[data-defer-render] { content-visibility: auto; overflow-clip-margin: 4px; }
+.question-card-body { padding: 5px 1px 3px; }
+/* Until its paper is drawn, a card holds the room the question will take. */
+.question-card-body:not(.shows-text):not(:has(.question-card-page[data-ready="true"])) { box-sizing: border-box; height: var(--question-card-waiting); overflow: clip; }
 .question-card-body .question-bank-math-source { overflow-wrap: anywhere; }
 .question-card-body .question-bank-rich { gap: 7px; font-size: var(--cm-font-size-body); line-height: 1.8; }
-.question-card-body .question-bank-image { max-height: 240px; }
+.question-card-body .question-bank-image { max-height: 480px; }
 .question-card-body .question-bank-options { gap: 3px 20px; }
+.question-card-body .question-bank-options b { color: inherit; font-weight: 400; }
 .question-card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* Editing on the card: the question sits on a piece of paper, in the paper's own editor. */
+.question-card-edit {
+  flex: none; width: 28px; height: 28px; display: inline-grid; place-items: center; padding: 0; box-sizing: border-box;
+  border: 0; border-radius: 8px; color: var(--cm-ui-muted); background: transparent; cursor: pointer; opacity: 0;
+}
+.question-card-edit + .question-card-basket, .question-card-done + .question-card-basket { margin-left: 0; }
+.question-card-done {
+  flex: none; height: 26px; display: inline-flex; align-items: center; gap: 3px; margin-left: auto; padding: 0 10px 0 8px; box-sizing: border-box;
+  border: 0; border-radius: 6px; color: var(--cm-theme-on-accent); background: var(--cm-theme-accent-strong); font: inherit; font-size: var(--cm-font-size-small); cursor: pointer;
+}
+.question-card:hover .question-card-edit, .question-card:focus-within .question-card-edit, .question-card.selected .question-card-edit { opacity: 1; }
+.question-card-solutions:has(+ .question-card-edit) { margin-left: auto; }
+.question-card-sheet { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+/* The same sheet for reading and editing, so nothing moves when a question opens. */
+.question-card-page { position: relative; width: calc(100% + 20px); margin-inline: -10px; box-sizing: border-box; padding: 8px 10px; border-radius: 6px; background: var(--cm-document-paper-bg); }
+/* Room under a long question for its 展开全文／收起 button. */
+.question-card-page:has(> .question-card-unfold) { padding-bottom: 38px; }
+/* A long question shows one stretch of itself, faded where more continues. */
+/* Its own formatting context, so the shifted paper inside cannot pull it up over the card head. */
+.question-card-window { display: flow-root; }
+.question-card-window[data-fold] { overflow: clip; }
+.question-card-window[data-fold="bottom"] { mask-image: linear-gradient(to bottom, #000 calc(100% - 72px), transparent); }
+.question-card-window[data-fold="top"] { mask-image: linear-gradient(to bottom, transparent, #000 44px); }
+.question-card-window[data-fold="both"] { mask-image: linear-gradient(to bottom, transparent, #000 44px, #000 calc(100% - 72px), transparent); }
+.question-card-unfold {
+  position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); height: 26px; display: inline-flex; align-items: center; gap: 2px; padding: 0 6px 0 10px; box-sizing: border-box;
+  border: 0.5px solid var(--cm-ui-border); border-radius: 6px; color: var(--cm-ui-text); background: var(--cm-ui-surface-raised); font: inherit; font-size: var(--cm-font-size-small); white-space: nowrap; cursor: pointer;
+}
+.question-card-page[data-ready="false"] { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; }
+.question-card.editing .question-card-page { box-shadow: inset 0 0 0 0.5px var(--cm-ui-border); }
+/* Lines break where they do on the page: the document's column, less the number column a card leaves out. */
+.chalklee-paper.question-card-paper { --question-card-text-width: var(--chalklee-column-width); width: var(--question-card-text-width); margin: 0; }
+.chalklee-paper.question-card-paper:has(.chalklee-editor-content > .react-renderer > .chalklee-question-object:not(.group):not([data-inline-number="true"])) { --question-card-text-width: calc(var(--chalklee-column-width) - var(--chalklee-number-slot, 18pt)); }
+.question-card-paper .chalklee-editor-content { min-height: 0; }
+/* Blank lines for writing belong to the page; words written on a line stay. */
+.question-card-paper .chalklee-answer-line:empty,
+.question-card-paper .chalklee-answer-line:has(> br.ProseMirror-trailingBreak:only-child),
+.question-card-paper .chalklee-answer-lines-controls { display: none !important; }
+.question-card-paper [data-chalklee-answer-lines] { padding-block: 0; }
+/* The card's header carries the number, so a single question needs no column for it. */
+.question-card-paper .chalklee-editor-content > .react-renderer > .chalklee-question-object:not(.group) { --chalklee-number-slot: 0pt; }
+.question-card-paper .chalklee-question-grip, .question-card-paper .chalklee-question-basket-mark, .question-card-paper .chalklee-question-object-actions, .question-card-paper .chalklee-question-add-preview { display: none; }
+/* The paper offers missing parts in its margin; a card has none, so they sit in a row under the question. */
+.question-card-paper .chalklee-question-object-head { position: static; }
+.question-card-paper .chalklee-question-object.is-editing:has(> .chalklee-question-object-head .chalklee-question-add) { padding-bottom: 30px; }
+.question-card-paper .chalklee-question-add { top: auto; bottom: 0; left: 0; flex-direction: row; padding: 1px; border-radius: 6px; box-shadow: none; }
+/* The card's own selected border already marks what is being edited. */
+.question-card-paper .chalklee-question-object, .question-card-paper .chalklee-question-object.is-editing, .question-card-paper .chalklee-question-object.selected { outline: none; box-shadow: none; }
+.question-card-paper .chalklee-question-object.is-editing::before, .question-card-paper .chalklee-question-object.is-editing::after { display: none; }
+.question-card-edit-note { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin: 4px 0 0; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
+.question-card-edit-note.is-error { color: var(--cm-ui-danger, var(--cm-ui-text)); }
+.question-card-edit-note button { padding: 0; border: 0; color: var(--cm-theme-accent-strong); background: transparent; font: inherit; cursor: pointer; }
 .question-card-tag {
   height: 22px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px 0 6px; box-sizing: border-box;
   border: 1px solid transparent; border-radius: 6px; color: var(--cm-ui-text); background: var(--cm-ui-fill); font: inherit; font-size: var(--cm-font-size-small); cursor: pointer;
@@ -396,9 +450,13 @@
 }
 .question-bank-image.inline { max-height: 2.4em; vertical-align: middle; }
 .question-bank-figure-missing { color: var(--cm-ui-subtle); font-size: var(--cm-font-size-small); }
-.question-bank-blank { display: inline-block; min-width: 3em; margin: 0 2px; border-bottom: 1px solid currentColor; text-align: center; }
+.question-bank-blank { display: inline-block; max-width: 100%; min-height: 1em; margin: 0 2px; border-bottom: 1px solid currentColor; text-align: center; vertical-align: baseline; }
+.question-bank-heading { font-weight: 600; }
+.question-bank-list-item { position: relative; padding-left: 1.6em; }
+.question-bank-list-mark { position: absolute; left: 0; width: 1.3em; text-align: right; text-indent: 0; }
+.question-bank-link-text { text-decoration: underline; text-underline-offset: 2px; }
 .question-bank-table { overflow-x: auto; }
-.question-bank-table table { border-collapse: collapse; font-size: var(--cm-font-size-small); }
+.question-bank-table table { border-collapse: collapse; }
 .question-bank-table td { padding: 3px 7px; border: 1px solid var(--cm-ui-border); vertical-align: top; }
 .question-bank-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; }
 .question-bank-options.wide { grid-template-columns: minmax(0, 1fr); }

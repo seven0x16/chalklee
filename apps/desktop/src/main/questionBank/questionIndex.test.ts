@@ -106,7 +106,7 @@ describe("workspace question bank index", () => {
     expect((await index.readTagTree()).groups[0].name).toBe("知识点");
     expect(await readFile(paper)).toEqual(before);
     const cache = JSON.parse(await readFile(path.join(directory, "index.json"), "utf8"));
-    expect(cache.version).toBe(8);
+    expect(cache.version).toBe(10);
     expect(cache.documents).toHaveLength(2);
     expect(await readFile(path.join(directory, "basket.json"), "utf8")).toBe(basket);
     expect(await readFile(path.join(directory, "tags.json"), "utf8")).toBe(tags);
@@ -121,7 +121,7 @@ describe("workspace question bank index", () => {
     const index = await openIndex();
     expect(index.search({ query: "函数" }).total).toBe(2);
     expect(index.search({ query: "" }).status).toMatchObject({ state: "ready", failedDocuments: 1 });
-    expect(JSON.parse(await readFile(path.join(directory, "index.json"), "utf8")).version).toBe(8);
+    expect(JSON.parse(await readFile(path.join(directory, "index.json"), "utf8")).version).toBe(10);
     await writePaper(broken, [question("fixed", "修复后的题目")]);
     await index.update(broken);
     await index.flush();

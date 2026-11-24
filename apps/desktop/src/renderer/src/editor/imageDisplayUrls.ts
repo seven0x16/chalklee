@@ -6,6 +6,9 @@ import { Plugin } from "@tiptap/pm/state";
 const imageDataPrefix = /^data:(image\/[\w.+-]+);base64,/i;
 const fromBase64 = (Uint8Array as typeof Uint8Array & { fromBase64?(value: string): Uint8Array<ArrayBuffer> }).fromBase64;
 
+/** False where a picture's bytes cannot change, as on a question library card: no crop or replace there. */
+export const ChalkLeeImagePictureEditingContext = createContext(true);
+
 export type ChalkLeeImageAsset = { mediaType: string; data: Uint8Array };
 type ReadImageAsset = (id: string) => ChalkLeeImageAsset | undefined;
 

@@ -88,6 +88,9 @@ export function installBrowserApi() {
     readQuestionBasket: () => invoke("question-basket:read"), writeQuestionBasket: items => invoke("question-basket:write", items),
     updateQuestionAttributes: (file, questionId, attrs) => invoke("question-bank:update-question", file, questionId, attrs),
     undoQuestionAttributes: undoId => invoke("question-bank:undo-question-edit", undoId),
+    readQuestionForEdit: (file, questionId) => invoke("question-bank:read-for-edit", file, questionId),
+    saveQuestionContent: (file, questionId, before, after) => invoke("question-bank:update-content", file, questionId, before, after),
+    undoQuestionContent: undoId => invoke("question-bank:undo-content-edit", undoId),
     readQuestionTagTree: () => invoke("question-tags:read"), writeQuestionTagTree: tree => invoke("question-tags:write", tree),
     onQuestionBankChange: listener => on("question-bank:changed", listener)
   } satisfies ChalkLeeDesktopApi;

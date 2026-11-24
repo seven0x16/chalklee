@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { parseHTML } from "linkedom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { holdQuestionCardEdit } from "../questionBank/questionCardEdits";
 import { registerWorkspaceEditor } from "../workspace/editorSessions";
 import type { OpenTab } from "./tabs";
 import { useUnsavedClose } from "./UnsavedClose";
@@ -87,5 +88,25 @@ describe("closing the window with unsaved documents", () => {
     expect(dialog()).toBeNull();
     expect(prepare).toHaveBeenCalledExactlyOnceWith(true);
     expect(answer).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it("saves a question being edited on its library card before going on", async () => {
+    const flush = vi.fn(async () => true);
+    const release = holdQuestionCardEdit(flush);
+    mount([tab("试卷.chalklee", false)]);
+    expect(window.chalkLee.reportUnsavedChanges).toHaveBeenLastCalledWith(true);
+    await act(async () => requestClose());
+    release();
+    expect(flush).toHaveBeenCalledOnce();
+    expect(answer).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it("keeps the window when the card being edited cannot be saved", async () => {
+    const release = holdQuestionCardEdit(async () => false);
+    mount([tab("试卷.chalklee", true)]);
+    await act(async () => requestClose());
+    release();
+    expect(answer).toHaveBeenCalledExactlyOnceWith(false);
+    expect(prepare).not.toHaveBeenCalled();
   });
 });
