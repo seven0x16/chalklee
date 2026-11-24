@@ -25,6 +25,10 @@ import { chalkLeeQuestionTagsTransaction, type ChalkLeeTagChange } from "../tags
 import { CHALKLEE_REVEAL_QUESTION_REGION_META, chalkLeeOptionPreview, dispatchChalkLeeFreeAuthoringStatus } from "./authoringShared";
 import { chalkLeeAddOptionTransaction, chalkLeeQuestionReorderTransaction, moveQuestion, questionOutsideGapPosition, selectQuestionOutsideGap, questionMoveAvailability, setQuestionRegion, duplicateQuestion, deleteQuestion, setQuestionOptionLayout, addQuestionOption, moveQuestionOption, deleteQuestionOption, setQuestionChoiceAnswer, chalkLeeChoiceAnswerIsMultiple } from "./questionCommands";
 
+/** A group whose questions carry their own answers shows them together under it, so it is not offered one of its own. */
+const answeredByParts = (group: ProseMirrorNode) => group.type.name === "questionGroup" && group.content.content.some(child => child.type.name === "subQuestionList"
+  && child.content.content.some(question => question.content.content.some(region => region.type.name === "questionAnswer")));
+
 export function chalkLeeQuestionStemPresentation(node: ProseMirrorNode) {
   const sourceBlankId = typeof node.attrs.sourceBlankId === "string" ? node.attrs.sourceBlankId : "";
   let ownsSourceBlank = false;
@@ -143,7 +147,7 @@ export function QuestionNodeView({ editor, node, getPos, selected, decorations }
     ["optionGroup", "选项"], ["questionAnswer", "答案"], ["questionAnalysis", "解析"]
   ] as const).filter(([part]) => part === "optionGroup"
     ? !isGroup && optionCount < 8
-    : !solutions.content.content.some(child => child.type.name === part)) : [];
+    : !solutions.content.content.some(child => child.type.name === part) && !(part === "questionAnswer" && answeredByParts(solutions))) : [];
   const nextOption = String.fromCharCode(65 + optionCount);
   // The label says what is added ("选项 A–D", "选项 E"), so the buttons need no tooltip.
   const addLabel = (part: (typeof missingParts)[number][0], label: string) => part !== "optionGroup" ? label
@@ -481,11 +485,11 @@ function QuestionSettings({
       <section className="chalklee-inspector-section chalklee-question-solution-section" aria-label="答案与解析">
         <header><strong>答案与解析</strong></header>
         <div className="chalklee-question-region-controls">
-          <button
+          {answerNode || !answeredByParts(node) ? <button
             type="button"
             className={answerNode ? "active" : ""}
             onClick={() => toggleRegion("questionAnswer", Boolean(answerNode), Boolean(answerNode?.textContent.trim()))}
-          >{answerNode ? <Trash2 size={12} /> : <Plus size={12} />}{pendingRegionDelete === "questionAnswer" ? "确认删除答案" : answerNode ? "删除答案" : "添加答案"}</button>
+          >{answerNode ? <Trash2 size={12} /> : <Plus size={12} />}{pendingRegionDelete === "questionAnswer" ? "确认删除答案" : answerNode ? "删除答案" : "添加答案"}</button> : null}
           <button
             type="button"
             className={analysisNode ? "active" : ""}
