@@ -162,6 +162,8 @@ ChalkLee 本身开源免费，不用注册账号，也不收会员费。只有�
   <img src=".github/assets/qq-group.webp" width="168" alt="ChalkLee 交流群的 QQ 二维码，群号 1135963910">
 </p>
 
+如果 ChalkLee 对你的备课有帮助，欢迎在页面右上角点一颗 Star，让更多老师看到它。
+
 ## 从源码运行
 
 ChalkLee 基于 Electron、React 和 Tiptap，需要 **Node.js 22.19（22.x）或 24 及以上版本**。
