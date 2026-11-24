@@ -45,7 +45,7 @@ export function AboutSettings({ info, loadError, logoSrc }: { info: AboutInfo | 
             <FolderOpen size={13} aria-hidden="true" />打开
           </button>
         </SettingsRow>
-        <SettingsRow id="about-license" label="许可证" description="© 2026 seven0x5e。以 GNU AGPL 3.0 开源，可按其条款使用、修改和分发，不提供任何担保。"
+        <SettingsRow id="about-license" label="许可证" description="© 2026 seven0x16，采用 GNU AGPL 3.0 开源协议"
           error={licenseError || undefined}>
           <button type="button" className="settings-secondary" onClick={() => { setLicenseError(""); window.chalkLee.openLicense().catch(cause => setLicenseError(settingsErrorMessage(cause))); }}>
             <FileText size={13} aria-hidden="true" />查看

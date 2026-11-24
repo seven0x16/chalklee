@@ -103,7 +103,7 @@ describe("built-in plugins", () => {
       const shared = await readPluginPackage(await writePluginPackage(contents));
       expect(shared.manifest.license).toBe("MIT");
       const license = new TextDecoder().decode(shared.files.get("LICENSE"));
-      expect(license).toContain("Copyright (c) 2026 seven0x5e");
+      expect(license).toContain("Copyright (c) 2026 seven0x16");
       expect(license).toContain("Permission is hereby granted");
     }
   });
