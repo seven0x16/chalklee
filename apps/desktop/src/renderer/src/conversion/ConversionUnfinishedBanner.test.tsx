@@ -107,6 +107,20 @@ describe("unfinished conversion banner on a document", () => {
     render(delivered(["q37"]), handlers);
     expect(container.querySelector(".source-conversion-detail")!.textContent).toBe("第 41 题：原稿答案的题号印成了 37");
   });
+
+  it("turns the original open beside the document to each place, and closes it from 看原稿", async () => {
+    const followUp = { questions: ["5", "8"], pages: [], items: [{ question: "5", page: 2, reason: "没有整理成题目" }, { question: "8", page: 3, reason: "答案没有归到题目里" }] };
+    const delivered = task({ status: "completed", result: { file: { ...source, path, extension: "chalklee" }, record: { questionCount: 9, model: "flash", conversion: { followUp } } } as unknown as ConversionTask["result"] });
+    const handlers = { ...callbacks(), onCloseSource: vi.fn() };
+    act(() => root.render(<ConversionUnfinishedBanner task={delivered} model="flash" {...handlers} sourceShown />));
+    expect(container.querySelector("button[aria-pressed='true']")!.textContent).toBe("看原稿");
+    await act(async () => { container.querySelector<HTMLButtonElement>("button[aria-label='下一处']")!.click(); });
+    expect(handlers.onReveal).toHaveBeenLastCalledWith(expect.objectContaining({ question: "8" }));
+    expect(handlers.onOpenSource).toHaveBeenLastCalledWith(expect.objectContaining({ question: "8", page: 3 }));
+    await click("看原稿");
+    expect(handlers.onCloseSource).toHaveBeenCalledTimes(1);
+    expect(handlers.onOpenSource).toHaveBeenCalledTimes(1);
+  });
   it("follows the conversion while it continues into the document", async () => {
     const handlers = render(task({ status: "running", into: path, startedAt: Date.now() - 2 * 60_000, progress: { sourcePath: source.path, completed: 1, total: 2, message: "正在接着上次的进度转换，已完成的题目会保留" } }));
     expect(container.querySelector("strong")!.textContent).toBe("ChalkLee AI 正在转换");

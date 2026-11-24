@@ -93,6 +93,12 @@
 .source-conversion-actions button.primary:active:not(:disabled) { background: var(--cm-theme-accent-deep); color: var(--cm-theme-on-accent); }
 .source-conversion-actions button:disabled { opacity: .5; cursor: default; }
 .source-conversion-actions button.is-icon { width: 28px; padding: 0; }
+/* 看原稿 stays pressed while the original is open beside the document. */
+.source-conversion-actions button[aria-pressed="true"],
+.source-conversion-actions button[aria-pressed="true"]:hover:not(:disabled) { border-color: transparent; color: var(--cm-ui-selected-fg); background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow); }
+/* The original beside its document: a card of the same width, read only. */
+.source-beside-frame { flex: 1 1 0; }
+.app-shell .source-beside-header > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .source-conversion-steps { display: flex; align-items: center; gap: 2px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); font-variant-numeric: tabular-nums; }
 .source-conversion-steps > span { min-width: 34px; text-align: center; }
 .source-conversion-steps button { border-color: transparent; background: transparent; }

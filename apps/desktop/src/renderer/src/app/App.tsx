@@ -47,6 +47,7 @@ import { OrganizeNotice } from "../workspace/OrganizeNotice";
 import { ImportedOriginalsNotice } from "../workspace/ImportedOriginalsNotice";
 import { DocumentVersionsControls } from "../workspace/DocumentVersions";
 import { isOriginalKind, isHtmlKind, isMarkdownKind } from "../../../shared/document/kinds";
+import type { ImportFollowUpItem } from "../../../shared/conversion/types";
 import type { MarkdownConversion } from "../markdown/MarkdownToolbar";
 import { conversionBatchEndedText, conversionBatchSummary, conversionForFile, conversionIsActive, conversionOpenTarget, conversionUnfinished, draftOpening, type ConversionTask, type StartConversionRequest, followUpPlacesLeft } from "../../../shared/conversion/tasks";
 import { createEmptyChalkLeeDocument } from "../editor/editing";
@@ -265,6 +266,12 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
   const importedTargets = useMemo(() => workspace && importedEntries?.root === workspace.root.path
     ? importedConversionTargets(workspace.root, importedEntries.paths, conversionTasks) : null, [workspace, importedEntries, conversionTasks]);
   const [sourcePageRequest, setSourcePageRequest] = useState<{ fileId: string; page?: number; text?: string } | null>(null);
+  // The original open beside its document while the teacher checks places against it.
+  const [sourceBeside, setSourceBeside] = useState<SourceBeside | null>(null);
+  const [besideRuntime, setBesideRuntime] = useState<ActivePreviewRuntime | null>(null);
+  const besideRequestRef = useRef(0);
+  const besideShownRequestRef = useRef(0);
+  const documentFrameRef = useRef<HTMLElement>(null);
   const [questionRevealRequest, setQuestionRevealRequest] = useState<{ fileId: string; questionId: string; terms?: QuestionBankHighlight } | null>(null);
   const [questionBasket, setQuestionBasket] = useState<QuestionBasketItem[]>([]);
   const questionBasketVersionRef = useRef(0);
@@ -1165,6 +1172,69 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
       setSourcePageRequest(null);
     }
   }, [sourcePageRequest, activeTab?.loading, activeTab?.content, activeTabId, viewerOwnerId, viewerController, previewState.pageCount]);
+
+  const besideShown = !!sourceBeside && sourceBeside.ownerId === activeTabId && place === "documents";
+  const handleBesideRuntime = useCallback((runtime: ActivePreviewRuntime) => setBesideRuntime(runtime), []);
+  // Each place asked for turns the original to it once its pages are laid out.
+  useEffect(() => {
+    const request = sourceBeside?.place, controller = besideRuntime?.controller;
+    if (!request || request.seq === besideShownRequestRef.current || !controller || besideRuntime.fileId !== sourceBeside.tab.file.fileId || !besideRuntime.state.pageCount) return;
+    besideShownRequestRef.current = request.seq;
+    const found = !!request.text && !!controller.goToText?.(request.text);
+    if (!found && request.page) controller.goToPage(request.page);
+    // Opening the original narrows the document and lays it out again, which stops a jump made before; it is made now.
+    const reveal = request.reveal;
+    if (reveal) requestAnimationFrame(() => viewerControllerRef.current?.revealConversionPlace?.(reveal));
+  }, [sourceBeside, besideRuntime]);
+  // It belongs to the document it was opened from, and gives the right pane back when that document is left.
+  useEffect(() => {
+    if (sourceBeside && !besideShown) closeSourceBeside();
+  }, [besideShown]);
+  // The right pane and the original share the same room: opening a right panel puts the original away.
+  useEffect(() => {
+    if (sourceBeside && inspectorVisible) closeSourceBeside(false);
+  }, [inspectorVisible]);
+
+  /** Opens the original beside the document, at a page or the passage printed there; a tab where there is no room for both. */
+  function openSourceBeside(owner: OpenTab, file: WorkspaceFileNode, place: ImportFollowUpItem) {
+    const { page, sourceText: text } = place, request = { page, text, seq: ++besideRequestRef.current };
+    // Already open beside this document: only turn it to the place.
+    if (besideShown && sourceBeside.ownerId === owner.file.fileId && sourceBeside.tab.file.fileId === file.fileId) {
+      setSourceBeside({ ...sourceBeside, place: request });
+      return;
+    }
+    // The document and the original share everything right of the document's left edge once the right pane gives way.
+    const frame = documentFrameRef.current, row = frame?.parentElement;
+    const room = frame && row ? row.getBoundingClientRect().right - parseFloat(getComputedStyle(row).paddingRight) - frame.getBoundingClientRect().left : 0;
+    // A Markdown original is edited where it opens, so it keeps its own tab.
+    if (documentOnly || !isOriginalKind(file.extension) || room < SOURCE_BESIDE_MIN_WIDTH * 2) {
+      openFile(file);
+      if (page || text) setSourcePageRequest({ fileId: file.fileId, page, text });
+      return;
+    }
+    const tab: OpenTab = { ...createTab(file), loading: true };
+    setSourceBeside({ ownerId: owner.file.fileId, tab, place: { ...request, reveal: place }, restoreRight: sourceBeside?.restoreRight ?? inspectorVisible });
+    setBesideRuntime(null);
+    if (inspectorVisible) hideRightPane();
+    void loadSourceBeside(tab);
+  }
+
+  async function loadSourceBeside(tab: OpenTab) {
+    const update = (change: Partial<OpenTab>) => setSourceBeside(current => current?.tab.viewId === tab.viewId ? { ...current, tab: { ...current.tab, ...change } } : current);
+    update({ loading: true, error: null });
+    try {
+      const [{ data, size, modifiedAt }] = await Promise.all([window.chalkLee.readDocument(tab.file.path), prepareDocumentViewer(tab.file.extension)]);
+      update({ file: { ...tab.file, size, modifiedAt }, content: { value: { bytes: data } }, loadedModifiedAt: modifiedAt, loading: false, error: null, loadRevision: tab.loadRevision + 1 });
+    } catch (error) {
+      update({ loading: false, error: errorMessage(error) });
+    }
+  }
+
+  function closeSourceBeside(restoreRight = true) {
+    if (restoreRight && sourceBeside?.restoreRight) showRightPane();
+    setSourceBeside(null);
+    setBesideRuntime(null);
+  }
 
   useEffect(() => {
     const request = questionRevealRequest;
@@ -2441,7 +2511,7 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
         ) : null}
         {pluginCenter.review ? <PluginReviewDialog review={pluginCenter.review.review} onConfirm={() => pluginCenter.answerReview(true)} onCancel={() => pluginCenter.answerReview(false)} /> : null}
         {pluginCenter.removing ? <PluginRemoveDialog plugin={pluginCenter.removing} onConfirm={pluginCenter.confirmRemove} onCancel={() => pluginCenter.setRemoving(null)} /> : null}
-        <section className="unified-document-frame" style={libraryPlace || pluginsPlace ? { display: "none" } : undefined}>
+        <section ref={documentFrameRef} className="unified-document-frame" style={libraryPlace || pluginsPlace ? { display: "none" } : undefined}>
           <section className="unified-document-content">
             {activeTab || tabs.length ? (
               <section className="document-workspace-shell unified-source-workspace">
@@ -2482,11 +2552,12 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
                             onAcknowledge={id => window.chalkLee.acknowledgeUnfinishedConversion(id)} onChooseModel={() => setSettingsPage("ai")}
                             onReview={(id, key, checked) => window.chalkLee.reviewConversionFollowUp(id, key, checked)}
                             onReveal={place => viewerController?.revealConversionPlace?.(place)}
-                            onOpenSource={({ page, sourceText }) => {
+                            sourceShown={besideShown}
+                            onCloseSource={() => closeSourceBeside()}
+                            onOpenSource={place => {
                               const kept = unfinishedTask.source;
                               const file = workspaceOriginalOf(workspaceIndex.files, activeTab.file.path, kept.name) ?? workspaceIndex.byPath.get(kept.path) ?? kept;
-                              openFile(file);
-                              if (page || sourceText) setSourcePageRequest({ fileId: file.fileId, page, text: sourceText });
+                              openSourceBeside(activeTab, file, place);
                             }}
                             onAsk={documentOnly || !workspace ? undefined : (text, follow) => askAssistant(text, { follow: { ...follow, document: workspaceRelativePath(workspace.root.path, tab.file.path) } })} /> : null}
                         </> : null}
@@ -2509,6 +2580,28 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
               onOutline={item => viewerController?.goToOutline(item.target)} /> : null}
           </section>
         </section>
+        {besideShown && sourceBeside ? (
+          <section className="unified-document-frame source-beside-frame" aria-label="原稿">
+            <header className="sidebar-pane-header source-beside-header">
+              <DocumentFileIcon kind={sourceBeside.tab.file.extension} />
+              <strong title={sourceBeside.tab.file.name}>{sourceBeside.tab.file.name}</strong>
+              <span className="sidebar-pane-actions">
+                <button type="button" title="关闭原稿" aria-label="关闭原稿" onClick={() => closeSourceBeside()}><X size={15} aria-hidden="true" /></button>
+              </span>
+            </header>
+            <section className="unified-document-content">
+              <section className="document-workspace-shell unified-source-workspace">
+                <div className="document-preview-scroll app-preview-scroll">
+                  <section className="app-viewer-host">
+                    <DocumentPreviewPane key={`${sourceBeside.tab.viewId}:${sourceBeside.tab.loadRevision}`} tab={sourceBeside.tab} active showToolbar={false}
+                      onActiveRuntime={handleBesideRuntime} onRetry={() => void loadSourceBeside(sourceBeside.tab)} onDirtyChange={ignoreDocumentChange} onSaved={ignoreDocumentChange} />
+                  </section>
+                </div>
+              </section>
+              <DocumentViewControls file={sourceBeside.tab.file} state={besideRuntime?.state ?? DEFAULT_PREVIEW_STATE} controller={besideRuntime?.controller ?? null} />
+            </section>
+          </section>
+        ) : null}
 
         {!documentOnly ? <PaneResizer
           side="right"
@@ -2621,6 +2714,21 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
     </QuestionAssistantContext.Provider>
     </QuestionBasketContext.Provider>
   );
+}
+
+/** Each side keeps at least this width; with less room the original opens in a tab instead. */
+const SOURCE_BESIDE_MIN_WIDTH = 440;
+/** The original beside its document is only read, never saved. */
+const ignoreDocumentChange = () => {};
+
+interface SourceBeside {
+  /** The document it was opened from. */
+  ownerId: string;
+  tab: OpenTab;
+  /** The latest place asked for; `seq` tells a repeated request for the same place from one already shown. */
+  place: { page?: number; text?: string; seq: number; /** The place to show in the document too, once both sides are laid out. */ reveal?: ImportFollowUpItem } | null;
+  /** The right pane was open before and comes back when the original closes. */
+  restoreRight: boolean;
 }
 
 function errorMessage(error: unknown): string {

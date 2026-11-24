@@ -16,7 +16,7 @@ export function unfinishedConversionFor(tasks: readonly ConversionTask[], docume
  * Under the toolbar of a document whose conversion stopped short or left places to check. It stays out of the paper itself:
  * a teacher steps through those places, compares them with the original, and each one checked leaves the list.
  */
-export function ConversionUnfinishedBanner({ task, model, onContinue, onStop, onAcknowledge, onChooseModel, onReview, onReveal, onOpenSource, onAsk }: {
+export function ConversionUnfinishedBanner({ task, model, onContinue, onStop, onAcknowledge, onChooseModel, onReview, onReveal, onOpenSource, sourceShown = false, onCloseSource, onAsk }: {
   task: ConversionTask;
   /** The model conversions run on now, to tell whether continuing would use another one. */
   model?: string;
@@ -29,6 +29,9 @@ export function ConversionUnfinishedBanner({ task, model, onContinue, onStop, on
   /** Goes to this place in the open document. */
   onReveal(place: ImportFollowUpItem): void;
   onOpenSource(place: ImportFollowUpItem): void;
+  /** The original is open beside the document: it follows each place the teacher goes to, and 看原稿 closes it. */
+  sourceShown?: boolean;
+  onCloseSource?(): void;
   /** Absent where ChalkLee AI is not available. */
   onAsk?(text: string, follow: { onEnded(edited: boolean): void; onUndone(): void }): void;
 }) {
@@ -60,7 +63,7 @@ export function ConversionUnfinishedBanner({ task, model, onContinue, onStop, on
   lastPlace.current = at;
   const current: ImportFollowUpItem | undefined = active ? undefined : items[at];
   const currentKey = current && followUpItemKey(current);
-  const go = (item: ImportFollowUpItem) => { setPlaceKey(followUpItemKey(item)); onReveal(item); };
+  const go = (item: ImportFollowUpItem) => { setPlaceKey(followUpItemKey(item)); onReveal(item); if (sourceShown) onOpenSource(item); };
   const step = (by: number) => go(items[(at + by + items.length) % items.length]);
   const review = () => run(async () => {
     const rest = items.filter(item => item !== current), next = rest[Math.min(at, rest.length - 1)];
@@ -108,7 +111,7 @@ export function ConversionUnfinishedBanner({ task, model, onContinue, onStop, on
           <span>{at + 1}/{items.length}</span>
           <button type="button" className="is-icon" aria-label="下一处" title="下一处" onClick={() => step(1)}><ChevronRight size={16} aria-hidden="true" /></button>
         </span> : null}
-        <button type="button" onClick={() => onOpenSource(current)}>看原稿</button>
+        <button type="button" aria-pressed={sourceShown} onClick={() => sourceShown && onCloseSource ? onCloseSource() : onOpenSource(current)}>看原稿</button>
         <button type="button" disabled={busy || fixing === currentKey} onClick={() => void review()}>没问题</button>
         {canFix ? <button type="button" className="primary" disabled={!!fixing} onClick={() => fix(current)}>
           {fixing === currentKey ? <><LoaderCircle size={14} className="ai-import-spinner" aria-hidden="true" />正在修改</> : "ChalkLee AI 修改"}

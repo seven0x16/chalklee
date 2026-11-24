@@ -39,4 +39,5 @@
 .chalk-word-thumb-x { bottom: 3px; left: 0; height: 6px; }
 .chalk-word-thumb-y { right: 3px; top: 0; width: 6px; }
 
-::highlight(chalk-word-found) { background-color: var(--cm-ui-selected-bg); }
+/* The passage a conversion note points to; the page stays white in dark mode, so the tint comes from the accent itself. */
+::highlight(chalk-word-found) { background-color: rgb(var(--cm-theme-accent-rgb) / .2); }
