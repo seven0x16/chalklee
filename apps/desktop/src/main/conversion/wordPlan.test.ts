@@ -53,6 +53,17 @@ it("preserves exercise numbers after a Word line break and times beside answer l
   }
 });
 
+it("separates two options sharing a line when the first lost its dot and the next line goes on with the next letter", () => {
+  const paragraph = (id: string, text: string): any => ({ type: "paragraph", attrs: { id }, content: [{ type: "text", text }] });
+  const lines = ["29. Which of the followings can't the visitors do?", "A Buy all kinds of chocolate products. B. Have a chance to taste the chocolate.",
+    "C. Learn how to make the chocolate.", "D. Know about the history of the chocolate."];
+  expect(splitWordSourceBlocks(lines.map((text, i) => paragraph(`p${i}`, text))).map(wordSourceText)).toEqual([lines[0],
+    "A Buy all kinds of chocolate products.", "B. Have a chance to taste the chocolate.", lines[2], lines[3]]);
+  // Without an option line after it, an opening "A" is the article it reads as.
+  const prose = ["A girl named B. Lee came in.", "She sat down."];
+  expect(splitWordSourceBlocks(prose.map((text, i) => paragraph(`s${i}`, text))).map(wordSourceText)).toEqual(prose);
+});
+
 it("separates sequential printed exercises joined by a Word line break without altering their blanks", () => {
   const source: any = { type: "paragraph", attrs: { id: "exercises" }, content: [
     { type: "text", text: "6. Write the " }, { type: "blank", attrs: { id: "blank-six", widthPt: 60 } }, { type: "text", text: " word." },

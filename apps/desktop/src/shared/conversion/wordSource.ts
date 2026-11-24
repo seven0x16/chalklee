@@ -293,7 +293,7 @@ function vocabularyItemCuts(plain: string): number[] {
 
 /** Split explicit exercise, choice and answer boundaries; retain rich runs verbatim. */
 export function splitWordSourceBlocks(blocks: ChalkLeeBlockNode[]): ChalkLeeBlockNode[] {
-  return blocks.flatMap((block): ChalkLeeBlockNode[] => {
+  return blocks.flatMap((block, at): ChalkLeeBlockNode[] => {
     if (block.type === "table") {
       const options = choiceTableParagraphs(block);
       return options ? splitWordSourceBlocks(options) : [block];
@@ -306,12 +306,16 @@ export function splitWordSourceBlocks(blocks: ChalkLeeBlockNode[]): ChalkLeeBloc
     const explicit = [...body.matchAll(/(?:^|\s)([A-H])[ \t]*[.．、:：)）]\s*/g)];
     const candidates = [...body.matchAll(/(?:^|\s)([A-H])(?:[ \t]*[.．、:：)）]\s*|[ \t]+(?=\S))/g)];
     const completeSequence = candidates.length >= 4 && candidates.every((match, i) => match[1] === String.fromCharCode(65 + i));
+    // "A Buy… B. Have…" over "C. Learn…": options sharing a line whose first letter lost its dot, carried on by the next line.
+    const next = blocks[at + 1]?.type === "paragraph" ? wordSourceText(blocks[at + 1]).match(/^\s*([A-H])[ \t]*[.．、:：)）]/)?.[1] : undefined;
+    const continuedSequence = candidates.length >= 2 && candidates[0].index === 0 && candidates.every((match, i) => match[1] === String.fromCharCode(65 + i))
+      && candidates.slice(1).every(match => /[.．、:：)）]/.test(match[0])) && next === String.fromCharCode(65 + candidates.length);
     const illustratedSequence = candidates.length >= 2 && candidates.every((match, i) => (!i || match[1].charCodeAt(0) === candidates[i - 1][1].charCodeAt(0) + 1)
       && sliceInlineContent(block.content!, afterHeader + match.index!, afterHeader + (candidates[i + 1]?.index ?? body.length)).some(node => node.type === "imageInline"));
     // Options a PDF-to-Word copy glued to the Chinese before them ("…向西北流B.土地沙化严重"): only a full A, B, C, D… in order.
     const glued = [...explicit, ...body.matchAll(/(?<=[\u3400-\u9fff\u3000-\u303f\uff01-\uff5e])([A-H])[ \t]*[.．、]\s*/g)].sort((a, b) => a.index! - b.index!);
     const gluedSequence = glued.length >= 4 && glued.length > explicit.length && glued.every((match, i) => match[1] === String.fromCharCode(65 + i));
-    const options = (completeSequence || illustratedSequence ? candidates : gluedSequence ? glued : explicit).map(match => { match.index = match.index! + afterHeader; return match; });
+    const options = (completeSequence || illustratedSequence || continuedSequence ? candidates : gluedSequence ? glued : explicit).map(match => { match.index = match.index! + afterHeader; return match; });
     const ordered = options.length >= 2 && options.every((match, index) => !index || match[1].charCodeAt(0) === options[index - 1][1].charCodeAt(0) + 1);
     // The next question run on after this one's last option: "…D.易受涝灾影响 6.乙地冬季…".
     const following = header && ordered && options.length >= 4 ? [...plain.slice(options.at(-1)!.index!).matchAll(new RegExp(`(?:^|\\s)(${Number(header[1]) + 1})[.．、](?!\\d)`, "g"))]
