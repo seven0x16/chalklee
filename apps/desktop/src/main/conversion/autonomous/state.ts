@@ -4,7 +4,7 @@ import { appendImportBlocks, assertImportDocument, importContinuationTarget, imp
 import { chalkLeeQuestionLabelValue, type ChalkLeeArchiveAssetInput, type ChalkLeeDocument } from "@chalklee/format";
 import type { ImportImage, ImportNotice, PreparedImport, SourceFragmentRevision } from "../../../shared/conversion/types";
 import { prepareReply, normalizeImportLayout } from "../documentImport";
-import { reconcileImportAnswers, settleRepeatedAnswers, type ImportAnswerEntry } from "../answers";
+import { misprintedAnswerKeys, reconcileImportAnswers, settleRepeatedAnswers, type ImportAnswerEntry } from "../answers";
 import { applyImportScores } from "../scores";
 import { normalizeImportStructuredContent } from "../structuredContent";
 import { importCropRect, cutCropEdges, overlappingCropInk, cropAssetMatches } from "../crop";
@@ -70,6 +70,8 @@ export function compileAutonomousDraft(input: PreparedImport, template: ChalkLee
   const transcription = new Map<string, string>();
   const questionSources: ImportQuestionSource[] = [];
   const doubts: string[] = [];
+  // Found over the whole key: a fragment may hold only some of its lines.
+  const misprinted = misprintedAnswerKeys(input.units.flatMap(unit => wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers)));
   const sourceTables = new Set(input.units.flatMap(unit => unit.blocks.filter(block => block.type === "table").map(block => block.attrs.id)));
   // A source table written inside a one-cell table, {"type":"table","rows":[[[{"ref":"t"}]]]}, is that table itself.
   const unwrapSourceTable = (value: any): any => {
@@ -114,7 +116,7 @@ export function compileAutonomousDraft(input: PreparedImport, template: ChalkLee
       sourceRoles: Object.assign({}, ...units.map(unit => unit.sourceRoles)),
       sourceQuestionNumbers: Object.assign({}, ...units.map(unit => unit.sourceQuestionNumbers)) };
     const reply = { blocks: normalizeImportStructuredContent(structuredClone(fragment.blocks)), continuesPrevious: fragment.continuesPrevious, warnings: fragment.warnings };
-    const prepared = prepareReply(reply, unit, importContinuationTarget(document.content.content), index, doubts);
+    const prepared = prepareReply(reply, unit, importContinuationTarget(document.content.content), index, doubts, misprinted);
     questionSources.push(...prepared.questions);
     for (const [id, value] of captureImportContent(prepared.blocks, new Set(prepared.answers.map(entry => entry.nodeId)))) transcription.set(id, value);
     assertImportDocument({ ...document, content: { type: "doc", content: prepared.blocks }, provenance: { ...document.provenance!, anchors: [] } }, true);

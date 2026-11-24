@@ -6,7 +6,7 @@ import { wordSourceEntries } from "../../shared/conversion/wordSource";
 import { assessAutonomousDraft, compileAutonomousDraft, newAutonomousDraft } from "./autonomous/state";
 import { makeDocument } from "./documentImport";
 import { compileUnfinishedReferenceDraft } from "./referenceDraft";
-import { misprintedAnswerNumbers, organizeRemainingReferences, referenceFollowUp, settleNumberedChoices } from "./referenceFallback";
+import { organizeRemainingReferences, referenceFollowUp, settleNumberedChoices } from "./referenceFallback";
 
 const paragraphs = (texts: string[]) => texts.map((text, index) => ({ type: "paragraph", attrs: { id: `source_${index + 1}` }, content: [{ type: "text", text }] })) as ChalkLeeBlockNode[];
 const prepared = (texts: string[]): PreparedImport => {
@@ -130,13 +130,6 @@ describe("organizing what the agent left", () => {
     });
   });
 
-  it("points to the number an answer key should have printed, without trusting a steady key less", () => {
-    expect(misprintedAnswerNumbers(["36. cleaner 37. her 38. the 39. herself 40. cheerful", "37. to make 42. so 43. are 44. on 45. wrote"])).toEqual([{ printed: "37", expected: "41", line: 1 }]);
-    expect(misprintedAnswerNumbers(["1. A 2. B 3. C", "4. D 5. A"])).toEqual([]);
-    expect(misprintedAnswerNumbers(["1. A 2. B 3. C", "1. D 2. A 3. B"])).toEqual([]);
-    expect(misprintedAnswerNumbers(["1. 3.5 2. 4.5 3. 2.5"])).toEqual([]);
-  });
-
   it("says why each place needs a look", () => {
     const input = prepared(["1. 一", "2. 二", "36. cleaner 37. her 38. the 39. herself 40. cheerful", "37. to make 42. so 43. are 44. on 45. wrote"]);
     const followUp = referenceFollowUp(input, ["2"], ["第1题留在了题外：source_1"], [3])!;
@@ -160,6 +153,20 @@ describe("organizing what the agent left", () => {
       { question: "18", sourceText: "图 3 和图 4 的说明文字", reason: "“图 3 和图 4 的说明文字”放在了第 (6) 小问，请核对" },
       { question: "19", sourceText: "第二段题干内容", reason: "题目提到图，这里没有图" }
     ]);
+  });
+
+  it("drops the number an answer key misprinted once the answer is in the question the count expects", () => {
+    const input = prepared(["40. She is so ____ (cheer).", "41. She decided ____ (make) a change.", "参考答案", "36. cleaner", "37. her", "38. the", "39. herself", "40. cheerful", "37. to make", "42. so"]);
+    const roles = input.units[0].sourceRoles!;
+    expect(roles.source_9).toBe("answer");
+    const question = (number: string, stem: string, answer: string) => ({ type: "question", number, kind: "blank", stem: [{ ref: stem, stripPrefix: `${number}.` }], answer: [{ ref: answer }] });
+    const draft = { ...newAutonomousDraft(), seenUnits: ["part_1"], fragments: [{ key: "key", order: 0, unitIds: ["part_1"], continuesPrevious: false, warnings: [],
+      blocks: [question("40", "source_1", "source_8"), question("41", "source_2", "source_9")] }] };
+    const compiled = compileAutonomousDraft(input, template(input), draft as any);
+    const answerOf = (number: string) => importText(questions(compiled.document).find(block => block.attrs.number.label === number)!.content.find((region: any) => region.type === "questionAnswer")).trim();
+    expect(answerOf("40")).toBe("cheerful");
+    expect(answerOf("41")).toBe("to make");
+    expect(compiled.doubts.join("\n")).not.toContain("不能移入第 41 题");
   });
 
   it("tells a passage put in another question once, at the question it went into", () => {

@@ -7,6 +7,7 @@ import { wordAnswerLabel, wordBareLabel } from "../../shared/conversion/wordSour
 import { compileAutonomousDraft, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
 import { collectSourceRefs, referenceSourceEntries, withOriginalParagraphs } from "./referenceDraft";
 import { workingReferenceInput } from "./referenceSources";
+import { answerKeyLines, misprintedAnswerNumbers } from "./answers";
 
 const MAX_ORGANIZE_MS = 20_000;
 
@@ -188,22 +189,6 @@ export function organizeRemainingReferences(input: PreparedImport, template: Cha
   };
 }
 
-/**
- * An answer key whose number breaks an otherwise steady count: "40. cheerful", "37. to make", "42. so". The paper itself
- * may be misprinted, so the answer is not moved; the teacher is pointed to the number the count expects.
- */
-export function misprintedAnswerNumbers(lines: string[]): { printed: string; expected: string; line: number }[] {
-  const numbers = lines.flatMap((line, index) => [...line.matchAll(/(?:^|\s)(\d{1,3})\s*[.．、]\s*(?=[^\d\s])/g)].map(match => ({ value: Number(match[1]), line: index })));
-  const seen = new Set<number>(), found: { printed: string; expected: string; line: number }[] = [];
-  numbers.forEach(({ value, line }, at) => {
-    const before = numbers[at - 1]?.value;
-    if (before !== undefined && value !== before + 1 && numbers[at + 1]?.value === before + 2 && seen.has(value))
-      found.push({ printed: String(value), expected: String(before + 1), line });
-    seen.add(value);
-  });
-  return found;
-}
-
 const CONCERN_REF = /(?<![\w-])[\w-]*source_[\w-]+/;
 /** A few printed words to name a passage by, as the teacher sees them in the original: no formula source or image ids. */
 function quoted(text?: string) {
@@ -252,8 +237,7 @@ export function referenceFollowUp(input: PreparedImport, numbers: string[], conc
   const owner = new Map(entries.map(entry => [entry.ref, entry.questionNumber]));
   const reasons = new Map<string, string>();
   const note = (number: string, reason: string) => { if (/^\d+$/.test(number) && !reasons.has(number)) reasons.set(number, reason); };
-  // A key line lists several answers; a PDF's lines carry no answer role to tell them by.
-  const keyLines = entries.filter(entry => entry.role === "answer" || (entry.text.match(/(?:^|\s)\d{1,3}\s*[.．、]\s*[^\d\s]/g)?.length ?? 0) >= 3);
+  const keyLines = answerKeyLines(entries);
   const pageOfUnit = (unitId: string) => input.units.find(unit => unit.id === unitId)?.page;
   const byRef = new Map(entries.map(entry => [entry.ref, entry]));
   // The line a doubt is about, so the original opens there rather than at the top of the question.

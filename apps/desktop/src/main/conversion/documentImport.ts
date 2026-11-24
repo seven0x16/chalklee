@@ -21,7 +21,7 @@ import { assertInsideRoot, createWorkspaceChalkLee, readWorkspaceDocument } from
 import { workspaceStorageDirectory } from "../workspace/storage";
 import { openConversionStorage } from "./cacheStorage";
 import { locateWorkspaceOriginal, readConversionSource } from "./originals";
-import { assertWordImportPlan, normalizeWordImportPlan, plainTitlesInQuestions, WORD_PLAN_PROMPT } from "./wordPlan";
+import { assertWordImportPlan, normalizeWordImportPlan, plainTitlesInQuestions, WORD_PLAN_PROMPT, type MisprintedAnswers } from "./wordPlan";
 import { mergeAdjacentBlanks, sliceInlineContent, tidyWordInlines, wordPrefixLength, wordSourceEntries, wordSourceText } from "../../shared/conversion/wordSource";
 import { importQuestionAnchors, printedBlankNumbers } from "../../shared/conversion/questionAnchors";
 import { resolveWordFormulaImages } from "./wordFormulas";
@@ -66,14 +66,14 @@ function walk(value: unknown, visit: (node: Record<string, any>) => void): void 
   if (Array.isArray(node.content)) node.content.forEach(child => walk(child, visit));
 }
 
-export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: ImportUnit, continuation: ChalkLeeBlockNode | undefined, unitIndex: number, doubts?: string[]) {
+export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: ImportUnit, continuation: ChalkLeeBlockNode | undefined, unitIndex: number, doubts?: string[], misprinted?: MisprintedAnswers) {
   if (unit.nativeReferences) {
     const first = wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers).find(entry => entry.text.trim());
     const printed = first && importQuestionAnchors(first.text).find(match => match.index === 0)?.[1];
     // A source heading/new printed question is stronger evidence than a model's
     // continuation flag, particularly after question-aware Word chunking.
     if (first?.role === "heading" || (printed && first?.questionNumber === printed && continuation?.type === "question" && continuation.attrs.number.mode === "fixed" && continuation.attrs.number.label !== printed)) reply.continuesPrevious = false;
-    reply.blocks = plainTitlesInQuestions(normalizeWordImportPlan(reply.blocks, unit), unit);
+    reply.blocks = plainTitlesInQuestions(normalizeWordImportPlan(reply.blocks, unit, misprinted), unit);
     const opening = reply.blocks[0] as any;
     // A native-text page can continue a group whose previous page needed OCR.
     // An empty material wrapper is a continuation only with matching source
@@ -81,7 +81,7 @@ export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: I
     if (unit.page && first?.role !== "heading" && continuation?.type === "questionGroup" && opening?.type === "questionGroup"
       && opening.kind === continuation.attrs.kind && String(opening.number ?? "") === (continuation.attrs.number.mode === "fixed" ? continuation.attrs.number.label : "")
       && (!opening.material || (Array.isArray(opening.material) && !opening.material.length)) && opening.questions?.length) reply.continuesPrevious = true;
-    assertWordImportPlan(reply.blocks, unit, reply.continuesPrevious ? continuation : undefined, doubts);
+    assertWordImportPlan(reply.blocks, unit, reply.continuesPrevious ? continuation : undefined, doubts, misprinted);
   }
   const originals = new Map<string, Record<string, any>>();
   walk(unit.blocks, node => { if (node.attrs?.id) originals.set(node.attrs.id, node); });

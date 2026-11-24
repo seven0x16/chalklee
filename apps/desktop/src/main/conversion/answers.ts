@@ -75,6 +75,38 @@ function repeatsChoiceAnswer(target: Question, regions: any[]) {
 }
 
 /**
+ * An answer key whose number breaks an otherwise steady count: "40. cheerful", "37. to make", "42. so". The paper itself
+ * may be misprinted, so the answer is not moved; the teacher is pointed to the number the count expects.
+ */
+export function misprintedAnswerNumbers(lines: string[]): { printed: string; expected: string; line: number }[] {
+  const numbers = lines.flatMap((line, index) => [...line.matchAll(/(?:^|\s)(\d{1,3})\s*[.．、]\s*(?=[^\d\s])/g)].map(match => ({ value: Number(match[1]), line: index })));
+  const seen = new Set<number>(), found: { printed: string; expected: string; line: number }[] = [];
+  numbers.forEach(({ value, line }, at) => {
+    const before = numbers[at - 1]?.value;
+    if (before !== undefined && value !== before + 1 && numbers[at + 1]?.value === before + 2 && seen.has(value))
+      found.push({ printed: String(value), expected: String(before + 1), line });
+    seen.add(value);
+  });
+  return found;
+}
+
+/** Lines of an answer key: marked as answers, or listing three numbered answers or more (a PDF's lines carry no role). */
+export function answerKeyLines<T extends { text: string; role: string }>(entries: T[]): T[] {
+  return entries.filter(entry => entry.role === "answer" || (entry.text.match(/(?:^|\s)\d{1,3}\s*[.．、]\s*[^\d\s]/g)?.length ?? 0) >= 3);
+}
+
+/**
+ * A single answer printed under a misprinted number ("37. to make" where 41 is due), by its source reference. Put in the
+ * question the count expects, that number is the paper's slip, not part of the answer.
+ */
+export function misprintedAnswerKeys(entries: { ref: string; text: string; role: string }[]): Map<string, { printed: string; expected: string }> {
+  const lines = answerKeyLines(entries);
+  return new Map(misprintedAnswerNumbers(lines.map(entry => entry.text))
+    .filter(({ line }) => (lines[line].text.match(/(?:^|\s)\d{1,3}\s*[.．、]\s*[^\d\s]/g)?.length ?? 0) === 1)
+    .map(({ printed, expected, line }) => [lines[line].ref, { printed, expected }]));
+}
+
+/**
  * A paper may print each answer under its question and again in a solutions section, and both land in the question's
  * answer. What is certainly the same answer is settled here without changing a word of it: a label line that only
  * says "参考答案", the same choice letter again, and the letter repeated before a labelled note, whose note goes to

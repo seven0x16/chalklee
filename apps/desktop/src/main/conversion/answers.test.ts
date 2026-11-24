@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { importAppearance, importText, assertImportDocument } from "../../shared/conversion/importDocument";
 import type { ChalkLeeDocument } from "@chalklee/format";
-import { answerEntryPlan, reconcileImportAnswers, settleRepeatedAnswers, type ImportAnswerEntry } from "./answers";
+import { answerEntryPlan, misprintedAnswerKeys, misprintedAnswerNumbers, reconcileImportAnswers, settleRepeatedAnswers, type ImportAnswerEntry } from "./answers";
 
 const p = (id: string, text: string): any => ({ type: "paragraph", attrs: { id }, content: text ? [{ type: "text", text }] : [] });
 const q = (id: string, number: string, text = "题干"): any => ({ type: "question", attrs: { id, kind: "free-response", number: { mode: "fixed", label: number } }, content: [{ type: "questionStem", attrs: { id: `${id}_stem` }, content: [p(`${id}_p`, text)] }] });
@@ -380,4 +380,18 @@ it("scopes the first printed child answer even when its second child starts on t
   const result = answerEntryPlan([{ type: "answerEntry", number: "17", answer: ["⑴ 解：前半段", "下一页继续"] }]);
   expect(result.entries).toEqual([{ index: 0, parents: ["17"] }]);
   expect(result.blocks[0]).toMatchObject({ number: "(1)", answer: ["解：前半段", "下一页继续"] });
+});
+
+it("points to the number an answer key should have printed, without trusting a steady key less", () => {
+  expect(misprintedAnswerNumbers(["36. cleaner 37. her 38. the 39. herself 40. cheerful", "37. to make 42. so 43. are 44. on 45. wrote"])).toEqual([{ printed: "37", expected: "41", line: 1 }]);
+  expect(misprintedAnswerNumbers(["1. A 2. B 3. C", "4. D 5. A"])).toEqual([]);
+  expect(misprintedAnswerNumbers(["1. A 2. B 3. C", "1. D 2. A 3. B"])).toEqual([]);
+  expect(misprintedAnswerNumbers(["1. 3.5 2. 4.5 3. 2.5"])).toEqual([]);
+});
+
+it("names the single answer printed under a misprinted number, not a whole key line", () => {
+  const key = ["36. cleaner", "37. her", "38. the", "39. herself", "40. cheerful", "37. to make", "42. so"].map((text, index) => ({ ref: `a${index}`, text, role: "answer" }));
+  expect([...misprintedAnswerKeys(key)]).toEqual([["a5", { printed: "37", expected: "41" }]]);
+  const lines = [{ ref: "l1", text: "36. cleaner 37. her 38. the 39. herself 40. cheerful", role: "answer" }, { ref: "l2", text: "37. to make 42. so 43. are", role: "answer" }];
+  expect(misprintedAnswerKeys(lines).size).toBe(0);
 });

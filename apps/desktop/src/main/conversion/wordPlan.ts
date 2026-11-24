@@ -102,8 +102,11 @@ function subquestionOrdinal(number: string): number {
 const printedSubquestions = (questions: any[]) => questions.length >= 2
   && questions.every((child, index) => /^\s*[（(]/.test(String(child?.number ?? "")) && subquestionOrdinal(String(child.number)) === index + 1);
 
+/** Answers printed under a misprinted number, by source reference: the number printed and the one the count expects. */
+export type MisprintedAnswers = ReadonlyMap<string, { printed: string; expected: string }>;
+
 /** Tolerate redundant paragraph wrappers around references without rewriting any source. */
-export function normalizeWordImportPlan(value: any, unit?: ImportUnit): any {
+export function normalizeWordImportPlan(value: any, unit?: ImportUnit, misprinted?: MisprintedAnswers): any {
   const originalEntries = new Map(unit ? wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers).map(entry => [entry.ref, entry]) : []);
   const source = new Map([...originalEntries].map(([ref, entry]) => [ref, entry.text]));
   const wrappers = ["body", "paragraph", "heading", "table", "image", "blockMath"];
@@ -383,11 +386,14 @@ export function normalizeWordImportPlan(value: any, unit?: ImportUnit): any {
     // "(1) 求离心率。" heading a part of a worked solution is a line of that solution.
     // A heading allowed into an answer or analysis is a line there: these regions hold no headings.
     if (node.ref && (region === "answer" || region === "analysis") && !node.as && originalEntries.get(node.ref)?.type === "heading") node.as = "paragraph";
+    // "37. to make" put in question 41 where the key's count calls for 41: the 37 is the paper's slip, a label like 41 would be.
+    const slip = node.ref && ["answer", "analysis"].includes(region ?? "") ? misprinted?.get(node.ref) : undefined;
+    const misprintedHere = (printed?: string) => !!slip && slip.printed === printed && slip.expected === normalizeImportNumber(number ?? "");
     if (node.ref && node.stripPrefix) {
       const prefix = String(node.stripPrefix);
       const numbered = prefix.match(/^\s*(?:[（(]\s*[）)]\s*)?(?:[（(]\s*(\d{1,3})\s*[）)]|(\d{1,3})(?:[.．、)）]|\s))/);
       // A (1)/(2) inside question 15 is source content, not question 15's label.
-      if (numbered && normalizeImportNumber(number ?? "") !== (numbered[1] ?? numbered[2])) delete node.stripPrefix;
+      if (numbered && normalizeImportNumber(number ?? "") !== (numbered[1] ?? numbered[2]) && !misprintedHere(numbered[2])) delete node.stripPrefix;
     }
     if (node.ref && !node.stripPrefix) {
       const text = source.get(node.ref) ?? "";
@@ -401,7 +407,8 @@ export function normalizeWordImportPlan(value: any, unit?: ImportUnit): any {
         : ["stem", "material", "answer", "analysis"].includes(region ?? "") && printedQuestion
           && sameNumber
           && (!printedQuestion[2] || /^[（(]/.test(number ?? ""))
-          && (region !== "material" || !/^\s*_{2,}/.test(text.slice(printedQuestion[0].length))) ? printedQuestion[0] : undefined);
+          && (region !== "material" || !/^\s*_{2,}/.test(text.slice(printedQuestion[0].length))) ? printedQuestion[0]
+        : printedQuestion && misprintedHere(printedQuestion[1]) ? printedQuestion[0] : undefined);
       if (prefix) { wordPrefixLength(text, prefix); node.stripPrefix = prefix; }
     }
     for (const [key, value] of Object.entries(node)) if (value && typeof value === "object") labels(value, number, option, ["stem", "material", "answer", "analysis"].includes(key) ? key : region, answerEntry);
@@ -597,7 +604,7 @@ export function plainTitlesInQuestions(blocks: any[], unit: ImportUnit): any[] {
   return blocks.map(block => ["question", "questionGroup"].includes(block?.type) ? plain(block) : block);
 }
 
-export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, continuation?: ChalkLeeBlockNode, doubts?: string[]): void {
+export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, continuation?: ChalkLeeBlockNode, doubts?: string[], misprinted?: MisprintedAnswers): void {
   const doubt = (message: string) => { if (!doubts) throw new Error(message); doubts.push(message); };
   const entries = wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers);
   const source = new Map(entries.map(entry => [entry.ref, entry]));
@@ -666,7 +673,10 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
       // and the lines printed right after it go with it.
       const ownNumber = !!questionNumber && /^\d{1,3}$/.test(questionNumber) && new RegExp(`^\\s*${questionNumber}(?:\\s*[,，]|\\s*$)`).test(entry.text);
       const startedHere = ownNumber || !!previous && !!questionNumber && previous.startedAt === questionNumber && positions.get(previous.ref) === positions.get(entry.ref)! - 1;
-      if (entry.questionNumber && questionNumber && entry.questionNumber !== questionNumber && !ownedSubquestion && !listedItem && !bareLabel && !startedHere) {
+      // An answer printed under a misprinted number belongs where the key's count puts it.
+      const misprint = misprinted?.get(entry.ref);
+      const slipOfKey = !!misprint && misprint.expected === normalizeImportNumber(questionNumber ?? "");
+      if (entry.questionNumber && questionNumber && entry.questionNumber !== questionNumber && !ownedSubquestion && !listedItem && !bareLabel && !startedHere && !slipOfKey) {
         const printed = importQuestionAnchors(entry.text).some(match => match.index === 0);
         const part = printedSubNumbers(entry.text)[0]?.number;
         const message = `原稿片段 ${entry.ref} 属于第 ${entry.questionNumber} 题${part ? `的小问 (${part})` : ""}，不能移入第 ${questionNumber} 题。${printed ? "请保留实际印刷题号，不按顺序或答案表改号。"
