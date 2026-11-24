@@ -191,6 +191,8 @@ export class AssistantService {
   private runs = new Set<Promise<void>>();
   private summaryWrites: Promise<void> = Promise.resolve();
   private idleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Each conversation's latest run, kept while an idle conversation is unloaded so its reply can still undo it. */
+  private lastRuns = new Map<string, NonNullable<Conversation["runDocuments"]>>();
   constructor(private readonly options: AssistantServiceOptions) {}
 
   private sessionsDirectory(root: string, create: boolean) {
@@ -312,7 +314,7 @@ export class AssistantService {
   }
 
   private track(base: Pick<Conversation, "id" | "root" | "manager" | "title" | "createdAt" | "updatedAt">): Conversation {
-    const conversation: Conversation = { ...base, running: false, error: null, activity: null, cacheReady: true, approval: null, pending: [], pictures: new Map(), persistedPictures: new Set(), pictureFiles: new Map(), messageIds: new WeakMap(), displayIds: new Map(), streaming: null };
+    const conversation: Conversation = { ...base, running: false, error: null, activity: null, cacheReady: true, approval: null, pending: [], pictures: new Map(), persistedPictures: new Set(), pictureFiles: new Map(), messageIds: new WeakMap(), displayIds: new Map(), streaming: null, runDocuments: this.lastRuns.get(base.id) };
     for (const entry of base.manager.getBranch()) {
       if (entry.type !== "custom" || entry.customType !== PICTURES_TYPE) continue;
       const data = entry.data as { first?: number; images?: ImageContent[]; files?: AssistantPictureFile[] } | undefined;
@@ -497,6 +499,7 @@ export class AssistantService {
       this.abort(id); await conversation.finishing;
       this.clearIdle(id); this.conversations.delete(id);
     }
+    this.lastRuns.delete(id);
     const stored = (await this.sessionFiles(conversation?.root ?? root)).find(item => item.id === id);
     if (stored) await rm(stored.file, { force: true });
     await removeAssistantPictures(conversation?.root ?? root, id);
@@ -545,6 +548,7 @@ export class AssistantService {
   private toolHost(conversation: Conversation): ToolHost {
     const { documents, app } = this.options.toolContext(conversation.root);
     conversation.runDocuments = documents;
+    this.lastRuns.set(conversation.id, documents);
     return { surface: "assistant", root: conversation.root, conversationId: conversation.id, documents,
       attachment: index => conversation.pictures.get(index) ?? this.conversationPictures(conversation)[index - 1], app: { ...app, memory: this.options.memory, ui: action => {
       if (this.options.root() !== conversation.root) return Promise.reject(new Error("工作区已切换，请回到原工作区或新建对话。"));

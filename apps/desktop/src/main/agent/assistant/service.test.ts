@@ -467,6 +467,19 @@ describe("AssistantService on the Pi coding-agent session", () => {
     limited.close();
   });
 
+  it("still undoes the latest run after the idle conversation was unloaded", async () => {
+    service = make(0);
+    faux.setResponses([fauxAssistantMessage("排好了")]);
+    edited = [];
+    const { conversationId } = await service.send({ text: "排版一下", context });
+    edited = ["讲义.chalklee"];
+    await settled(conversationId);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect((await service.open(conversationId)).undoable).toEqual(["讲义.chalklee"]);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(await service.undoRun(conversationId)).toEqual({ restored: ["讲义.chalklee"], skipped: [] });
+  });
+
   it("refuses the third identical edit in one run and tells the model to change course", async () => {
     const same = (id: string, revision: string) => fauxAssistantMessage(fauxToolCall("content_insert",
       { path: "试卷.chalklee", blocks: [{ type: "paragraph", text: "同一段" }], expectedRevision: `sha256:${revision.repeat(64)}` }, { id }), { stopReason: "toolUse" });
