@@ -252,6 +252,10 @@ describe("durable document conversion tasks", () => {
     redone.record.conversion!.followUp = { questions: ["18"], pages: [] };
     jobs.get("paper")!.resolve(redone); await wait("paper", "completed");
     expect(convert).toHaveBeenCalledTimes(4);
+    await queue.reviewFollowUp(task.id, "q18");
+    expect(queue.list()[0]).toMatchObject({ dismissed: true, reviewed: ["q18"] });
+    await queue.reviewFollowUp(task.id, "q18", false);
+    expect(queue.list()[0]).toMatchObject({ dismissed: false, reviewed: [] });
     await queue.acknowledgeUnfinished(task.id);
     expect(queue.list()[0].dismissed).toBe(true);
   });

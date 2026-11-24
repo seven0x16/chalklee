@@ -734,7 +734,7 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
     const firstContinuedGroup = blocks[0] as any;
     const continuedChild = firstContinuedGroup?.type === "questionGroup" && continuation?.type === "questionGroup" && firstContinuedGroup.questions?.includes(value)
       && continuation.content.some(region => region.type === "subQuestionList" && region.content.some(q => q.attrs.number.mode === "fixed" && q.attrs.number.label === String(value.number)));
-    if (value.type === "question" && Array.isArray(value.stem) && !value.stem.length && !blanks.has(String(value.number)) && !keyedBlank(String(value.number)) && !continuesQuestion && !sourcedOptions && !continuedChild) throw new Error(`空白小题 ${value.number} 没有原稿编号填空来源，不能自行添加题目。若材料中印有这个题号（如“${value.number}.____”“…room.${value.number}. Let's”），在该段的引用上写 blanks:["${value.number}"] 把题号换成编号填空；原稿没有这个空时不建小题。`);
+    if (value.type === "question" && Array.isArray(value.stem) && !value.stem.length && !blanks.has(String(value.number)) && !keyedBlank(String(value.number)) && !continuesQuestion && !sourcedOptions && !continuedChild) throw new Error(`空白小题 ${value.number} 没有原稿编号填空来源，不能自行添加题目。若材料中印有这个题号（如“${value.number}.____”“…room.${value.number}. Let's”），在该段的引用上写 blanks:["${value.number}"] 把题号换成编号填空；原稿没有这个空时只去掉这一道小题后重新写入，同一批的其他题保持题目结构，不要改成普通段落。`);
     const owner = ["question", "questionGroup", "answerEntry"].includes(value.type) ? String(value.number ?? "") || questionNumber : questionNumber;
     const option = value.label && Array.isArray(value.content) ? String(value.label) : optionLabel;
     const rooted = ["question", "questionGroup"].includes(value.type)

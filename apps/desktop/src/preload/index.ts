@@ -45,6 +45,7 @@ const api: ChalkLeeDesktopApi = {
   skipProofread: id => ipcRenderer.invoke("conversion:skip-proofread", id),
   acknowledgeProofread: id => ipcRenderer.invoke("conversion:acknowledge-proofread", id),
   acknowledgeUnfinishedConversion: id => ipcRenderer.invoke("conversion:acknowledge-unfinished", id),
+  reviewConversionFollowUp: (id, key, checked) => ipcRenderer.invoke("conversion:review-follow-up", id, key, checked),
   dismissConversionTasks: workspaceRoot => ipcRenderer.invoke("conversion:dismiss", workspaceRoot),
   openConversionTask: (id, target) => ipcRenderer.invoke("conversion:open", id, target),
   onConversionTasks: listener => {

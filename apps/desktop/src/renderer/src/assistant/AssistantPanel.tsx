@@ -20,6 +20,7 @@ import { useAssistant } from "./useAssistant";
 import { assistantSuggestions, type AssistantSuggestion, type AssistantSuggestionHints } from "./assistantSuggestions";
 import { assistantDragKind, assistantImageFiles, prepareAssistantImage, type AssistantImageAttachment } from "./assistantImages";
 import { readWorkspaceFileDrag, WORKSPACE_FILE_DRAG_TYPE } from "../workspace/drag";
+import { assistantRunFollower, type AssistantRunFollow } from "./assistantRunFollower";
 
 export interface AssistantPanelRequest {
   id: number;
@@ -30,6 +31,8 @@ export interface AssistantPanelRequest {
   /** Sent as the message's picture. */
   image?: File;
   selection?: AssistantSelection;
+  /** Told how the run this request starts ends for one document. */
+  follow?: AssistantRunFollow;
 }
 
 export interface AssistantPanelProps {
@@ -143,6 +146,8 @@ export function AssistantPanel({ active, workspaceRoot, skillFolders = NO_SKILL_
 
   // The request names its own question: the paper's selection may not have reached the context yet.
   const handledRequest = useRef(0);
+  const followedRun = useRef<ReturnType<typeof assistantRunFollower> | null>(null);
+  useEffect(() => { followedRun.current?.update(conversation); }, [conversation]);
   useEffect(() => {
     // Wait for the model status, so an unconfigured app keeps the words instead of failing.
     if (!active || !request || request.id === handledRequest.current || (!status && !disabledReason)) return;
@@ -151,8 +156,11 @@ export function AssistantPanel({ active, workspaceRoot, skillFolders = NO_SKILL_
     if (request.draft || disabledReason || !configured) {
       composerRef.current?.fill(request.text, { includeContext: Boolean(request.activeDocument || request.question) });
       if (request.image && !disabledReason) composerRef.current?.attach([], [request.image]);
+      request.follow?.onEnded(false);
       return;
     }
+    followedRun.current?.stop();
+    followedRun.current = request.follow ? assistantRunFollower(request.follow) : null;
     if (!request.activeDocument || !request.question && !request.selection) { void assistant.send(request.text, context); return; }
     const document = context.openDocuments.find(item => item.path === request.activeDocument);
     const activeDocument = context.activeDocument?.path === request.activeDocument ? context.activeDocument

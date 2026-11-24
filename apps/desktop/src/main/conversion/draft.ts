@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ChalkLeeBlockNode, ChalkLeeArchiveAssetInput } from "@chalklee/format";
 import type { ImportImage, ImportUnit } from "../../shared/conversion/types";
 import { isTransientImportFailure } from "../../shared/conversion/failure";
+import { keptPageHeading } from "../../shared/conversion/tasks";
 
 export class ImportPageFailure extends Error {}
 
@@ -38,7 +39,7 @@ export function preserveImportPage(unit: ImportUnit, image: ImportImage): { bloc
   return {
     nodeId,
     blocks: [
-      { type: "heading", attrs: { id: nodeId, level: 3 }, content: [{ type: "text", text: `第 ${unit.page} 页原稿（待核对）` }] },
+      { type: "heading", attrs: { id: nodeId, level: 3 }, content: [{ type: "text", text: keptPageHeading(unit.page) }] },
       draftParagraph("本页还没转好，已保留原稿图像；继续转换后可编辑。", `${assetId}_notice`),
       { type: "image", attrs: { id: `${assetId}_image`, assetId, widthPt: image.widthPt * scale, heightPt: image.heightPt * scale, alt: `第 ${unit.page} 页未完成转换的原稿` } }
     ],

@@ -63,6 +63,7 @@ import type { ThemeColor, ThemeMode } from "../theme/themes";
 import { type WorkspacePlace, type OpenTab, type TabContent, type RecentDocument, type ActivePreviewRuntime, DEFAULT_PREVIEW_STATE, BLANK_TAB_ID, createTab, isSavedTab, withoutDocumentExtension, updateWorkspaceFile } from "./tabs";
 import { SESSION_KEY, EXPANDED_KEY, RECENT_DOCUMENTS_KEY, SIDEBAR_WIDTHS_KEY, MAX_RECENT_DOCUMENTS, loadSession, loadRecentDocuments, loadSidebarWidths, loadExpanded } from "./session";
 import { basketItemPath, listedWorkspaceFile, movedWorkspaceFiles, workspaceEntries, workspaceRelativePath } from "./workspaceFiles";
+import type { AssistantRunFollow } from "../assistant/assistantRunFollower";
 import { skillFoldersOf } from "../../../shared/skills";
 import { ThemeMenu } from "./ThemeMenu";
 import { DocumentPreviewPane, prepareDocumentViewer } from "./DocumentPreviewPane";
@@ -1512,11 +1513,11 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
    * A request in the teacher's words from elsewhere in the window, sent with the current context; a draft waits
    * in the message box for the teacher to finish.
    */
-  const askAssistant = useCallback((text: string, options?: { draft?: boolean }) => {
+  const askAssistant = useCallback((text: string, options?: { draft?: boolean; follow?: AssistantRunFollow }) => {
     setRightPanel("assistant");
     setInspectorOpen(true);
     setInspectorExplicitOpen(true);
-    setAssistantRequest(current => ({ id: (current?.id ?? 0) + 1, text, draft: options?.draft }));
+    setAssistantRequest(current => ({ id: (current?.id ?? 0) + 1, text, draft: options?.draft, follow: options?.follow }));
   }, []);
   askAssistantRef.current = askAssistant;
 
@@ -2473,7 +2474,16 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
                           {proofreadTask ? <ProofreadBanner key={proofreadTask.id} task={proofreadTask} onProofread={proofreadConversion} onSkip={skipProofread} onStop={id => window.chalkLee.stopConversion(id)}
                             onAcknowledge={id => window.chalkLee.acknowledgeProofread(id)} /> : null}
                           {unfinishedTask ? <ConversionUnfinishedBanner key={unfinishedTask.id} task={unfinishedTask} model={conversionModelId} onContinue={resumeConversion} onStop={id => window.chalkLee.stopConversion(id)}
-                            onAcknowledge={id => window.chalkLee.acknowledgeUnfinishedConversion(id)} onChooseModel={() => setSettingsPage("ai")} /> : null}
+                            onAcknowledge={id => window.chalkLee.acknowledgeUnfinishedConversion(id)} onChooseModel={() => setSettingsPage("ai")}
+                            onReview={(id, key, checked) => window.chalkLee.reviewConversionFollowUp(id, key, checked)}
+                            onReveal={place => viewerController?.revealConversionPlace?.(place)}
+                            onOpenSource={page => {
+                              const kept = unfinishedTask.source;
+                              const file = workspaceOriginalOf(workspaceIndex.files, activeTab.file.path, kept.name) ?? workspaceIndex.byPath.get(kept.path) ?? kept;
+                              openFile(file);
+                              if (page) setSourcePageRequest({ fileId: file.fileId, page });
+                            }}
+                            onAsk={documentOnly || !workspace ? undefined : (text, follow) => askAssistant(text, { follow: { ...follow, document: workspaceRelativePath(workspace.root.path, tab.file.path) } })} /> : null}
                         </> : null}
                         onActiveRuntime={handleActivePreviewRuntime}
                         onRetry={readTab}

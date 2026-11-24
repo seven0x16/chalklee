@@ -56,6 +56,8 @@
 .source-conversion-banner.is-stalled .source-conversion-symbol { box-shadow: inset 0 0 0 1px var(--cm-ui-warning-border), 0 1px 2px rgb(var(--cm-theme-shadow-rgb) / .06); }
 /* In a narrow document area the buttons drop to a second row, so the status text is never squeezed away. */
 .source-conversion-copy { display: flex; align-items: baseline; flex: 1 1 340px; gap: 10px; min-width: 0; font-size: var(--cm-font-size-small); line-height: 1.5; }
+/* The reason is what the teacher acts on: it takes its full width, and the buttons move to a second row only when it cannot fit. */
+.source-conversion-banner.has-places .source-conversion-copy { flex-basis: auto; }
 .source-conversion-copy > * { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .source-conversion-copy strong { flex: none; color: var(--cm-ui-heading); font-weight: 600; }
 .source-conversion-copy > span { color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
@@ -90,6 +92,12 @@
 .source-conversion-actions button:active:not(:disabled) { background: var(--cm-ui-selected-bg); box-shadow: var(--cm-ui-selected-shadow); }
 .source-conversion-actions button.primary:active:not(:disabled) { background: var(--cm-theme-accent-deep); color: var(--cm-theme-on-accent); }
 .source-conversion-actions button:disabled { opacity: .5; cursor: default; }
+.source-conversion-actions button.is-icon { width: 28px; padding: 0; }
+.source-conversion-steps { display: flex; align-items: center; gap: 2px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); font-variant-numeric: tabular-nums; }
+.source-conversion-steps > span { min-width: 34px; text-align: center; }
+.source-conversion-steps button { border-color: transparent; background: transparent; }
+button.source-conversion-place { min-width: 0; max-width: 100%; overflow: hidden; padding: 0; border: 0; font: inherit; background: none; color: var(--cm-theme-accent-ink); text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+button.source-conversion-place:hover { text-decoration: underline; }
 .source-conversion-actions button:focus-visible { outline: 2px solid var(--cm-theme-accent-deep); outline-offset: 2px; }
 .app-titlebar .conversion-tasks-trigger.is-running { color: var(--cm-theme-accent-ink); }
 /* The task list and the basket fill the right pane like the conversation. */

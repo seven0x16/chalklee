@@ -1,4 +1,4 @@
-import type { ImportFollowUp, ImportProgress, ImportResult, PreparedImport } from "./types";
+import type { ImportFollowUp, ImportFollowUpItem, ImportProgress, ImportResult, PreparedImport } from "./types";
 import type { WorkspaceFileNode } from "../contracts";
 import { conversionFailureText, conversionServiceProblem } from "./failure";
 import { externalAgentLabel } from "./externalAgent";
@@ -42,6 +42,8 @@ export interface ConversionTask {
   sessionId?: string;
   attempts: { attempt: number; status: ConversionStatus; finishedAt: number; result?: ImportResult; pendingReviewCount?: number; agent?: string }[];
   dismissed?: boolean;
+  /** Places of the delivered result the teacher has checked. */
+  reviewed?: string[];
   pendingReviewCount?: number;
   /** Waiting to run before batch work: started from the original the person was looking at. */
   priority?: boolean;
@@ -126,6 +128,19 @@ export function conversionFollowUpText(followUp: ImportFollowUp): string {
   const pages = !followUp.pages.length ? "" : followUp.pages.length > PAGES_NAMED ? `有 ${followUp.pages.length} 页保留为原图` : `第 ${followUp.pages.join("、")} 页保留为原图`;
   return [followUp.service, questions, pages, questions || pages ? "" : "部分内容请检查"].filter(Boolean).join("，");
 }
+/** The places to check in reading order. Results saved before reasons were recorded still list their numbers. */
+export function conversionFollowUpItems(followUp: ImportFollowUp): ImportFollowUpItem[] {
+  const items: ImportFollowUpItem[] = followUp.items ?? [...followUp.questions.map(question => ({ question, reason: "请检查" })), ...followUp.pages.map(page => ({ page, reason: "保留为原图" }))];
+  const rank = (item: ImportFollowUpItem) => item.question ? Number(item.question) : Number.MAX_SAFE_INTEGER;
+  return [...items].sort((a, b) => rank(a) - rank(b) || (a.page ?? 0) - (b.page ?? 0));
+}
+/** The heading a source page kept as an image carries in the document. */
+export const keptPageHeading = (page: number | undefined) => `第 ${page} 页原稿（待核对）`;
+export const followUpItemKey = (item: ImportFollowUpItem) => item.question ? `q${item.question}` : `p${item.page}`;
+export const followUpItemText = (item: ImportFollowUpItem) => `第 ${item.question ?? item.page} ${item.question ? "题" : "页"}：${item.reason}`;
+/** What ChalkLee AI is asked for one place: only that place, in this document, without side files. */
+export const followUpItemRequest = (item: ImportFollowUpItem) => `对照原稿${item.page ? `第 ${item.page} 页` : ""}检查${followUpItemText(item)}。有错直接改在这份文档里，没错告诉我。只处理这一处，不要新建文档。`;
+
 /** What moves an unfinished conversion on: settings when something there is in the way, another model once this one keeps stopping. */
 export function conversionNextStep(task: Pick<ConversionTask, "result">, unfinished: ConversionUnfinished, model?: string): "settings" | "model" | "continue" {
   if (unfinished.service) return "settings";

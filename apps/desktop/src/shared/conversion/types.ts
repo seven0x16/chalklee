@@ -139,6 +139,15 @@ export interface ImportRecord {
     timing?: ImportTiming };
 }
 
+/** One place a teacher should look at, and why. */
+export interface ImportFollowUpItem {
+  /** Printed number of the question; absent for a page kept as its image. */
+  question?: string;
+  /** The page of the original it is on, when the original has pages. */
+  page?: number;
+  reason: string;
+}
+
 export interface ImportFollowUp {
   /** Printed numbers of the questions to check. */
   questions: string[];
@@ -146,6 +155,9 @@ export interface ImportFollowUp {
   pages: number[];
   /** The balance, the Key or the model stopped the run, which only settings can change. */
   service?: string;
+  items?: ImportFollowUpItem[];
+  /** Part of it was left to the program, so running the AI again can still improve it. */
+  rerun?: boolean;
 }
 
 export interface ImportUnitResult {

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ImportProgress, ImportResult, PreparedImport } from "../../shared/conversion/types";
-import { AUTO_CONTINUE_LIMIT, conversionFollowUp, conversionIsActive,EXTERNAL_CONNECTION_TIMEOUT_MS, EXTERNAL_CONVERSION_IDLE_MS, proofreadPending, type ConversionBatchAction, type ConversionStatus, type ConversionTask } from "../../shared/conversion/tasks";
+import { AUTO_CONTINUE_LIMIT, conversionFollowUp, conversionFollowUpItems, conversionIsActive, followUpItemKey,EXTERNAL_CONNECTION_TIMEOUT_MS, EXTERNAL_CONVERSION_IDLE_MS, proofreadPending, type ConversionBatchAction, type ConversionStatus, type ConversionTask } from "../../shared/conversion/tasks";
 import { conversionServiceProblem, isTransientImportFailure } from "../../shared/conversion/failure";
 import { conversionReviewFromRecord, pendingConversionNotices } from "../../shared/conversion/review";
 import { questionReviewNotices } from "../../shared/conversion/questionReview";
@@ -138,7 +138,7 @@ export class ConversionTaskQueue {
     const existing = [...this.tasks].reverse().find(task => task.workspaceRoot === source.workspaceRoot && task.sourceHash === source.sourceHash
       && (task.source.path === source.source.path || (source.retryOf && (task.result?.file.path === source.retryOf || task.attempts.some(attempt => attempt.result?.file.path === source.retryOf)))));
     if (existing) {
-      existing.dismissed = false;
+      existing.dismissed = false; existing.reviewed = undefined;
       if (existing.source.path === source.source.path) existing.source = source.source;
       if (batchId) existing.batchId = batchId;
       // Starting an unfinished original picks it up where it stopped.
@@ -206,7 +206,7 @@ export class ConversionTaskQueue {
     await this.persist(); this.changed(); return structuredClone(task);
   }
   private async requeue(task: ConversionTask, previous: ConversionTask, priority: boolean) {
-    task.attempt += 1; task.status = "queued"; task.dismissed = false;
+    task.attempt += 1; task.status = "queued"; task.dismissed = false; task.reviewed = undefined;
     task.updatedAt = Date.now(); task.startedAt = undefined; task.finishedAt = undefined;
     task.progress = undefined; task.error = undefined; task.proofreadChanges = undefined;
     if (priority) { task.priority = true; task.requested = true; } else { delete task.priority; delete task.requested; }
@@ -227,6 +227,24 @@ export class ConversionTaskQueue {
     const task = this.find(id);
     if (task.status !== "draft" && !conversionFollowUp(task) || task.dismissed) return;
     task.dismissed = true;
+    await this.persist(); this.changed();
+  }
+  /** One place checked, or back on the list when its fix was undone; once none is left the notice has done its job. */
+  async reviewFollowUp(id: string, key: string, checked = true) {
+    await this.ready;
+    const task = this.find(id), followUp = conversionFollowUp(task);
+    if (!followUp) return;
+    const keys = conversionFollowUpItems(followUp).map(followUpItemKey);
+    if (!keys.includes(key)) return;
+    if (!checked) {
+      if (!task.reviewed?.includes(key)) return;
+      task.reviewed = task.reviewed.filter(item => item !== key);
+      task.dismissed = false;
+    } else {
+      if (task.dismissed) return;
+      task.reviewed = [...new Set([...(task.reviewed ?? []), key])];
+      if (keys.every(item => task.reviewed!.includes(item))) task.dismissed = true;
+    }
     await this.persist(); this.changed();
   }
   async stop(id: string) {
@@ -305,7 +323,7 @@ export class ConversionTaskQueue {
         this.tasks.push(task);
       }
       Object.assign(task, { source: event.source, snapshot: event.snapshot, agent: event.agent, sessionId: event.sessionId, status: "running",
-        startedAt: now, updatedAt: now, finishedAt: undefined, progress: undefined, error: undefined, externalWait: undefined, retryOf: undefined, into: undefined, dismissed: false });
+        startedAt: now, updatedAt: now, finishedAt: undefined, progress: undefined, error: undefined, externalWait: undefined, retryOf: undefined, into: undefined, dismissed: false, reviewed: undefined });
       this.bindExternalConnection(event.sessionId, event.connectionId);
     } else {
       const task = this.tasks.find(item => item.sessionId === event.sessionId);

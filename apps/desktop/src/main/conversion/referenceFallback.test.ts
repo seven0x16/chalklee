@@ -6,7 +6,7 @@ import { wordSourceEntries } from "../../shared/conversion/wordSource";
 import { assessAutonomousDraft, compileAutonomousDraft, newAutonomousDraft } from "./autonomous/state";
 import { makeDocument } from "./documentImport";
 import { compileUnfinishedReferenceDraft } from "./referenceDraft";
-import { organizeRemainingReferences, referenceFollowUp } from "./referenceFallback";
+import { misprintedAnswerNumbers, organizeRemainingReferences, referenceFollowUp, settleNumberedChoices } from "./referenceFallback";
 
 const paragraphs = (texts: string[]) => texts.map((text, index) => ({ type: "paragraph", attrs: { id: `source_${index + 1}` }, content: [{ type: "text", text }] })) as ChalkLeeBlockNode[];
 const prepared = (texts: string[]): PreparedImport => {
@@ -81,11 +81,80 @@ describe("organizing what the agent left", () => {
     expect(assessAutonomousDraft(input, title as any, compileAutonomousDraft(input, base, title as any)).join("\n")).not.toContain("留在了题外");
   });
 
+  it("builds a cloze question whose number is printed on its first option", () => {
+    const input = prepared(["阅读短文，选择最佳选项。", "41. A. fantasy", "B. prejudice", "C. realization", "D. expectation", "42. A. only", "B. even", "C. still", "D. just"]), base = template(input);
+    const filled = organizeRemainingReferences(input, base, newAutonomousDraft());
+    expect(filled.organized).toEqual(["41", "42"]);
+    const [first] = questions(compileUnfinishedReferenceDraft(input, base, filled.draft).document);
+    const options = first.content.find((region: any) => region.type === "optionGroup").content;
+    expect(options).toHaveLength(4);
+    expect(importText(options[0]).trim()).toBe("fantasy");
+  });
+
+  it("does not let numbered options pass as loose text", () => {
+    const input = prepared(["阅读短文，选择最佳选项。", "41. A. fantasy", "B. prejudice", "C. realization", "D. expectation"]), base = template(input);
+    const loose = { ...newAutonomousDraft(), seenUnits: ["part_1"], fragments: [{ key: "text", order: 0, unitIds: ["part_1"], continuesPrevious: false, warnings: [], blocks: ["source_1", "source_2", "source_3", "source_4", "source_5"].map(ref => ({ ref })) }] };
+    expect(assessAutonomousDraft(input, loose as any, compileAutonomousDraft(input, base, loose as any)).join("\n")).toContain("第41题留在了题外");
+  });
+
+  describe("loose lines that can only be questions", () => {
+    const passage = "阅读下面短文，从每题所给的四个选项中选出最佳选项。 " + "When I was two years old, my family moved to a little town in northeast Ohio. ".repeat(2);
+    const lines = [passage, "41. A. fantasy", "B. prejudice", "C. realization", "D. expectation", "42. A. only", "B. even", "C. still", "D. just"];
+    const refs = lines.map((_, index) => ({ ref: `source_${index + 1}` }));
+    const written = (blocks: unknown[]) => ({ ...newAutonomousDraft(), seenUnits: ["part_1"], fragments: [{ key: "cloze", order: 0, unitIds: ["part_1"], continuesPrevious: false, warnings: [], blocks }] });
+
+    it("become a group under their passage, every word kept", () => {
+      const input = prepared(lines), base = template(input);
+      const settled = settleNumberedChoices(input, base, written(refs) as any);
+      const { document } = compileAutonomousDraft(input, base, settled);
+      const [group] = questions(document);
+      expect(group.type).toBe("questionGroup");
+      expect(importText(group.content.find((region: any) => region.type === "questionMaterial"))).toContain("northeast Ohio");
+      const items = group.content.find((region: any) => region.type === "subQuestionList").content;
+      expect(items.map((item: any) => item.attrs.number.label)).toEqual(["41", "42"]);
+      expect(items[1].content.find((region: any) => region.type === "optionGroup").content).toHaveLength(4);
+      expect(assessAutonomousDraft(input, settled, compileAutonomousDraft(input, base, settled)).join("\n")).not.toContain("留在了题外");
+    });
+
+    it("are read the same when laid out in a table", () => {
+      const input = prepared(lines), base = template(input);
+      const table = { type: "table", rows: [refs.slice(1, 5).map(ref => [ref]), refs.slice(5).map(ref => [ref])] };
+      const settled = settleNumberedChoices(input, base, written([refs[0], table]) as any);
+      expect(questions(compileAutonomousDraft(input, base, settled).document)[0].type).toBe("questionGroup");
+    });
+
+    it("leave ordinary numbered text and a question already built alone", () => {
+      const notes = prepared(["1. A. 这是说明", "这一行不是选项"]);
+      const draft = { ...newAutonomousDraft(), seenUnits: ["part_1"], fragments: [{ key: "notes", order: 0, unitIds: ["part_1"], continuesPrevious: false, warnings: [], blocks: [{ ref: "source_1" }, { ref: "source_2" }] }] };
+      expect(settleNumberedChoices(notes, template(notes), draft as any)).toBe(draft);
+    });
+  });
+
+  it("points to the number an answer key should have printed, without trusting a steady key less", () => {
+    expect(misprintedAnswerNumbers(["36. cleaner 37. her 38. the 39. herself 40. cheerful", "37. to make 42. so 43. are 44. on 45. wrote"])).toEqual([{ printed: "37", expected: "41", line: 1 }]);
+    expect(misprintedAnswerNumbers(["1. A 2. B 3. C", "4. D 5. A"])).toEqual([]);
+    expect(misprintedAnswerNumbers(["1. A 2. B 3. C", "1. D 2. A 3. B"])).toEqual([]);
+    expect(misprintedAnswerNumbers(["1. 3.5 2. 4.5 3. 2.5"])).toEqual([]);
+  });
+
+  it("says why each place needs a look", () => {
+    const input = prepared(["1. 一", "2. 二", "36. cleaner 37. her 38. the 39. herself 40. cheerful", "37. to make 42. so 43. are 44. on 45. wrote"]);
+    const followUp = referenceFollowUp(input, ["2"], ["第1题留在了题外：source_1"], [3])!;
+    expect(followUp.items).toEqual([
+      { question: "41", reason: "原稿答案的题号印成了 37，请核对这题和第 37 题的答案" },
+      { question: "1", reason: "没有整理成题目" },
+      { question: "2", reason: "由程序整理，请核对" },
+      { page: 3, reason: "保留为原图" }
+    ]);
+    expect(followUp.rerun).toBe(true);
+    expect(referenceFollowUp(input, [], [], [])?.rerun).toBeUndefined();
+  });
+
   it("names the questions behind a doubt, by number or by paragraph", () => {
     const input = prepared(paper);
     expect(referenceFollowUp(input, ["2"], ["第3题引用配图，但题干中没有图。", "答案结构校验未通过：source_4 是答案，须归入对应题目。"], [])?.questions.sort()).toEqual(["1", "2", "3"]);
     expect(referenceFollowUp(input, [], [], [])).toBeUndefined();
     expect(referenceFollowUp(input, [], ["版式有问题"], [])).toBeUndefined();
-    expect(referenceFollowUp(input, [], ["版式有问题"], [], undefined, true)).toEqual({ questions: [], pages: [] });
+    expect(referenceFollowUp(input, [], ["版式有问题"], [], undefined, true)).toEqual({ questions: [], pages: [], items: [], rerun: true });
   });
 });

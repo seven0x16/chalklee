@@ -239,6 +239,7 @@ export interface ChalkLeeDesktopApi {
   /** The teacher has read the summary of a finished proofread. */
   acknowledgeProofread(id: string): Promise<void>;
   acknowledgeUnfinishedConversion(id: string): Promise<void>;
+  reviewConversionFollowUp(id: string, key: string, checked?: boolean): Promise<void>;
   dismissConversionTasks(workspaceRoot: string): Promise<void>;
   openConversionTask(id: string, target: "source" | "result"): Promise<{ snapshot: WorkspaceSnapshot; file: WorkspaceFileNode }>;
   onConversionTasks(listener: (tasks: ConversionTask[]) => void): () => void;

@@ -11,7 +11,7 @@ import { importCropRect, cutCropEdges, overlappingCropInk, cropAssetMatches } fr
 import { cropImportFigure } from "../sharpFigures";
 import type { ImportBox } from "../transcript";
 import { importNumberedBlankMatches, wordAnalysisLabel, wordAnswerLabel, wordSourceEntries } from "../../../shared/conversion/wordSource";
-import { importPunctuatedQuestionStart, importQuestionAnchors } from "../../../shared/conversion/questionAnchors";
+import { importNumberedFirstOption, importPunctuatedQuestionStart, importQuestionAnchors } from "../../../shared/conversion/questionAnchors";
 import { applyAutonomousLayout, type AutonomousLayout } from "./layout";
 import { auditImportContent, captureImportContent, importQuestionInventory } from "../contentAudit";
 import { workingReferenceInput } from "../referenceSources";
@@ -214,6 +214,26 @@ export function assessAutonomousDraft(input: PreparedImport, draft: AutonomousDr
     if (!topLevelRefs.has(entry.ref) || !["body", "heading"].includes(entry.role) || !printed || organizedNumbers.has(printed) || !organizedNumbers.has(String(Number(printed) - 1)) || strandedNumbers.has(printed)) continue;
     strandedNumbers.add(printed);
     issues.push(`第${printed}题留在了题外：${entry.ref}（“${entry.text.slice(0, 24)}”）印着题号，却不在任何题目里。整理成第${printed}题，有共用材料或小问时整理为题组；确属原稿说明时保持原样再次 finish。`);
+  }
+  // "41. A. fantasy" followed by "B. ...": a number with its options is a question wherever it stands, even when the
+  // questions before it could not be built, as when the blanks of a passage are missing from the original.
+  const insideQuestions = new Set<string>(), placedRefs = new Set<string>();
+  const collectPlaced = (value: any, inside: boolean): void => {
+    if (!value || typeof value !== "object") return;
+    const within = inside || ["question", "questionGroup", "answerEntry"].includes(value.type);
+    if (typeof value.ref === "string") { placedRefs.add(value.ref); if (within) insideQuestions.add(value.ref); }
+    Object.values(value).forEach(child => collectPlaced(child, within));
+  };
+  draft.fragments.forEach(fragment => collectPlaced(fragment.blocks, false));
+  for (const unit of input.units.filter(unit => unit.nativeReferences)) {
+    const entries = wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers);
+    entries.forEach((entry, at) => {
+      const printed = importPunctuatedQuestionStart(entry.text);
+      if (!printed || entry.role !== "body" || !placedRefs.has(entry.ref) || insideQuestions.has(entry.ref) || organizedNumbers.has(printed) || strandedNumbers.has(printed)) return;
+      if (!importNumberedFirstOption(entry.text) || !(/\sB\s*[.．、]/.test(entry.text) || /^\s*B\s*[.．、]/.test(entries[at + 1]?.text ?? ""))) return;
+      strandedNumbers.add(printed);
+      issues.push(`第${printed}题留在了题外：${entry.ref}（“${entry.text.slice(0, 24)}”）印着题号和选项，却不在任何题目里。整理成第${printed}题：选项放进 options，第一个选项的 stripPrefix 写到选项号（如“${printed}. A.”），没有题干时 stem 留空。`);
+    });
   }
   for (const number of missingPrintedBlanks) issues.push(`题目结构校验未通过：原稿中有第${number}空，但尚未建立对应小题；请检查编号与横线的识别结果并保留原文，不能把提取限制当作原稿缺题。`);
   try { assertImportDocument(compiled.document); } catch (error) { issues.push((error as Error).message); }

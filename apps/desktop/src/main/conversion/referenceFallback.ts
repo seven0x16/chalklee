@@ -1,8 +1,8 @@
 import type { ChalkLeeDocument } from "@chalklee/format";
 import { importSectionLabel } from "../../shared/conversion/answerSource";
 import { assertImportDocument } from "../../shared/conversion/importDocument";
-import { importOptionAnchors, importPunctuatedQuestionStart, importQuestionAnchors } from "../../shared/conversion/questionAnchors";
-import type { ImportFollowUp, PreparedImport } from "../../shared/conversion/types";
+import { importNumberedFirstOption, importOptionAnchors, importPunctuatedQuestionStart, importQuestionAnchors } from "../../shared/conversion/questionAnchors";
+import type { ImportFollowUp, ImportFollowUpItem, PreparedImport } from "../../shared/conversion/types";
 import { wordAnswerLabel, wordBareLabel } from "../../shared/conversion/wordSource";
 import { compileAutonomousDraft, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
 import { collectSourceRefs, referenceSourceEntries, withOriginalParagraphs } from "./referenceDraft";
@@ -32,7 +32,9 @@ function questionCandidates(entries: Entry[], placed: Set<string>): Candidate[] 
     const printed = entry.role === "body" ? importPunctuatedQuestionStart(entry.text) : undefined;
     if (printed) {
       const prefix = importQuestionAnchors(entry.text).find(match => match.index === 0)![0].trim();
-      open = { number: printed, at, entries: [entry], stem: [{ ref: entry.ref, stripPrefix: prefix }], options: [], answer: [], analysis: [] };
+      // "41. A. fantasy": a cloze question prints its number on the first option and has no stem of its own.
+      const first = importNumberedFirstOption(entry.text)?.replace(/\s/g, "");
+      open = { number: printed, at, entries: [entry], stem: first ? [] : [{ ref: entry.ref, stripPrefix: prefix }], options: first ? [{ label: "A", content: [{ ref: entry.ref, stripPrefix: first }] }] : [], answer: [], analysis: [] };
       found.push(open);
       return;
     }
@@ -65,6 +67,66 @@ const questionBlock = (candidate: Candidate) => {
   };
 };
 
+/**
+ * Lines the agent left loose that can only be a question: a number on option A, then B, C, D in order. They become
+ * questions without retyping, under the passage just before them when there is one. Anything else stays as written.
+ */
+export function settleNumberedChoices(input: PreparedImport, template: ChalkLeeDocument, draft: AutonomousDraft): AutonomousDraft {
+  const text = new Map(referenceSourceEntries(workingReferenceInput(input, draft.sourceRevisions)).filter(entry => entry.role === "body").map(entry => [entry.ref, entry.text]));
+  const taken = new Set<string>();
+  const collect = (value: any): void => {
+    if (!value || typeof value !== "object") return;
+    if (value.type === "question" && value.number !== undefined) taken.add(String(value.number));
+    Object.values(value).forEach(collect);
+  };
+  draft.fragments.forEach(fragment => collect(fragment.blocks));
+  const plain = (block: any) => typeof block?.ref === "string" && block.as === undefined;
+  const read = (blocks: any[], at: number) => {
+    const opening = plain(blocks[at]) ? text.get(blocks[at].ref) : undefined;
+    const prefix = opening && importNumberedFirstOption(opening), number = opening && importPunctuatedQuestionStart(opening);
+    if (!prefix || !number || taken.has(number) || importOptionAnchors(opening).length > 1) return undefined;
+    const options = [{ label: "A", content: [{ ref: blocks[at].ref, stripPrefix: prefix.replace(/\s/g, "") }] }];
+    let next = at + 1;
+    for (; next < blocks.length && plain(blocks[next]); next++) {
+      const line = text.get(blocks[next].ref) ?? "", option = line.match(/^\s*([B-H])\s*[.．、]\s*/);
+      if (option?.[1] !== String.fromCharCode(65 + options.length) || importOptionAnchors(line).length > 1) break;
+      options.push({ label: option[1], content: [{ ref: blocks[next].ref, stripPrefix: option[0].replace(/\s/g, "") }] });
+    }
+    return options.length >= 2 ? { block: { type: "question", number, kind: "choice", stem: [], options }, next } : undefined;
+  };
+  // Options the agent laid out in a table are the same lines, as long as the whole table reads as such questions.
+  const expand = (block: any): any[] => {
+    if (block?.type !== "table" || !Array.isArray(block.rows)) return [block];
+    const refs = block.rows.flat(2);
+    if (!refs.every(plain)) return [block];
+    for (let at = 0; at < refs.length;) { const question = read(refs, at); if (!question) return [block]; at = question.next; }
+    return refs;
+  };
+  const build = (grouped: boolean) => draft.fragments.map(fragment => {
+    if ((fragment as { answerFor?: unknown }).answerFor !== undefined) return fragment;
+    const blocks = (fragment.blocks as any[]).flatMap(expand), written: any[] = [];
+    let changed = false;
+    for (let at = 0; at < blocks.length;) {
+      const questions: unknown[] = [];
+      for (let question = read(blocks, at); question; question = read(blocks, at)) { questions.push(question.block); at = question.next; }
+      if (!questions.length) { written.push(blocks[at++]); continue; }
+      changed = true;
+      const passage = written.at(-1);
+      if (grouped && questions.length >= 2 && plain(passage) && (text.get(passage.ref)?.length ?? 0) >= 80) written.splice(-1, 1, { type: "questionGroup", number: "", kind: "cloze", material: [passage], questions });
+      else written.push(...questions);
+    }
+    return changed ? { ...fragment, blocks: written } : fragment;
+  });
+  for (const grouped of [true, false]) {
+    const fragments = build(grouped);
+    if (fragments.every((fragment, index) => fragment === draft.fragments[index])) return draft;
+    const settled = { ...draft, fragments };
+    try { assertImportDocument(compileAutonomousDraft(input, template, withOriginalParagraphs(input, settled), true).document); return settled; }
+    catch { /* The next form, or the agent's own placement. */ }
+  }
+  return draft;
+}
+
 export interface ReferenceFill {
   draft: AutonomousDraft;
   /** Printed numbers the program turned into questions. */
@@ -85,7 +147,7 @@ export function organizeRemainingReferences(input: PreparedImport, template: Cha
     catch { return false; }
   };
   // An agent's draft that no longer compiles is left out, as the unfinished paper leaves it out.
-  const base = compiles(written) ? written : { ...written, fragments: [] };
+  const base = compiles(written) ? settleNumberedChoices(input, template, written) : { ...written, fragments: [] };
   const known = new Set(compileAutonomousDraft(input, template, base, true).summary.mainQuestions);
   const entries = referenceSourceEntries(workingReferenceInput(input, base.sourceRevisions));
   const placed = new Set(base.fragments.flatMap(fragment => collectSourceRefs(fragment.blocks)));
@@ -126,17 +188,60 @@ export function organizeRemainingReferences(input: PreparedImport, template: Cha
   };
 }
 
+/**
+ * An answer key whose number breaks an otherwise steady count: "40. cheerful", "37. to make", "42. so". The paper itself
+ * may be misprinted, so the answer is not moved; the teacher is pointed to the number the count expects.
+ */
+export function misprintedAnswerNumbers(lines: string[]): { printed: string; expected: string; line: number }[] {
+  const numbers = lines.flatMap((line, index) => [...line.matchAll(/(?:^|\s)(\d{1,3})\s*[.．、]\s*(?=[^\d\s])/g)].map(match => ({ value: Number(match[1]), line: index })));
+  const seen = new Set<number>(), found: { printed: string; expected: string; line: number }[] = [];
+  numbers.forEach(({ value, line }, at) => {
+    const before = numbers[at - 1]?.value;
+    if (before !== undefined && value !== before + 1 && numbers[at + 1]?.value === before + 2 && seen.has(value))
+      found.push({ printed: String(value), expected: String(before + 1), line });
+    seen.add(value);
+  });
+  return found;
+}
+
+/** What a check found, in the words of someone looking at the paper. */
+function concernReason(concern: string): string {
+  if (concern.includes("留在了题外")) return "没有整理成题目";
+  if (concern.includes("已保留在原答案位置待核对")) return "答案没有归到题目里";
+  return "结构可能不对";
+}
+
 /** The questions and pages to point the teacher to, from what the program organized and what its checks still doubt. */
 export function referenceFollowUp(input: PreparedImport, numbers: string[], concerns: string[], pages: number[], service?: string, unplaced = false): ImportFollowUp | undefined {
-  const owner = new Map(referenceSourceEntries(input).map(entry => [entry.ref, entry.questionNumber]));
-  const questions = new Set(numbers);
+  const entries = referenceSourceEntries(input);
+  const owner = new Map(entries.map(entry => [entry.ref, entry.questionNumber]));
+  const reasons = new Map<string, string>();
+  const note = (number: string, reason: string) => { if (/^\d+$/.test(number) && !reasons.has(number)) reasons.set(number, reason); };
+  // A key line lists several answers; a PDF's lines carry no answer role to tell them by.
+  const keyLines = entries.filter(entry => entry.role === "answer" || (entry.text.match(/(?:^|\s)\d{1,3}\s*[.．、]\s*[^\d\s]/g)?.length ?? 0) >= 3);
+  const pageOfUnit = (unitId: string) => input.units.find(unit => unit.id === unitId)?.page;
+  const located = new Map<string, number>();
+  for (const { printed, expected, line } of misprintedAnswerNumbers(keyLines.map(entry => entry.text))) {
+    note(expected, `原稿答案的题号印成了 ${printed}，请核对这题和第 ${printed} 题的答案`);
+    const page = pageOfUnit(keyLines[line].unitId);
+    if (page) located.set(expected, page);
+  }
   for (const concern of concerns) {
     const named = [...concern.matchAll(/第\s*(\d{1,3})\s*[题空]/g)].map(match => match[1]);
     const owned = [...concern.matchAll(/(?<![\w-])[\w-]*source_[\w-]+/g)].flatMap(match => owner.get(match[0]) ?? []);
-    (named.length ? named : owned).forEach(number => questions.add(number));
+    (named.length ? named : owned).forEach(number => note(number, concernReason(concern)));
   }
-  const list = [...questions].filter(number => /^\d+$/.test(number));
+  numbers.forEach(number => note(number, "由程序整理，请核对"));
+  const list = [...reasons.keys()];
   // A doubt that names no question gives the teacher nothing to look at, so it raises no notice by itself.
   if (!list.length && !pages.length && !service && !unplaced) return undefined;
-  return { questions: list, pages, ...(service ? { service } : {}) };
+  const pageOf = (number: string) => {
+    const owned = entries.find(entry => entry.questionNumber === number);
+    return located.get(number) ?? (owned ? pageOfUnit(owned.unitId) : undefined);
+  };
+  const items: ImportFollowUpItem[] = [
+    ...list.map(question => { const page = pageOf(question); return { question, ...(page ? { page } : {}), reason: reasons.get(question)! }; }),
+    ...pages.map(page => ({ page, reason: "保留为原图" }))
+  ];
+  return { questions: list, pages, items, ...(service ? { service } : {}), ...(numbers.length || pages.length || unplaced ? { rerun: true } : {}) };
 }

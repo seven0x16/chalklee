@@ -10,6 +10,8 @@ import { applyAutonomousEdits, type AutonomousEdit } from "./autonomous/edits";
 import { assessAutonomousDraft, autonomousFragmentBlocks, compileAutonomousDraft, STRUCTURE_DOUBT, walkAutonomous, type AutonomousDraft, type AutonomousFragment } from "./autonomous/state";
 import { referenceSourceEntries as sourceEntries, collectSourceRefs as collectRefs, sourceLayoutLabels, assemblyProgress, damagedContentIssues, structureConcerns } from "./referenceDraft";
 export { compileUnfinishedReferenceDraft, withOriginalParagraphs } from "./referenceDraft";
+import { importNumberedFirstOption, importPunctuatedQuestionStart } from "../../shared/conversion/questionAnchors";
+import { settleNumberedChoices } from "./referenceFallback";
 import { runImportWithRecovery } from "./retry";
 import { appendSourceRevisions, SourceFragmentEditSchema, sourceImageHash, sourceRevisionChanges, workingReferenceInput } from "./referenceSources";
 import { importCropRect, pixelCropBox, type PixelBox } from "./crop";
@@ -212,12 +214,14 @@ export async function draftWithReferences(options: {
     const missing = missingRefs();
     // Coverage is reported as the paragraphs still to place, not one issue per paragraph.
     const issues = assessAutonomousDraft(input, draft, compiled).filter(issue => !/必须恰好引用一次|尚无对应的文档片段/.test(issue));
+    const printedOnOption = new Set(entries.flatMap(entry => importNumberedFirstOption(entry.text) ? [importPunctuatedQuestionStart(entry.text)] : []));
     // A passage question without words of its own is answered at its blank; without one the teacher sees an empty stem.
     walkAutonomous(compiled.document.content, node => {
       if (node.type !== "subQuestionList") return;
       for (const question of node.content ?? []) {
         const stem = question.content?.find((region: any) => region.type === "questionStem");
-        if (question.type === "question" && !question.attrs.sourceBlankId && !importText(stem ?? {}).trim() && !JSON.stringify(stem ?? {}).includes('"image')) {
+        // "41. A. fantasy": the original gives this question its options and nothing else.
+        if (question.type === "question" && !question.attrs.sourceBlankId && !printedOnOption.has(question.attrs.number?.label) && !importText(stem ?? {}).trim() && !JSON.stringify(stem ?? {}).includes('"image')) {
           issues.push(`第${question.attrs.number?.label ?? ""}题没有题干，材料中也没有对应的编号填空：把材料里印着的题号用 blanks 换成填空线，或把它的题干段落放进 stem。`);
         }
       }
@@ -239,6 +243,7 @@ export async function draftWithReferences(options: {
    * paper with those places marked. Where it only differs from the program's reading, it may keep its placement with a reason.
    */
   const deliveryProblem = async (): Promise<string | undefined> => {
+    draft = settleNumberedChoices(input, template, draft);
     const state = status();
     if (state.missing.length) return `还有 ${state.missing.length} 段原稿没有写入：${state.missing.slice(0, 12).map(entry => `${entry.ref}（${entry.text.slice(0, 30)}）`).join("、")}`;
     if (options.preview) {

@@ -20,6 +20,9 @@ export function importPunctuatedQuestionStart(text: string): string | undefined 
   return match && /[.．、]/.test(match[0]) ? match[1] : undefined;
 }
 
+/** "41. A. ": the number of a question printed on its first option, as cloze questions are. */
+export const importNumberedFirstOption = (text: string) => text.match(/^\s*\d{1,3}\s*[.．、]\s*A\s*[.．、]\s*/)?.[0];
+
 export function importOptionAnchors(text: string): RegExpMatchArray[] {
   const marked = [...text.matchAll(/(?:^|\s)(?:\*{1,2})?([A-H])[ \t]*[.．、:：)）](?:\*{1,2})?[ \t]*/g)].filter(match => {
     if (!/[)）]/.test(match[0])) return true;

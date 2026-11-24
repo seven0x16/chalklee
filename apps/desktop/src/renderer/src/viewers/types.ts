@@ -106,6 +106,8 @@ export interface PreviewController {
   scrollElement?(): HTMLElement | null;
   /** ChalkLee editors only: select a question, mark the search terms in it and bring the first match into view. */
   revealQuestion?(questionId: string, terms?: { words: readonly string[]; tokens: readonly string[] }): void;
+  /** ChalkLee editors only: go to a place a conversion left to check, a numbered question or a page kept as an image; false when it is gone. */
+  revealConversionPlace?(place: { question?: string; page?: number }): boolean;
   /** ChalkLee editors only: insert question-bank snapshots as one undoable step. */
   insertQuestions?(snapshots: readonly QuestionSnapshot[], placement?: QuestionInsertionPlacement): QuestionInsertionResult;
   /** ChalkLee editors only: where content falls on the pages shown. */

@@ -1,3 +1,4 @@
+import { keptPageHeading } from "../../../shared/conversion/tasks";
 import { chalkLeeBoldActive, chalkLeeToggleBold } from "./boldToggle";
 import { CHALKLEE_CROP_IMAGE_EVENT, CHALKLEE_REPLACE_IMAGE_EVENT, syncChalkLeeImagePairPagination } from "./imagePairs";
 import type { ChalkLeeCropRect } from "./ChalkLeeImageCrop";
@@ -2013,6 +2014,20 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
         if (hit && element && hit.getBoundingClientRect().bottom - element.getBoundingClientRect().top > (scrollerRef.current?.clientHeight ?? 0) * .6) hit.scrollIntoView({ block: "center", behavior: "smooth" });
         else element?.scrollIntoView({ block: "start", behavior: "smooth" });
       });
+    },
+    revealConversionPlace: ({ question, page }) => {
+      if (!editor) return false;
+      const heading = keptPageHeading(page);
+      let id: string | undefined;
+      editor.state.doc.descendants(node => {
+        const matches = question ? ["question", "questionGroup"].includes(node.type.name) && node.attrs.number?.label === question
+          : node.type.name === "heading" && node.textContent === heading;
+        if (!id && matches) id = node.attrs.id;
+        return !id;
+      });
+      // A question answered at its blank has no height of its own; going to it as an outline item lands on the blank.
+      if (id) controller.goToOutline(id);
+      return !!id;
     },
     scrollElement: () => scrollerRef.current,
     goToOutline: (target) => {
