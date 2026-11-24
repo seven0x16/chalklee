@@ -5,6 +5,7 @@ import { layoutWord, loadWord, visibleWordPages, wordAnchorAt, wordAnchorPoint, 
 import { DOCUMENT_PAGE_GAP_PX } from "./pageAppearance";
 import { attachOverlayScrollbars } from "./overlayScrollbars";
 import { normalizeWheelDelta, paperCenteredZoomPoint, wheelZoomPercent } from "./zoomAnchor";
+import { wordPageWithText, wordTextRange } from "./wordTextSearch";
 import "./ChalkWordViewer.css";
 
 export interface ChalkWordViewAnchor { pageIndex: number; x: number; y: number }
@@ -61,7 +62,7 @@ export function ChalkWordViewer(props: ChalkWordViewerProps) {
     let layout = latest.current.layout, geometry = latest.current.geometry;
     const gap = DOCUMENT_PAGE_GAP_PX;
     let zoom = initial.current.view.zoom, mode = initial.current.view.zoomMode, raf = 0, rootLeft = 0, reportedPage = -1;
-    let pendingPage: number | null = null;
+    let pendingPage: number | null = null, pendingText: string | null = null;
     let restoring = true, gesture: ReturnType<typeof capture> = null;
     const scrollbars = attachOverlayScrollbars(viewport, frame, x, y);
     function capture(point?: ZoomPoint, rect = viewport!.getBoundingClientRect()): (ChalkWordViewAnchor & { point: ZoomPoint }) | null {
@@ -110,6 +111,25 @@ export function ChalkWordViewer(props: ChalkWordViewerProps) {
       updateVisible();
       onState({ currentPage: index + 1 }); schedule();
     };
+    const FOUND = "chalk-word-found";
+    const clearFound = () => { globalThis.CSS?.highlights?.delete(FOUND); };
+    // The page mounts a frame or two after it scrolls into view.
+    const markText = (index: number, text: string, tries = 12) => {
+      const page = pagesRoot.current?.querySelector<HTMLElement>(`[data-page-number="${index + 1}"] .chalk-word-clip`);
+      const range = page && wordTextRange(page, text);
+      if (!range) { if (tries > 0) requestAnimationFrame(() => markText(index, text, tries - 1)); return; }
+      globalThis.CSS?.highlights?.set(FOUND, new Highlight(range));
+      viewport.scrollTop += range.getBoundingClientRect().top - viewport.getBoundingClientRect().top - viewport.clientHeight / 3;
+      schedule();
+    };
+    const goToText = (text: string) => {
+      clearFound();
+      const index = wordPageWithText(layout.pages, text);
+      pendingText = index < 0 && latest.current.paginating ? text : null;
+      if (index < 0) return pendingText !== null;
+      goToPage(index + 1); markText(index, text);
+      return true;
+    };
     let wheel: { base: number; delta: number; time: number; anchor: ReturnType<typeof capture> } | null = null;
     const onWheel = (event: WheelEvent) => {
       if (!event.ctrlKey && !event.metaKey) { wheel = null; return; }
@@ -120,23 +140,25 @@ export function ChalkWordViewer(props: ChalkWordViewerProps) {
       mode = "manual"; commit(wheelZoomPercent(wheel.base, wheel.delta)); restore(wheel.anchor); schedule();
     };
     const controller: PreviewController = { zoomIn: point => setZoom(zoom + 5, point), zoomOut: point => setZoom(zoom - 5, point), setZoom,
-      beginZoomGesture: point => { gesture = capture(point); }, endZoomGesture: () => { gesture = null; }, fitWidth: fit, goToPage,
+      beginZoomGesture: point => { gesture = capture(point); }, endZoomGesture: () => { gesture = null; }, fitWidth: fit, goToPage, goToText,
       goToOutline: target => { if (typeof target === "object" && target !== null && "page" in target) goToPage(Number(target.page)); } };
     refreshLayout.current = () => {
       if (!latest.current.layout || !latest.current.geometry) return;
       const anchor = capture(); layout = latest.current.layout; geometry = latest.current.geometry;
       if (mode === "fit-width") commit(fitPercent()); else commit(zoom);
-      if (pendingPage !== null && (pendingPage <= layout.pages.length || !latest.current.paginating)) goToPage(pendingPage);
+      if (pendingText !== null) goToText(pendingText);
+      else if (pendingPage !== null && (pendingPage <= layout.pages.length || !latest.current.paginating)) goToPage(pendingPage);
       else { restore(anchor); schedule(); }
     };
     const resize = new ResizeObserver(() => { if (mode === "fit-width") fit(); else commit(zoom); }); resize.observe(viewport);
     viewport.addEventListener("scroll", schedule, { passive: true }); viewport.addEventListener("wheel", onWheel, { passive: false });
+    viewport.addEventListener("pointerdown", clearFound);
     if (mode === "fit-width") fit(); else commit(zoom);
     const saved = initial.current.anchor;
     if (saved) { const rect = viewport.getBoundingClientRect(); restore({ ...saved, point: { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 } }); }
     else goToPage(initial.current.view.currentPage);
     restoring = false; report(); onController(controller);
-    return () => { refreshLayout.current = null; resize.disconnect(); scrollbars.dispose(); viewport.removeEventListener("scroll", schedule); viewport.removeEventListener("wheel", onWheel); if (raf) cancelAnimationFrame(raf); onController(null); };
+    return () => { refreshLayout.current = null; resize.disconnect(); scrollbars.dispose(); viewport.removeEventListener("scroll", schedule); viewport.removeEventListener("wheel", onWheel); viewport.removeEventListener("pointerdown", clearFound); clearFound(); if (raf) cancelAnimationFrame(raf); onController(null); };
   }, [ready, onController, onState, onViewAnchor]);
   useLayoutEffect(() => { refreshLayout.current?.(); }, [geometry]);
 

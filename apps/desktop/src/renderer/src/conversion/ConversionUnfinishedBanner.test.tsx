@@ -97,7 +97,7 @@ describe("unfinished conversion banner on a document", () => {
     await click("第 37 题：结构可能不对");
     expect(handlers.onReveal).toHaveBeenLastCalledWith(expect.objectContaining({ question: "37" }));
     await click("看原稿");
-    expect(handlers.onOpenSource).toHaveBeenLastCalledWith(7);
+    expect(handlers.onOpenSource).toHaveBeenLastCalledWith(expect.objectContaining({ question: "37", page: 7 }));
     await click("ChalkLee AI 修改");
     expect(handlers.onAsk).toHaveBeenLastCalledWith("对照原稿第 7 页检查第 37 题：结构可能不对。有错直接改在这份文档里，没错告诉我。只处理这一处，不要新建文档。", expect.anything());
     await act(async () => (handlers.onAsk.mock.lastCall![1 as never] as unknown as { onEnded(edited: boolean): void }).onEnded(false));

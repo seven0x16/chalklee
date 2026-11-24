@@ -101,6 +101,8 @@ export interface PreviewController {
   setAnswersVisible?(visible: boolean): void;
   setAnalysisVisible?(visible: boolean): void;
   goToPage(page: number): void;
+  /** Word originals only: go to these printed words and mark them; false when they are not in the document. */
+  goToText?(text: string): boolean;
   goToOutline(target: unknown): void;
   /** ChalkLee editors only: the paper's scroll area, whose right edge carries the outline rail. */
   scrollElement?(): HTMLElement | null;

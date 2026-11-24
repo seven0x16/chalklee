@@ -47,7 +47,7 @@ import { ImportedOriginalsNotice } from "../workspace/ImportedOriginalsNotice";
 import { DocumentVersionsControls } from "../workspace/DocumentVersions";
 import { isOriginalKind, isHtmlKind, isMarkdownKind } from "../../../shared/document/kinds";
 import type { MarkdownConversion } from "../markdown/MarkdownToolbar";
-import { conversionBatchEndedText, conversionBatchSummary, conversionForFile, conversionIsActive, conversionOpenTarget, conversionUnfinished, draftOpening, type ConversionTask, type StartConversionRequest } from "../../../shared/conversion/tasks";
+import { conversionBatchEndedText, conversionBatchSummary, conversionForFile, conversionIsActive, conversionOpenTarget, conversionUnfinished, draftOpening, type ConversionTask, type StartConversionRequest, followUpPlacesLeft } from "../../../shared/conversion/tasks";
 import { createEmptyChalkLeeDocument } from "../editor/editing";
 import { activeChalkLeeInspectorTarget, ChalkLeeInspectorContext, ChalkLeePropertiesToggleContext, updateChalkLeeInspectorTarget, type ChalkLeeInspectorTarget } from "../editor/inspectorContext";
 import { QuestionRail } from "../outline/QuestionRail";
@@ -263,7 +263,7 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
   const [importedEntries, setImportedEntries] = useState<{ root: string; paths: string[] } | null>(null);
   const importedTargets = useMemo(() => workspace && importedEntries?.root === workspace.root.path
     ? importedConversionTargets(workspace.root, importedEntries.paths, conversionTasks) : null, [workspace, importedEntries, conversionTasks]);
-  const [sourcePageRequest, setSourcePageRequest] = useState<{ fileId: string; page: number } | null>(null);
+  const [sourcePageRequest, setSourcePageRequest] = useState<{ fileId: string; page?: number; text?: string } | null>(null);
   const [questionRevealRequest, setQuestionRevealRequest] = useState<{ fileId: string; questionId: string; terms?: QuestionBankHighlight } | null>(null);
   const [questionBasket, setQuestionBasket] = useState<QuestionBasketItem[]>([]);
   const questionBasketVersionRef = useRef(0);
@@ -328,6 +328,9 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
   const proofreadTask = activeTab?.file.extension === "chalklee" ? proofreadTaskFor(conversionTasks, activeTab.file.path) : undefined;
   // A document whose conversion stopped short, or is continuing into it.
   const unfinishedTask = activeTab?.file.extension === "chalklee" ? unfinishedConversionFor(conversionTasks, activeTab.file.path) : undefined;
+  // Closing the notice does not settle what it listed: the places stay one click away in the document's properties.
+  const closedPlaces = activeTab?.file.extension === "chalklee" && !unfinishedTask
+    ? conversionTasks.find(task => task.result?.file.path === activeTab.file.path && task.phase !== "proofread" && !!task.dismissed && followUpPlacesLeft(task) > 0) : undefined;
   // Named on the built-in conversion button's tooltip; re-read when an original is shown or settings close.
   const [conversionModel, setConversionModel] = useState<string>();
   const [conversionModelId, setConversionModelId] = useState<string>();
@@ -1156,7 +1159,8 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
 
   useEffect(() => {
     if (sourcePageRequest && !activeTab?.loading && activeTab?.content && activeTabId === sourcePageRequest.fileId && viewerOwnerId === sourcePageRequest.fileId && viewerController && previewState.pageCount > 0) {
-      viewerController.goToPage(sourcePageRequest.page);
+      const found = !!sourcePageRequest.text && !!viewerController.goToText?.(sourcePageRequest.text);
+      if (!found && sourcePageRequest.page) viewerController.goToPage(sourcePageRequest.page);
       setSourcePageRequest(null);
     }
   }, [sourcePageRequest, activeTab?.loading, activeTab?.content, activeTabId, viewerOwnerId, viewerController, previewState.pageCount]);
@@ -2477,11 +2481,11 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
                             onAcknowledge={id => window.chalkLee.acknowledgeUnfinishedConversion(id)} onChooseModel={() => setSettingsPage("ai")}
                             onReview={(id, key, checked) => window.chalkLee.reviewConversionFollowUp(id, key, checked)}
                             onReveal={place => viewerController?.revealConversionPlace?.(place)}
-                            onOpenSource={page => {
+                            onOpenSource={({ page, sourceText }) => {
                               const kept = unfinishedTask.source;
                               const file = workspaceOriginalOf(workspaceIndex.files, activeTab.file.path, kept.name) ?? workspaceIndex.byPath.get(kept.path) ?? kept;
                               openFile(file);
-                              if (page) setSourcePageRequest({ fileId: file.fileId, page });
+                              if (page || sourceText) setSourcePageRequest({ fileId: file.fileId, page, text: sourceText });
                             }}
                             onAsk={documentOnly || !workspace ? undefined : (text, follow) => askAssistant(text, { follow: { ...follow, document: workspaceRelativePath(workspace.root.path, tab.file.path) } })} /> : null}
                         </> : null}
@@ -2586,7 +2590,7 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
         relativePath={activeTab.file.path.slice(workspace.root.path.length + 1).replaceAll("\\", "/")}
         disabled={activeTab.loading || activeTab.stale || activeTab.missing}
         onCopied={file => void openVersionCopy(file)} onRestore={versionId => restoreDocumentVersion(activeTab, versionId)} /> : null}
-      {!documentOnly && activeTab?.file.extension === "chalklee" ? <SingleImportControls key={activeTab.file.path} host={importControlsHost} file={activeTab.file} history={importHistory?.history ?? null} historyError={importHistory?.error} disabled={activeTab.loading || activeTab.stale || activeTab.missing} onStart={startConversion} onOpenSource={(kept, page) => {
+      {!documentOnly && activeTab?.file.extension === "chalklee" ? <SingleImportControls key={activeTab.file.path} placesLeft={closedPlaces ? followUpPlacesLeft(closedPlaces) : 0} onShowPlaces={() => { if (closedPlaces) void window.chalkLee.reopenConversionFollowUp(closedPlaces.id).catch(error => notify(errorMessage(error))); }} host={importControlsHost} file={activeTab.file} history={importHistory?.history ?? null} historyError={importHistory?.error} disabled={activeTab.loading || activeTab.stale || activeTab.missing} onStart={startConversion} onOpenSource={(kept, page) => {
         // Only the matching file beside this document is its live original; otherwise use the kept copy.
         const file = workspaceOriginalOf(workspaceIndex.files, activeTab.file.path, kept.name) ?? workspaceIndex.byPath.get(kept.path) ?? kept;
         openFile(file);

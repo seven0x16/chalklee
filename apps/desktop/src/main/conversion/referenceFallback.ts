@@ -204,12 +204,40 @@ export function misprintedAnswerNumbers(lines: string[]): { printed: string; exp
   return found;
 }
 
+const CONCERN_REF = /(?<![\w-])[\w-]*source_[\w-]+/;
+/** A few printed words to name a passage by, as the teacher sees them in the original: no formula source or image ids. */
+function quoted(text?: string) {
+  const parts = (text ?? "").split(/\$[^$]*\$|\[图片[^\]]*\]/).map(part => part.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const words = parts.find(part => part.replace(/\s/g, "").length >= 4) ?? parts[0];
+  if (!words) return /\[图片/.test(text ?? "") ? "一张图" : "有一段内容";
+  return `“${words.length > 14 ? `${words.slice(0, 14)}…` : words}”`;
+}
+/** Words of a line that can be looked up in the original: no formulas or images, and not just its number. */
+function searchableText(text: string) {
+  const part = text.split(/\$[^$]*\$|\[图片[^\]]*\]/).map(item => item.trim()).find(item => item.replace(/\s/g, "").length >= 4);
+  if (!part) return undefined;
+  const unnumbered = part.replace(/^\d{1,3}\s*[.．、]\s*/, "");
+  return (unnumbered.replace(/\s/g, "").length >= 4 ? unnumbered : part).slice(0, 40);
+}
+
 /** What a check found, in the words of someone looking at the paper. */
-function concernReason(concern: string): string {
+function concernReason(concern: string, textOf: (ref: string) => string | undefined): string {
+  const passage = () => quoted(textOf(concern.match(CONCERN_REF)?.[0] ?? ""));
+  const moved = concern.match(/不能移入第\s*(\S+?)\s*题/)?.[1];
   if (concern.includes("留在了题外")) return "没有整理成题目";
   if (concern.includes("已保留在原答案位置待核对")) return "答案没有归到题目里";
   if (concern.includes("答案印了两遍")) return "原稿印了两遍答案，请核对";
   if (concern.includes("两处答案不一致")) return "原稿两处答案不一致，请核对";
+  if (moved) return `${passage()}放在了第 ${moved} ${/^\d+$/.test(moved) ? "题" : "小问"}，请核对`;
+  const heading = concern.match(/是标题，不能放入(答案|解析)/)?.[1];
+  if (heading) return `标题${passage()}放进了${heading}，请核对`;
+  const unmarked = concern.match(/没有标为(答案|解析)/)?.[1];
+  if (unmarked) return `${passage()}放进了${unmarked}，原稿没有这样标注`;
+  if (concern.includes("没有题干")) return "没有题干，原稿里也没有这个空";
+  if (concern.includes("引用配图")) return "题目提到图，这里没有图";
+  if (concern.includes("不在任何题目中")) return "前面的材料没有和题目放在一起";
+  if (concern.includes("尚未建立对应小题")) return "原稿有这个空，但没有对应的小题";
+  if (concern.includes("没有对应答案或解析")) return "答案没有归到题目里";
   return "结构可能不对";
 }
 
@@ -222,27 +250,33 @@ export function referenceFollowUp(input: PreparedImport, numbers: string[], conc
   // A key line lists several answers; a PDF's lines carry no answer role to tell them by.
   const keyLines = entries.filter(entry => entry.role === "answer" || (entry.text.match(/(?:^|\s)\d{1,3}\s*[.．、]\s*[^\d\s]/g)?.length ?? 0) >= 3);
   const pageOfUnit = (unitId: string) => input.units.find(unit => unit.id === unitId)?.page;
-  const located = new Map<string, number>();
+  const byRef = new Map(entries.map(entry => [entry.ref, entry]));
+  // The line a doubt is about, so the original opens there rather than at the top of the question.
+  const located = new Map<string, (typeof entries)[number]>();
   for (const { printed, expected, line } of misprintedAnswerNumbers(keyLines.map(entry => entry.text))) {
     note(expected, `原稿答案的题号印成了 ${printed}，请核对这题和第 ${printed} 题的答案`);
-    const page = pageOfUnit(keyLines[line].unitId);
-    if (page) located.set(expected, page);
+    located.set(expected, keyLines[line]);
   }
   for (const concern of concerns) {
-    const named = [...concern.matchAll(/第\s*(\d{1,3})\s*[题空]/g)].map(match => match[1]);
+    const named = [...concern.matchAll(/第\s*(\d{1,3})(?:\s*[–～~-]\s*\d{1,3})?\s*[题空]/g)].map(match => match[1]);
     const owned = [...concern.matchAll(/(?<![\w-])[\w-]*source_[\w-]+/g)].flatMap(match => owner.get(match[0]) ?? []);
-    (named.length ? named : owned).forEach(number => note(number, concernReason(concern)));
+    const line = byRef.get(concern.match(CONCERN_REF)?.[0] ?? "");
+    for (const number of named.length ? named : owned) {
+      if (!reasons.has(number) && line) located.set(number, line);
+      note(number, concernReason(concern, ref => byRef.get(ref)?.text));
+    }
   }
   numbers.forEach(number => note(number, "由程序整理，请核对"));
   const list = [...reasons.keys()];
   // A doubt that names no question gives the teacher nothing to look at, so it raises no notice by itself.
   if (!list.length && !pages.length && !service && !unplaced) return undefined;
-  const pageOf = (number: string) => {
-    const owned = entries.find(entry => entry.questionNumber === number);
-    return located.get(number) ?? (owned ? pageOfUnit(owned.unitId) : undefined);
+  const place = (number: string) => {
+    const line = located.get(number) ?? entries.find(entry => entry.questionNumber === number);
+    const page = line && pageOfUnit(line.unitId), sourceText = line && !page ? searchableText(line.text) : undefined;
+    return { ...(page ? { page } : {}), ...(sourceText ? { sourceText } : {}) };
   };
   const items: ImportFollowUpItem[] = [
-    ...list.map(question => { const page = pageOf(question); return { question, ...(page ? { page } : {}), reason: reasons.get(question)! }; }),
+    ...list.map(question => ({ question, ...place(question), reason: reasons.get(question)! })),
     ...pages.map(page => ({ page, reason: "保留为原图" }))
   ];
   return { questions: list, pages, items, ...(service ? { service } : {}), ...(numbers.length || pages.length || unplaced ? { rerun: true } : {}) };

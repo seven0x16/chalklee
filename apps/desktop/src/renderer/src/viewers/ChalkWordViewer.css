@@ -38,3 +38,5 @@
 .chalk-word-viewer:hover .chalk-word-thumb, .chalk-word-thumb:active { opacity: 1; }
 .chalk-word-thumb-x { bottom: 3px; left: 0; height: 6px; }
 .chalk-word-thumb-y { right: 3px; top: 0; width: 6px; }
+
+::highlight(chalk-word-found) { background-color: var(--cm-ui-selected-bg); }

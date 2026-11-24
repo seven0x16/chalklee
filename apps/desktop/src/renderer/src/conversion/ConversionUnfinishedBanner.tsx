@@ -28,7 +28,7 @@ export function ConversionUnfinishedBanner({ task, model, onContinue, onStop, on
   onReview(id: string, key: string, checked?: boolean): Promise<void>;
   /** Goes to this place in the open document. */
   onReveal(place: ImportFollowUpItem): void;
-  onOpenSource(page?: number): void;
+  onOpenSource(place: ImportFollowUpItem): void;
   /** Absent where ChalkLee AI is not available. */
   onAsk?(text: string, follow: { onEnded(edited: boolean): void; onUndone(): void }): void;
 }) {
@@ -108,7 +108,7 @@ export function ConversionUnfinishedBanner({ task, model, onContinue, onStop, on
           <span>{at + 1}/{items.length}</span>
           <button type="button" className="is-icon" aria-label="下一处" title="下一处" onClick={() => step(1)}><ChevronRight size={16} aria-hidden="true" /></button>
         </span> : null}
-        <button type="button" onClick={() => onOpenSource(current.page)}>看原稿</button>
+        <button type="button" onClick={() => onOpenSource(current)}>看原稿</button>
         <button type="button" disabled={busy || fixing === currentKey} onClick={() => void review()}>没问题</button>
         {canFix ? <button type="button" className="primary" disabled={!!fixing} onClick={() => fix(current)}>
           {fixing === currentKey ? <><LoaderCircle size={14} className="ai-import-spinner" aria-hidden="true" />正在修改</> : "ChalkLee AI 修改"}

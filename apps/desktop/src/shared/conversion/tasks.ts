@@ -134,6 +134,11 @@ export function conversionFollowUpItems(followUp: ImportFollowUp): ImportFollowU
   const rank = (item: ImportFollowUpItem) => item.question ? Number(item.question) : Number.MAX_SAFE_INTEGER;
   return [...items].sort((a, b) => rank(a) - rank(b) || (a.page ?? 0) - (b.page ?? 0));
 }
+/** How many places are still to check, whether or not the notice is showing. */
+export function followUpPlacesLeft(task: ConversionTask) {
+  const followUp = conversionFollowUp(task);
+  return followUp ? conversionFollowUpItems(followUp).filter(item => !task.reviewed?.includes(followUpItemKey(item))).length : 0;
+}
 /** The heading a source page kept as an image carries in the document. */
 export const keptPageHeading = (page: number | undefined) => `第 ${page} 页原稿（待核对）`;
 export const followUpItemKey = (item: ImportFollowUpItem) => item.question ? `q${item.question}` : `p${item.page}`;

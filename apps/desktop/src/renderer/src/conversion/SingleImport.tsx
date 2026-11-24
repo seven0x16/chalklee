@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, Check, ChevronRight, FileClock, FileText, Info, LoaderCircle, X } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, FileClock, FileText, Info, LoaderCircle, X, ListChecks } from "lucide-react";
 import type { ImportHistory } from "../../../shared/conversion/types";
 import type { WorkspaceFileNode } from "../../../shared/contracts";
 import type { StartConversionRequest } from "../../../shared/conversion/tasks";
@@ -33,12 +33,15 @@ export function ImportDialog({ title, children, className = "", initialFocus, on
 /** ChalkLee keeps no copy of an original, so it is gone for good once changed or removed. */
 const SOURCE_GONE = "原稿已改动或不在工作区";
 
-export function SingleImportControls({ host, file, disabled, history, historyError, onOpenSource, onStart }: {
+export function SingleImportControls({ host, file, disabled, history, historyError, placesLeft = 0, onOpenSource, onShowPlaces, onStart }: {
   host: HTMLElement | null;
   file: WorkspaceFileNode;
   disabled: boolean;
   history: ImportHistory | null;
   historyError?: string;
+  /** Places to check that the notice was closed on. */
+  placesLeft?: number;
+  onShowPlaces?(): void;
   onStart(request: StartConversionRequest): Promise<void>;
   onOpenSource(file: WorkspaceFileNode, page?: number): void;
 }) {
@@ -72,6 +75,10 @@ export function SingleImportControls({ host, file, disabled, history, historyErr
           </button> : <div className="chalklee-property-row ai-conversion-status">
             <FileText size={16} strokeWidth={1.75} aria-hidden="true" /><span>{gone}</span>
           </div>}
+          {placesLeft ? <button type="button" className="chalklee-property-row chalklee-property-link" onClick={onShowPlaces}>
+            <ListChecks size={16} strokeWidth={1.75} aria-hidden="true" /><span>待核对</span>
+            <small>{placesLeft} 处</small><ChevronRight size={14} aria-hidden="true" />
+          </button> : null}
           <button type="button" className="chalklee-property-row chalklee-property-link" onClick={() => setHistoryOpen(true)}>
             <FileClock size={16} strokeWidth={1.75} aria-hidden="true" /><span>转换记录</span>
             <small>{`${history.record.conversion?.status === "draft" ? "转换未完成" : "已转换"}，${history.record.questionCount} 道题`}</small><ChevronRight size={14} aria-hidden="true" />

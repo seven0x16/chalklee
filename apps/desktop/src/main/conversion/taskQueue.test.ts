@@ -258,6 +258,11 @@ describe("durable document conversion tasks", () => {
     expect(queue.list()[0]).toMatchObject({ dismissed: false, reviewed: [] });
     await queue.acknowledgeUnfinished(task.id);
     expect(queue.list()[0].dismissed).toBe(true);
+    await queue.reopenFollowUp(task.id);
+    expect(queue.list()[0].dismissed).toBe(false);
+    await queue.reviewFollowUp(task.id, "q18");
+    await queue.reopenFollowUp(task.id);
+    expect(queue.list()[0].dismissed).toBe(true);
   });
 
   it("keeps one full result per document across retries and drops partial saves left by a crash", async () => {

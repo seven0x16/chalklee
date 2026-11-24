@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ImportProgress, ImportResult, PreparedImport } from "../../shared/conversion/types";
-import { AUTO_CONTINUE_LIMIT, conversionFollowUp, conversionFollowUpItems, conversionIsActive, followUpItemKey,EXTERNAL_CONNECTION_TIMEOUT_MS, EXTERNAL_CONVERSION_IDLE_MS, proofreadPending, type ConversionBatchAction, type ConversionStatus, type ConversionTask } from "../../shared/conversion/tasks";
+import { AUTO_CONTINUE_LIMIT, conversionFollowUp, conversionFollowUpItems, conversionIsActive, followUpItemKey, followUpPlacesLeft,EXTERNAL_CONNECTION_TIMEOUT_MS, EXTERNAL_CONVERSION_IDLE_MS, proofreadPending, type ConversionBatchAction, type ConversionStatus, type ConversionTask } from "../../shared/conversion/tasks";
 import { conversionServiceProblem, isTransientImportFailure } from "../../shared/conversion/failure";
 import { conversionReviewFromRecord, pendingConversionNotices } from "../../shared/conversion/review";
 import { questionReviewNotices } from "../../shared/conversion/questionReview";
@@ -245,6 +245,14 @@ export class ConversionTaskQueue {
       task.reviewed = [...new Set([...(task.reviewed ?? []), key])];
       if (keys.every(item => task.reviewed!.includes(item))) task.dismissed = true;
     }
+    await this.persist(); this.changed();
+  }
+  /** Brings the notice back for the places a teacher closed it on. */
+  async reopenFollowUp(id: string) {
+    await this.ready;
+    const task = this.find(id);
+    if (!task.dismissed || conversionIsActive(task) || !followUpPlacesLeft(task)) return;
+    task.dismissed = false;
     await this.persist(); this.changed();
   }
   async stop(id: string) {

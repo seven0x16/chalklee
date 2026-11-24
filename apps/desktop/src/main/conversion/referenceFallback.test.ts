@@ -140,14 +140,32 @@ describe("organizing what the agent left", () => {
   it("says why each place needs a look", () => {
     const input = prepared(["1. 一", "2. 二", "36. cleaner 37. her 38. the 39. herself 40. cheerful", "37. to make 42. so 43. are 44. on 45. wrote"]);
     const followUp = referenceFollowUp(input, ["2"], ["第1题留在了题外：source_1"], [3])!;
-    expect(followUp.items).toEqual([
-      { question: "41", reason: "原稿答案的题号印成了 37，请核对这题和第 37 题的答案" },
-      { question: "1", reason: "没有整理成题目" },
-      { question: "2", reason: "由程序整理，请核对" },
-      { page: 3, reason: "保留为原图" }
+    expect(followUp.items!.map(({ question, page, reason }) => ({ question, page, reason }))).toEqual([
+      { question: "41", page: undefined, reason: "原稿答案的题号印成了 37，请核对这题和第 37 题的答案" },
+      { question: "1", page: undefined, reason: "没有整理成题目" },
+      { question: "2", page: undefined, reason: "由程序整理，请核对" },
+      { question: undefined, page: 3, reason: "保留为原图" }
     ]);
     expect(followUp.rerun).toBe(true);
     expect(referenceFollowUp(input, [], [], [])?.rerun).toBeUndefined();
+  });
+
+  it("says what is wrong in the teacher's words and where the line is printed", () => {
+    const input = prepared(["18. 第一段题干内容", "[图片 source_image_1] 图 3 和图 4 的说明文字", "19. 第二段题干内容"]);
+    const followUp = referenceFollowUp(input, [], [
+      "结构存疑（核对原稿后，确属这样可以保留）：原稿片段 source_2 属于第 18 题，不能移入第 (6) 题。这一段没有印刷题号。",
+      "结构存疑（核对原稿后，确属这样可以保留）：第19题引用配图，但题干或共享材料中没有图。"
+    ], [])!;
+    expect(followUp.items).toEqual([
+      { question: "18", sourceText: "图 3 和图 4 的说明文字", reason: "“图 3 和图 4 的说明文字”放在了第 (6) 小问，请核对" },
+      { question: "19", sourceText: "第二段题干内容", reason: "题目提到图，这里没有图" }
+    ]);
+  });
+
+  it("points to the first question when a passage was left outside a run of questions", () => {
+    const input = prepared(["1. 一", "6. 二", "7. 三"]);
+    const followUp = referenceFollowUp(input, [], ["第6–7题前有 45 段正文不在任何题目中，像是这几题共用的阅读材料：整理为一个题组。"], [])!;
+    expect(followUp.items?.map(({ question, reason }) => ({ question, reason }))).toEqual([{ question: "6", reason: "前面的材料没有和题目放在一起" }]);
   });
 
   it("names the questions behind a doubt, by number or by paragraph", () => {

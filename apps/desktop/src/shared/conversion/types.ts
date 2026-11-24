@@ -145,6 +145,8 @@ export interface ImportFollowUpItem {
   question?: string;
   /** The page of the original it is on, when the original has pages. */
   page?: number;
+  /** Words printed at this place, to find it in an original without fixed pages. */
+  sourceText?: string;
   reason: string;
 }
 

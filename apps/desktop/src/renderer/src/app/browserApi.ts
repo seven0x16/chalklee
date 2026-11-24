@@ -49,6 +49,7 @@ export function installBrowserApi() {
     acknowledgeProofread: id => invoke("conversion:acknowledge-proofread", id),
     acknowledgeUnfinishedConversion: id => invoke("conversion:acknowledge-unfinished", id),
     reviewConversionFollowUp: (id, key, checked) => invoke("conversion:review-follow-up", id, key, checked),
+    reopenConversionFollowUp: id => invoke("conversion:reopen-follow-up", id),
     copyConversionInstruction: (sourcePath, resume) => invoke("conversion:copy-instruction", sourcePath, resume),
     dismissConversionTasks: workspaceRoot => invoke("conversion:dismiss", workspaceRoot), openConversionTask: (id, target) => invoke("conversion:open", id, target),
     onConversionTasks: listener => on("conversion:changed", listener), onConversionReveal: () => () => {},

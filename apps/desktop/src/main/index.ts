@@ -850,6 +850,7 @@ function registerIpc(): void {
   handleDesktop("conversion:acknowledge-proofread", (_event, id: string) => conversionQueue.acknowledgeProofread(id));
   handleDesktop("conversion:acknowledge-unfinished", (_event, id: string) => conversionQueue.acknowledgeUnfinished(id));
   handleDesktop("conversion:review-follow-up", (_event, id: string, key: string, checked?: boolean) => conversionQueue.reviewFollowUp(id, key, checked !== false));
+  handleDesktop("conversion:reopen-follow-up", (_event, id: string) => conversionQueue.reopenFollowUp(id));
   handleDesktop("conversion:dismiss", (_event, root: string) => {
     if (!workspaceRoot || root !== workspaceRoot) throw new Error("工作区已切换，请在当前工作区重试。");
     return conversionQueue.dismissEnded(root);
