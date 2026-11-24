@@ -5,7 +5,7 @@ import type { DocumentKind, WorkspaceFileNode, WriteDocumentResult } from "../..
 import type { ChalkWordViewAnchor } from "../viewers/ChalkWordViewer";
 import { HtmlViewer } from "../viewers/HtmlViewer";
 import { prewarmChalkLeeMathFonts } from "../editor/mathFonts";
-import { mergePreviewState, outlinesEqual } from "../viewers/types";
+import { mergePreviewState, outlinesEqual, previewStatesEqual } from "../viewers/types";
 import type { OutlineItem, PreviewController, PreviewState } from "../viewers/types";
 import { type OpenTab, type ActivePreviewRuntime, DEFAULT_PREVIEW_STATE } from "./tabs";
 import { LoadingState, ErrorState } from "./viewStates";
@@ -91,8 +91,17 @@ export const DocumentPreviewPane = memo(function DocumentPreviewPane({ tab, acti
   const handleSaved = useCallback((result: WriteDocumentResult, automatic: boolean) => onSaved(tab.file.fileId, result, automatic), [onSaved, tab.file.fileId]);
   const handlePaperLike = useCallback((paper: boolean) => onMarkdownPaper?.(tab.file.path, paper), [onMarkdownPaper, tab.file.path]);
 
+  // Only a real change reaches the app. React can hand back an equal state as a new object on every render while an
+  // earlier update waits, and answering each with an app update re-renders this pane again, without end.
+  const publishedRef = useRef<{ runtime: ActivePreviewRuntime; to: typeof onActiveRuntime } | null>(null);
   useLayoutEffect(() => {
-    if (active) onActiveRuntime({ fileId: tab.file.fileId, state, controller, outline });
+    if (!active) { publishedRef.current = null; return; }
+    const last = publishedRef.current;
+    if (last && last.to === onActiveRuntime && last.runtime.fileId === tab.file.fileId && last.runtime.controller === controller
+      && outlinesEqual(last.runtime.outline, outline) && previewStatesEqual(last.runtime.state, state)) return;
+    const runtime = { fileId: tab.file.fileId, state, controller, outline };
+    publishedRef.current = { runtime, to: onActiveRuntime };
+    onActiveRuntime(runtime);
   }, [active, controller, onActiveRuntime, outline, state, tab.file.fileId]);
 
   useEffect(() => {

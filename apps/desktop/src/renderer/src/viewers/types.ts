@@ -51,6 +51,11 @@ export function displayZoomPercent(zoom: number): number {
   return Math.round(Math.min(200, Math.max(25, zoom)));
 }
 
+export function previewStatesEqual(left: PreviewState, right: PreviewState): boolean {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]) as Set<keyof PreviewState>;
+  return [...keys].every((key) => Object.is(left[key], right[key]));
+}
+
 /**
  * Viewer engines can report the same state more than once while relaying out.
  * Preserve the current object when nothing changed so those reports cannot
