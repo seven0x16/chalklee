@@ -662,6 +662,19 @@ describe("lossless Word source plans", () => {
       { type: "question", number: "(2)", stem: [{ ref: "p2", stripPrefix: "（2）" }] }] }], source, undefined, doubts);
     expect(doubts).toEqual([]);
   });
+  it("takes the part a 【小问N详解】 label names over the parts an analysis before it went through", () => {
+    const texts: [string, string, string][] = [["q", "26. 已知点 A、B。", "body"], ["p1", "（1）求 a，b 的值；", "body"], ["p2", "（2）证明 CD=AD；", "body"], ["p3", "（3）求 CN。", "body"],
+      ["sol", "【解析】", "analysis"], ["an1", "【分析】（1）由平方的非负性质即可求解；", "analysis"], ["an2", "（2）连接 CD，则 CD=AD；", "analysis"], ["an3", "（3）连接 AM，DM。", "analysis"],
+      ["l1", "【小问1详解】", "analysis"], ["w1", "解：∵a，b 满足条件，", "analysis"], ["w1b", "∴a=-3，b=3；", "analysis"], ["l2", "【小问2详解】", "analysis"], ["w2", "证明：连接 CD。", "analysis"], ["l3", "【小问3详解】", "analysis"], ["w3", "解：CN=½CD。", "analysis"]];
+    const source = { ...unit(texts.map(([id, text]) => paragraph(id, text))),
+      sourceRoles: Object.fromEntries(texts.map(([id, , role]) => [id, role as "body" | "analysis"])), sourceQuestionNumbers: Object.fromEntries(texts.map(([id]) => [id, "26"])) };
+    const doubts: string[] = [];
+    assertWordImportPlan([{ type: "questionGroup", number: "26", material: [{ ref: "q", stripPrefix: "26." }], analysis: [{ ref: "sol" }, { ref: "an1" }, { ref: "an2" }, { ref: "an3" }], questions: [
+      { type: "question", number: "(1)", stem: [{ ref: "p1", stripPrefix: "（1）" }], analysis: [{ ref: "l1" }, { ref: "w1" }, { ref: "w1b" }] },
+      { type: "question", number: "(2)", stem: [{ ref: "p2", stripPrefix: "（2）" }], analysis: [{ ref: "l2" }, { ref: "w2" }] },
+      { type: "question", number: "(3)", stem: [{ ref: "p3", stripPrefix: "（3）" }], analysis: [{ ref: "l3" }, { ref: "w3" }] }] }], source, undefined, doubts);
+    expect(doubts).toEqual([]);
+  });
   it("lets a circled part inside a printed subquestion be its own question", () => {
     const source = { ...unit([paragraph("q", "11．某实验小组探究加速度。"), paragraph("p2", "（2）利用图乙装置进行实验。"), paragraph("c1", "①t=4 s 时，物体处于____状态；"), paragraph("c2", "②其图像为图线____。"),
       paragraph("a", "【解析】"), paragraph("a1", "（2）①根据图像可知处于失重状态；"), paragraph("a2", "②质量增大一倍，图线为 c。")]),

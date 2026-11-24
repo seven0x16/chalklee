@@ -618,8 +618,11 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
     if (entry.questionNumber !== owner || entry.role !== role || entry.role === "heading") child = undefined;
     owner = entry.questionNumber; role = entry.role;
     const printed = printedSubNumbers(entry.text.replace(wordAnswerLabel, "").replace(wordAnalysisLabel, ""));
+    // "【小问2详解】" names its part, whatever parts an analysis before it ("【分析】（1）…（3）…") went through.
+    const named = entry.text.match(/^\s*【\s*小[问题]\s*(\d{1,2})\s*(?:详解|解析|解答)?\s*】/)?.[1];
+    if (named) child = [named];
     // "①…" printed after "(2)…" is a part of (2), and belongs to it as well.
-    if (printed.length) child = printed[0].inner && child?.length ? [child[0], ...printed.map(part => part.number)] : printed.map(part => part.number);
+    else if (printed.length) child = printed[0].inner && child?.length ? [child[0], ...printed.map(part => part.number)] : printed.map(part => part.number);
     else if (importQuestionAnchors(entry.text).some(match => match.index === 0)) child = undefined;
     if (child) childNumbers.set(entry.ref, child);
   }
