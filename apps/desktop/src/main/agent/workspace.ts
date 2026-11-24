@@ -518,6 +518,8 @@ export class AgentWorkspaceService {
       return document;
     }, [edit.questionId]);
     if (saved.saved) changes.push({ path: saved.path, questionId: edit.questionId, before: own.before!, after: own.after! });
+    // A picture resized or moved is this document's layout; with the content as it was, no copy has anything to take.
+    if (questionContentKey(edit.before, sourceHashes) === questionContentKey(edit.after, sourceHashes)) return { changes, different, failed, error };
     const others = copies.filter(copy => !(copy.path === saved.path && copy.questionId === edit.questionId));
     for (const [index, copy] of others.entries()) {
       try {

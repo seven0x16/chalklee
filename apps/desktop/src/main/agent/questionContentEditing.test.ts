@@ -91,6 +91,23 @@ describe("editing a question's content from the library", () => {
     expect(part(third, "questionAnswer")).toBe("更完整的答案");
   });
 
+  it("keeps a layout-only change in its own document and leaves every copy alone", async () => {
+    await write("甲", question("a"));
+    await write("乙", question("b"));
+    await write("丙", question("c", { stem: "另一种说法" }));
+    const copies = [at("甲", "a"), at("乙", "b"), at("丙", "c")];
+    const loaded = await service.readQuestionForEdit(fileOf("甲"), "a", copies);
+    const after = structuredClone(loaded.node);
+    after.content!.find(part => part.type === "questionStem")!.content![0].attrs!.textAlign = "center";
+    const untouched = await Promise.all(["乙", "丙"].map(name => readFile(fileOf(name))));
+    const result = await service.saveQuestionContent({ ...at("甲", "a"), before: loaded.node, after }, copies);
+    expect(result).toMatchObject({ different: [], failed: [], error: null });
+    expect(result.changes.map(change => change.path)).toEqual([fileOf("甲")]);
+    expect((await saved("甲", "a")).content[0].content[0]).toMatchObject({ attrs: { textAlign: "center" } });
+    expect((await readFile(fileOf("乙"))).equals(untouched[0])).toBe(true);
+    expect((await readFile(fileOf("丙"))).equals(untouched[1])).toBe(true);
+  });
+
   it("keeps a group's numbers and the links from its blanks to its subquestions in every copy", async () => {
     const group = (id: string, material: string) => ({ type: "questionGroup", attrs: { id, kind: "cloze", number: { mode: "continue" } }, content: [
       { type: "questionMaterial", attrs: { id: `${id}_m` }, content: [{ type: "paragraph", attrs: { id: `${id}_mp` }, content: [{ type: "text", text: material }, { type: "blank", attrs: { id: `${id}_blank`, label: "1", widthPt: 72 } }] }] },
