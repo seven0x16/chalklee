@@ -3,12 +3,13 @@ import type { Worker } from "node:worker_threads";
 import chokidar from "chokidar";
 import type { WorkspaceChangeKind } from "../../shared/contracts";
 import { documentKind, isIgnoredName } from "./treeEntries";
+import { watchRecursiveWorkspace } from "./recursiveWatcher";
 
 export type WorkspaceWatchMessage =
   | { kind: WorkspaceChangeKind; path: string; stats?: { mtimeMs: number; size: number } }
   | { error: string };
 
-export function watchWorkspaceFiles(root: string, report: (message: WorkspaceWatchMessage) => void) {
+function watchWithChokidar(root: string, report: (message: WorkspaceWatchMessage) => void, usePolling = false) {
   const relayFile = (kind: WorkspaceChangeKind, file: string, stats?: { mtimeMs: number; size: number }) => {
     if (!documentKind(file)) return;
     report({ kind, path: file, stats: stats && { mtimeMs: stats.mtimeMs, size: stats.size } });
@@ -16,9 +17,11 @@ export function watchWorkspaceFiles(root: string, report: (message: WorkspaceWat
   return chokidar.watch(root, {
     awaitWriteFinish: { stabilityThreshold: 220, pollInterval: 80 },
     alwaysStat: true,
+    ...(usePolling ? { usePolling: true, interval: 1000, binaryInterval: 1000 } : {}),
     followSymlinks: false,
     ignoreInitial: true,
-    ignored: candidate => candidate !== root && path.relative(root, candidate).split(path.sep).some(isIgnoredName)
+    ignored: (candidate, stats) => candidate !== root && (path.relative(root, candidate).split(path.sep).some(isIgnoredName)
+      || Boolean(usePolling && stats?.isFile() && !documentKind(candidate)))
   })
     .on("add", (file, stats) => relayFile("added", file, stats))
     .on("change", (file, stats) => relayFile("changed", file, stats))
@@ -28,7 +31,29 @@ export function watchWorkspaceFiles(root: string, report: (message: WorkspaceWat
     .on("error", error => report({ error: String(error) }));
 }
 
-/** Native watcher registration and teardown grow with the number of files. Keep both off the main thread. */
+export function watchWorkspaceFiles(root: string, report: (message: WorkspaceWatchMessage) => void) {
+  if (process.platform !== "darwin") return watchWithChokidar(root, report);
+  let recursive: ReturnType<typeof watchRecursiveWorkspace> | undefined;
+  let polling: ReturnType<typeof watchWithChokidar> | undefined;
+  let closed = false;
+  const fallBack = (error: unknown) => {
+    if (closed || polling) return;
+    report({ error: `递归监视不可用，已改用轮询：${String(error)}` });
+    recursive?.close();
+    polling = watchWithChokidar(root, report, true);
+  };
+  try { recursive = watchRecursiveWorkspace(root, report, fallBack); }
+  catch (error) { fallBack(error); }
+  return {
+    async close() {
+      closed = true;
+      recursive?.close();
+      await polling?.close();
+    }
+  };
+}
+
+/** Keep watcher registration and teardown off the main thread. */
 export function startWorkspaceWatcher(root: string, createWorker: () => Worker, report: (message: WorkspaceWatchMessage) => void) {
   let worker: Worker;
   try { worker = createWorker(); }
