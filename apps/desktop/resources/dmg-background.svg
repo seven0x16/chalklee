@@ -2,51 +2,71 @@
   <!--
     macOS installer window background. Icons are placed by `dmg.contents` in
     electron-builder.yml: the app at (220, 96) and Applications at (460, 96).
+    Finder labels the Applications link "Applications", so the text uses that name.
     dmg-background.png and dmg-background@2x.png are screenshots of this file
     from headless Chrome at a 680x440 window, device scale factor 1 and 2.
     The step sketches mirror the macOS Gatekeeper prompt and the Security
-    section of Privacy and Security settings.
+    section of Privacy and Security settings. They are drawn as small windows
+    with a title bar so they read as pictures of later windows, not as buttons.
   -->
   <rect width="680" height="440" fill="#f9f9fb"/>
-  <g fill="none" stroke="#b9bbc6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M312 96H368"/>
-    <path d="M358 86l10 10-10 10"/>
-  </g>
-
-  <rect x="32.25" y="188.25" width="615.5" height="223.5" rx="12" fill="#ffffff" stroke="#d9d9e0" stroke-width="0.5"/>
 
   <g font-family="PingFang SC, -apple-system, sans-serif" font-size="12">
-    <text x="52" y="220" font-size="13" font-weight="600" fill="#1c2024">第一次打开 ChalkLee，需要在系统设置里允许一次</text>
-    <text x="52" y="240" fill="#60646c">ChalkLee 是开源软件，暂未在 Apple 登记开发者身份，所以 macOS 会提示无法验证。</text>
+    <!-- Step 1: drag to install -->
+    <circle cx="197" cy="28" r="9" fill="#3574f0"/>
+    <text x="197" y="32" text-anchor="middle" font-weight="600" fill="#ffffff">1</text>
+    <text x="212" y="33" font-size="13" font-weight="600" fill="#1c2024">按住 ChalkLee 图标，拖到 Applications 文件夹</text>
+  </g>
+  <g fill="none" stroke="#3574f0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M300 96H372" stroke-dasharray="0 9"/>
+    <path d="M370 86l10 10-10 10"/>
+  </g>
 
-    <!-- Step 1: the blocked-app prompt -->
-    <rect x="52.25" y="256.25" width="278.5" height="83.5" rx="8" fill="#f9f9fb" stroke="#e0e1e6" stroke-width="0.5"/>
-    <text x="68" y="284" font-weight="600" fill="#1c2024">未打开“ChalkLee”</text>
-    <rect x="68" y="300" width="119" height="22" rx="6" fill="#e8e8ec"/>
-    <text x="127.5" y="315" text-anchor="middle" fill="#1c2024">完成</text>
-    <rect x="195" y="300" width="120" height="22" rx="6" fill="#3574f0"/>
-    <text x="255" y="315" text-anchor="middle" fill="#ffffff">移到废纸篓</text>
-    <rect x="65" y="297" width="125" height="28" rx="8" fill="none" stroke="#3574f0" stroke-width="1.5"/>
+  <path d="M32 186.25H648" stroke="#d9d9e0" stroke-width="0.5"/>
 
-    <!-- Step 2: Privacy and Security, Security section -->
-    <rect x="349.25" y="256.25" width="278.5" height="83.5" rx="8" fill="#f9f9fb" stroke="#e0e1e6" stroke-width="0.5"/>
-    <text x="365" y="282" font-weight="600" fill="#60646c">安全性</text>
-    <rect x="357.25" y="292.25" width="262.5" height="37.5" rx="6" fill="#ffffff" stroke="#e0e1e6" stroke-width="0.5"/>
-    <text x="367" y="315" fill="#1c2024">已阻止“ChalkLee”以保护Mac。</text>
-    <rect x="556" y="300" width="56" height="22" rx="6" fill="#e8e8ec"/>
-    <text x="584" y="315" text-anchor="middle" fill="#1c2024">仍要打开</text>
-    <rect x="553" y="297" width="62" height="28" rx="8" fill="none" stroke="#3574f0" stroke-width="1.5"/>
+  <g font-family="PingFang SC, -apple-system, sans-serif" font-size="12">
+    <text x="32" y="222" font-size="13" font-weight="600" fill="#1c2024">第一次打开时，需要在系统设置里允许一次</text>
+    <text x="32" y="242" fill="#60646c">ChalkLee 是开源软件，暂未在 Apple 登记开发者身份，所以 macOS 会提示无法验证。</text>
 
     <!-- Step captions -->
     <g font-weight="600" fill="#ffffff" text-anchor="middle">
-      <circle cx="61" cy="362" r="9" fill="#3574f0"/>
-      <text x="61" y="366">1</text>
-      <circle cx="358" cy="362" r="9" fill="#3574f0"/>
-      <text x="358" y="366">2</text>
+      <circle cx="41" cy="270" r="9" fill="#3574f0"/>
+      <text x="41" y="274">2</text>
+      <circle cx="361" cy="270" r="9" fill="#3574f0"/>
+      <text x="361" y="274">3</text>
     </g>
-    <text x="76" y="366" fill="#1c2024">弹窗里点“完成”</text>
-    <text x="76" y="384" fill="#60646c">不要点“移到废纸篓”</text>
-    <text x="373" y="366" fill="#1c2024">打开 系统设置 › 隐私与安全</text>
-    <text x="373" y="384" fill="#60646c">在“安全性”下点“仍要打开”</text>
+    <text x="56" y="274" fill="#1c2024">打开 ChalkLee，弹出提示时点“完成”</text>
+    <text x="56" y="292" fill="#60646c">不要点“移到废纸篓”</text>
+    <text x="376" y="274" fill="#1c2024">打开 系统设置 › 隐私与安全</text>
+    <text x="376" y="292" fill="#60646c">在“安全性”下点“仍要打开”</text>
+
+    <!-- Step 2 sketch: the blocked-app prompt -->
+    <rect x="32.25" y="308.25" width="295.5" height="103.5" rx="10" fill="#ffffff" stroke="#d9d9e0" stroke-width="0.5"/>
+    <g fill="#e0e1e6">
+      <circle cx="46" cy="321" r="4"/>
+      <circle cx="58" cy="321" r="4"/>
+      <circle cx="70" cy="321" r="4"/>
+    </g>
+    <text x="48" y="353" font-weight="600" fill="#1c2024">未打开“ChalkLee”</text>
+    <rect x="48" y="368" width="124" height="24" rx="6" fill="#e8e8ec"/>
+    <text x="110" y="384" text-anchor="middle" fill="#1c2024">完成</text>
+    <rect x="180" y="368" width="132" height="24" rx="6" fill="#3574f0"/>
+    <text x="246" y="384" text-anchor="middle" fill="#ffffff">移到废纸篓</text>
+    <rect x="45" y="365" width="130" height="30" rx="8" fill="none" stroke="#3574f0" stroke-width="1.5"/>
+
+    <!-- Step 3 sketch: Privacy and Security, Security section -->
+    <rect x="352.25" y="308.25" width="295.5" height="103.5" rx="10" fill="#ffffff" stroke="#d9d9e0" stroke-width="0.5"/>
+    <g fill="#e0e1e6">
+      <circle cx="366" cy="321" r="4"/>
+      <circle cx="378" cy="321" r="4"/>
+      <circle cx="390" cy="321" r="4"/>
+    </g>
+    <text x="500" y="325" text-anchor="middle" fill="#8b8d98">隐私与安全</text>
+    <text x="368" y="353" font-weight="600" fill="#60646c">安全性</text>
+    <rect x="360.25" y="364.25" width="279.5" height="31.5" rx="6" fill="#f9f9fb" stroke="#e0e1e6" stroke-width="0.5"/>
+    <text x="370" y="384" fill="#1c2024">已阻止“ChalkLee”以保护Mac。</text>
+    <rect x="574" y="368" width="58" height="24" rx="6" fill="#e8e8ec"/>
+    <text x="603" y="384" text-anchor="middle" fill="#1c2024">仍要打开</text>
+    <rect x="571" y="365" width="64" height="30" rx="8" fill="none" stroke="#3574f0" stroke-width="1.5"/>
   </g>
 </svg>
