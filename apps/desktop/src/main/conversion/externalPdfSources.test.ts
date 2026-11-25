@@ -122,6 +122,16 @@ describe("external PDF reference conversion", () => {
     expect(fixed.images.find((image: any) => image.id !== "page_1")).toMatchObject({ widthPt: 120 });
     expect(fixed.images.map((image: any) => image.id)).not.toContain("pdf_candidate_1_1_context");
   });
+  it("confirms native text whose picture was looked at as the candidate taken again from the rendered page", async () => {
+    const unit = native(undefined, true);
+    // The PDF's own bitmap differs from the same place taken from the rendered page, which is what read_source shows.
+    unit.images[1] = { ...unit.images[1], dataUrl: "data:image/png;base64,cmF3", pageBounds: [100, 100, 200, 150] };
+    input.units = [unit];
+    const { sessionId } = await service.openDocument("paper.pdf");
+    await service.readSource(sessionId, [{ unitId: "page_1" }]);
+    await service.readSource(sessionId, [{ unitId: "page_1", sourceImageId: "pdf_image_1_1" }]);
+    await expect(service.writeFragments(sessionId, { expectedRevision: 0, sourcePages: [nativePage(unit)] })).resolves.toMatchObject({ revision: 1 });
+  });
   it("mixes native and scanned pages, resumes fixed sources, revises locally and delivers refs without internal AI", async () => {
     input.units = [native(undefined, true), scan(2)]; const original = structuredClone(input);
     const { sessionId } = await service.openDocument("paper.pdf");

@@ -289,43 +289,53 @@ export class ExternalImportService {
     return this.runSession(id, async () => {
       const session = await this.session(id), output = [];
       if (!sources.length || sources.length > 12) throw new Error("每次最多读取十二个部分的引用。");
-      const pictures = sources.filter(selected => {
-        const unit = session.input.units.find(unit => unit.id === selected.unitId);
-        return !unit?.nativeReferences || session.pdfSources && !session.pdfSources.ready || selected.sourceImageId || selected.box;
-      });
-      if (pictures.length > 3) throw new Error("实际图像每次最多查看三张；固定引用每次可读取十二个部分。");
-      for (const selected of sources) {
-        const unit = session.input.units.find(unit => unit.id === selected.unitId);
-        if (!unit) throw new Error("原稿部分不存在。");
-        if (unit.nativeReferences && (!session.pdfSources || session.pdfSources.ready) && !selected.sourceImageId && !selected.box) {
-          if (!session.draft.seenUnits.includes(unit.id)) session.draft.seenUnits.push(unit.id);
-          const working = workingReferenceInput(session.input, session.draft.sourceRevisions).units.find(item => item.id === unit.id)!;
-          // Text and layout labels are enough to organize questions; node trees are only needed to locate a correction.
-          const blocks = new Map(working.blocks.map(block => [block.attrs.id, block]));
-          const sourceEntries = wordSourceEntries(working.blocks, working.sourceRoles, working.sourceQuestionNumbers).map(entry => {
-            const labels = sourceLayoutLabels(blocks.get(entry.ref), entry.text);
-            return labels.length ? { ...entry, labels } : entry;
-          });
-          output.push({ unitId: unit.id, label: unit.label, page: unit.page, sourceMode: "native-references", sourceEntries,
-            ...(includeContent ? { blocks: working.blocks, ...(session.draft.sourceRevisions?.some(revision => revision.unitId === unit.id) ? { originalBlocks: unit.blocks } : {}) } : {}), sourceRevisions: sourceRevisionChanges(session.draft.sourceRevisions),
-            images: unit.images.map(image => ({ id: image.id, role: image.role, widthPt: image.widthPt, heightPt: image.heightPt, sourcePixelSize: importImageSize(image.dataUrl) })) });
-          continue;
+      // A read that fails part way shows the agent nothing, so nothing of it counts as seen.
+      const seenBefore = { units: [...session.draft.seenUnits], images: structuredClone(session.viewedSourceImages) };
+      try {
+        const pictures = sources.filter(selected => {
+          const unit = session.input.units.find(unit => unit.id === selected.unitId);
+          return !unit?.nativeReferences || session.pdfSources && !session.pdfSources.ready || selected.sourceImageId || selected.box;
+        });
+        if (pictures.length > 3) throw new Error("实际图像每次最多查看三张；固定引用每次可读取十二个部分。");
+        for (const selected of sources) {
+          const unit = session.input.units.find(unit => unit.id === selected.unitId);
+          if (!unit) throw new Error("原稿部分不存在。");
+          if (unit.nativeReferences && (!session.pdfSources || session.pdfSources.ready) && !selected.sourceImageId && !selected.box) {
+            if (!session.draft.seenUnits.includes(unit.id)) session.draft.seenUnits.push(unit.id);
+            const working = workingReferenceInput(session.input, session.draft.sourceRevisions).units.find(item => item.id === unit.id)!;
+            // Text and layout labels are enough to organize questions; node trees are only needed to locate a correction.
+            const blocks = new Map(working.blocks.map(block => [block.attrs.id, block]));
+            const sourceEntries = wordSourceEntries(working.blocks, working.sourceRoles, working.sourceQuestionNumbers).map(entry => {
+              const labels = sourceLayoutLabels(blocks.get(entry.ref), entry.text);
+              return labels.length ? { ...entry, labels } : entry;
+            });
+            output.push({ unitId: unit.id, label: unit.label, page: unit.page, sourceMode: "native-references", sourceEntries,
+              ...(includeContent ? { blocks: working.blocks, ...(session.draft.sourceRevisions?.some(revision => revision.unitId === unit.id) ? { originalBlocks: unit.blocks } : {}) } : {}), sourceRevisions: sourceRevisionChanges(session.draft.sourceRevisions),
+              images: unit.images.map(image => ({ id: image.id, role: image.role, widthPt: image.widthPt, heightPt: image.heightPt, sourcePixelSize: importImageSize(image.dataUrl) })) });
+            continue;
+          }
+          // While a page is prepared, figure candidates found in its pixels are listed and can be viewed like any source image.
+          const preparing = !!session.pdfSources && !session.pdfSources.ready && !session.pdfSources.pages.some(page => page.unitId === unit.id);
+          const sourceImages = preparing && unit.page ? pdfFigureRepairCandidates(unit).images : unit.images;
+          // A large picture of the page is not offered as a candidate, but the native text may still use it and ask for a look.
+          const image = sourceImages.find(image => image.id === (selected.sourceImageId ?? unit.id)) ?? unit.images.find(image => image.id === (selected.sourceImageId ?? unit.id));
+          if (!image) throw new Error("原稿图片不存在。原生配图的局部图像请提供 sourceImageId；查看整个部分时不传 box。");
+          const size = importImageSize(image.dataUrl);
+          const region = selected.box ? importCropRect(image.dataUrl, pixelCropBox(selected.box, size)) : undefined;
+          const seen = (session.viewedSourceImages ??= {});
+          // A candidate is the page's own picture taken again from the rendered page: seeing it is seeing that picture, which
+          // is what confirming the native text checks.
+          const imageHash = sourceImageHash(session.input, unit, unit.images.find(original => original.id === image.id) ?? image);
+          seen[image.id] = { hash: imageHash, full: !selected.box || seen[image.id]?.hash === imageHash && seen[image.id].full };
+          if (!selected.box && image.id === unit.id && !session.draft.seenUnits.includes(unit.id)) session.draft.seenUnits.push(unit.id);
+          output.push({ unitId: unit.id, ...(!unit.pdfText ? { textLayer: unit.text } : {}), nativeText: pdfNativeCheckLines(unit), nativeCandidate: unit.pdfText?.candidate ?? false, nativeReason: unit.pdfText?.reason, omittedMargins: unit.pdfText?.omittedMargins,
+            fullPageViewed: Boolean(seen[unit.id]?.full), sourceMode: session.pdfSources && !session.pdfSources.ready ? "pending-source" : "page-image",
+            images: sourceImages.filter(image => !image.id.endsWith("_context")).map(({ dataUrl: _pixels, ...image }) => image), imageBounds: "pageBounds 为整页 0–1000 的 [x,y,宽,高]", sourcePixelSize: size, pixelRect: region?.rect ?? { x: 0, y: 0, ...size },
+            dataUrl: region ? region.image.crop(region.rect).toDataURL() : image.dataUrl });
         }
-        // While a page is prepared, figure candidates found in its pixels are listed and can be viewed like any source image.
-        const preparing = !!session.pdfSources && !session.pdfSources.ready && !session.pdfSources.pages.some(page => page.unitId === unit.id);
-        const sourceImages = preparing && unit.page ? pdfFigureRepairCandidates(unit).images : unit.images;
-        const image = sourceImages.find(image => image.id === (selected.sourceImageId ?? unit.id));
-        if (!image) throw new Error("原稿图片不存在。原生配图的局部图像请提供 sourceImageId；查看整个部分时不传 box。");
-        const size = importImageSize(image.dataUrl);
-        const region = selected.box ? importCropRect(image.dataUrl, pixelCropBox(selected.box, size)) : undefined;
-        const seen = (session.viewedSourceImages ??= {});
-        const imageHash = sourceImageHash(session.input, unit, image);
-        seen[image.id] = { hash: imageHash, full: !selected.box || seen[image.id]?.hash === imageHash && seen[image.id].full };
-        if (!selected.box && image.id === unit.id && !session.draft.seenUnits.includes(unit.id)) session.draft.seenUnits.push(unit.id);
-        output.push({ unitId: unit.id, ...(!unit.pdfText ? { textLayer: unit.text } : {}), nativeText: pdfNativeCheckLines(unit), nativeCandidate: unit.pdfText?.candidate ?? false, nativeReason: unit.pdfText?.reason, omittedMargins: unit.pdfText?.omittedMargins,
-          fullPageViewed: Boolean(seen[unit.id]?.full), sourceMode: session.pdfSources && !session.pdfSources.ready ? "pending-source" : "page-image",
-          images: sourceImages.filter(image => !image.id.endsWith("_context")).map(({ dataUrl: _pixels, ...image }) => image), imageBounds: "pageBounds 为整页 0–1000 的 [x,y,宽,高]", sourcePixelSize: size, pixelRect: region?.rect ?? { x: 0, y: 0, ...size },
-          dataUrl: region ? region.image.crop(region.rect).toDataURL() : image.dataUrl });
+      } catch (error) {
+        session.draft.seenUnits = seenBefore.units; session.viewedSourceImages = seenBefore.images;
+        throw error;
       }
       await this.store(session); return output;
     });
