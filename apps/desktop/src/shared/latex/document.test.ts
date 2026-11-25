@@ -3,6 +3,7 @@ import type { WordBlock, WordDocument, WordParagraph } from "@chalklee/word";
 import { importAppearance, importText } from "../conversion/importDocument";
 import { prepareStructuredImport } from "../conversion/prepareWord";
 import { latexListLabel, parseLatexDocument } from "./document";
+import { findLatexFile, latexGraphicCandidates } from "./source";
 
 const encode = (text: string) => new TextEncoder().encode(text);
 const signal = () => new AbortController().signal;
@@ -228,4 +229,13 @@ E=mc^2 \tag{1}
     expect(JSON.stringify(blocks[0])).toContain('"type":"blank"');
     expect(blocks.map(block => roles[block.attrs.id])).toEqual(["body", "answer", "analysis"]);
   });
+});
+
+it("finds a picture whose name has a dot in it, and takes another type of the same name before EPS", () => {
+  const png = new Uint8Array([1]);
+  expect(findLatexFile({ "figs/图1.1.png": png }, latexGraphicCandidates("图1.1", ["figs/"]))).toBe("figs/图1.1.png");
+  expect(findLatexFile({ "graph.eps": png, "graph.svg": png }, latexGraphicCandidates("graph", []))).toBe("graph.svg");
+  expect(findLatexFile({ "plot.png": png }, latexGraphicCandidates("plot.png", []))).toBe("plot.png");
+  // A name that happens to be an object property is not a file.
+  expect(findLatexFile({}, ["constructor", "toString"])).toBeUndefined();
 });

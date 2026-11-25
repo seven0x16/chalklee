@@ -18,7 +18,7 @@ export async function readLatexCompanions(root: string, sourceFile: string, main
   const files: Record<string, Uint8Array> = {};
   let total = 0;
   const read = async (relative: string): Promise<Uint8Array | null> => {
-    if (files[relative]) return files[relative];
+    if (Object.hasOwn(files, relative)) return files[relative];
     if (Object.keys(files).length >= MAX_FILES) return null;
     const absolute = path.resolve(folder, ...relative.split("/"));
     try {

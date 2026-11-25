@@ -96,17 +96,20 @@ export function latexInputCandidates(reference: string): string[] {
   return [...new Set(candidates.map(normalizeLatexPath).filter((item): item is string => !!item))];
 }
 
-export const LATEX_GRAPHIC_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".eps", ".svg"];
+/** EPS last: it is kept as a picture to add, so a PDF, bitmap or SVG of the same name is taken first. */
+export const LATEX_GRAPHIC_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".svg", ".eps"];
 
 export function latexGraphicCandidates(reference: string, graphicsPaths: readonly string[]): string[] {
-  const names = hasExtension(reference) ? [reference] : LATEX_GRAPHIC_EXTENSIONS.map(extension => reference + extension);
+  // "图1.1" names a picture with a dot in it, not one of type ".1": the name is tried as it is and with each picture type.
+  const typed = /\.(?:pdf|png|jpe?g|svg|eps|gif|bmp|webp|tiff?)$/i.test(reference);
+  const names = typed ? [reference] : [...(hasExtension(reference) ? [reference] : []), ...LATEX_GRAPHIC_EXTENSIONS.map(extension => reference + extension)];
   const folders = ["", ...graphicsPaths.map(folder => folder && !folder.endsWith("/") ? folder + "/" : folder)];
   return [...new Set(folders.flatMap(folder => names.map(name => normalizeLatexPath(folder + name))).filter((item): item is string => !!item))];
 }
 
 /** Find a referenced file among those collected, ignoring case only when nothing matches exactly (files written on Windows). */
 export function findLatexFile(files: Readonly<Record<string, Uint8Array>>, candidates: readonly string[]): string | undefined {
-  for (const candidate of candidates) if (files[candidate]) return candidate;
+  for (const candidate of candidates) if (Object.hasOwn(files, candidate)) return candidate;
   const lower = new Map(Object.keys(files).map(key => [key.toLowerCase(), key]));
   for (const candidate of candidates) { const found = lower.get(candidate.toLowerCase()); if (found) return found; }
   return undefined;
