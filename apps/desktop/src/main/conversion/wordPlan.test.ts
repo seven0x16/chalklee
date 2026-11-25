@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertWordImportPlan, attachGroupSolutions, normalizeWordImportPlan, plainTitlesInQuestions } from "./wordPlan";
+import { assertWordImportPlan, attachGroupSolutions, normalizeWordImportPlan, plainTitlesInQuestions, wordPaperContext } from "./wordPlan";
 import { chunkWordSourceBlocks, joinWrappedLines, mergeAdjacentBlanks, normalizeNumberedBlanks, splitWordSourceBlocks, tidyWordInlines, wordAnswerLineCount, wordAnswerLineSuffix, wordPrefixLength, wordSourceEntries, wordSourceText } from "../../shared/conversion/wordSource";
 
 it("keeps a numbered child introduction and its figure with the child's circled steps", () => {
@@ -219,6 +219,10 @@ describe("lossless Word source plans", () => {
     // Without an answer naming it, a blank question beside the found ones is still refused.
     const unkeyed = unit([passage, paragraph("key", "参考答案"), paragraph("a31", "31. B"), paragraph("a32", "32. D")]);
     expect(() => assertWordImportPlan([...plan(["31", "32", "33"]), { ref: "key" }, ...["a31", "a32"].map(ref => ({ ref }))], unkeyed)).toThrow("空白小题 33");
+    // A key printed at the end of the paper vouches for it from the fragment that holds only the passage.
+    const passageOnly = unit([passage]);
+    expect(() => assertWordImportPlan(plan(["31", "32", "33"]), passageOnly)).toThrow("空白小题 33");
+    expect(() => assertWordImportPlan(plan(["31", "32", "33"]), passageOnly, undefined, undefined, undefined, wordPaperContext(wordSourceEntries(keyed.blocks)))).not.toThrow();
   });
   it("takes a worked solution with no answer label, its part titles and its methods, into the analysis", () => {
     const heading = (id: string, text: string): any => ({ type: "heading", attrs: { id, level: 2 }, content: [{ type: "text", text }] });
@@ -855,6 +859,11 @@ describe("lossless Word source plans", () => {
       cell("right", ["A. Star Walk", "B. Sketches"])
     ] }] } as ChalkLeeBlockNode;
     expect(splitWordSourceBlocks([lined]).map(wordSourceText)).toEqual(["41. Nancy likes stars.", "42. Nancy likes stars.", "A. Star Walk", "B. Sketches"]);
+    // A wider table with a column of its own (an experiment's steps, observations and conclusions) stays a table.
+    const experiment: ChalkLeeBlockNode = { type: "table", attrs: { id: "e" }, content: [{ type: "tableRow", attrs: { id: "r" }, content: [
+      cell("steps", ["1. 加入稀盐酸", "2. 滴加酚酞"]), cell("seen", ["A. 有气泡", "B. 溶液变红"]), cell("then", ["含碳酸根", "溶液呈碱性"])
+    ] }] } as ChalkLeeBlockNode;
+    expect(splitWordSourceBlocks([experiment])).toEqual([experiment]);
   });
   it("tidies layout spacing and turns answer lines into blanks without touching the words", () => {
     const tidy = (text: string) => tidyWordInlines([{ type: "text", text }]).map(node => (node as { text: string }).text).join("");
@@ -1044,4 +1053,15 @@ it("leaves a table, an option's later line and a solution's own working as print
   expect(plan[0].options[0].content).toEqual([{ ref: "a", stripPrefix: "A. " }, { ref: "a2" }]);
   expect(plan[0].analysis).toEqual([{ ref: "label", stripPrefix: "【解析】" }, { ref: "m1" }, { ref: "m2" }, { ref: "proof" }]);
   expect(() => assertWordImportPlan(plan, source)).not.toThrow();
+});
+
+it("reads a question's answer written in numbered points as that answer, not as the key of the whole paper", () => {
+  const line = (id: string, text: string): any => ({ type: "paragraph", attrs: { id }, content: [{ type: "text", text }] });
+  const blocks = [line("q16", "16. 阅读材料，回答问题。"), line("k16", "【答案】略"), line("q17", "17. 简述该地区发展的原因。"), line("label", "【答案】"),
+    line("p1", "1. 交通便利，市场广阔。"), line("p2", "2. 政策支持。"), line("q18", "18. 下列说法正确的是"), line("a", "A. 甲"), line("b", "B. 乙"), line("k18", "【答案】A")];
+  const roles = Object.fromEntries(wordSourceEntries(blocks).map(entry => [entry.ref, entry.role]));
+  expect(roles).toMatchObject({ label: "answer", q18: "body", a: "body", b: "body", k18: "answer" });
+  // A key that starts over at 1 and keys the choices is still the title of the answers that follow.
+  const key = [line("q1", "1. 第一题"), line("q2", "2. 第二题"), line("title", "【答案】"), line("k1", "1. B"), line("k2", "2. C")];
+  expect(Object.fromEntries(wordSourceEntries(key).map(entry => [entry.ref, entry.role]))).toMatchObject({ title: "heading", k1: "answer", k2: "answer" });
 });

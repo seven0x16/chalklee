@@ -394,10 +394,15 @@ function choiceTableParagraphs(table: ChalkLeeBlockNode): ChalkLeeBlockNode[] | 
     for (const cell of row.content) { (columns[column] ??= []).push(...filled(cell)); column += cell.attrs.colspan ?? 1; }
   }
   // Choices one per cell read across the rows; a matching table reads down each column.
-  return choiceSequence(table.content.flatMap(row => row.content.flatMap(filled)), false) ?? choiceSequence(columns.flatMap(column => column ?? []), columns.length >= 2);
+  return choiceSequence(table.content.flatMap(row => row.content.flatMap(filled)), false) ?? choiceSequence(columns.flatMap(column => column ?? []), columns.length >= 2, columns.length > 2);
 }
 
-function choiceSequence(paragraphs: ChalkLeeBlockNode[], beside: boolean): ChalkLeeBlockNode[] | null {
+/**
+ * `beside`: lettered choices beside a column of numbered items. `strict`: a table wider than the two columns of such a
+ * list (an experiment table with numbered steps, lettered observations and a column of its own) is one only when every
+ * line in it is a numbered item or a lettered choice.
+ */
+function choiceSequence(paragraphs: ChalkLeeBlockNode[], beside: boolean, strict = false): ChalkLeeBlockNode[] | null {
   if (paragraphs.length < 2 || paragraphs.some(paragraph => paragraph.type !== "paragraph")) return null;
   const split: ChalkLeeBlockNode[] = [];
   let next = 0;
@@ -419,7 +424,7 @@ function choiceSequence(paragraphs: ChalkLeeBlockNode[], beside: boolean): Chalk
   const numbered = split.map(paragraph => importQuestionAnchors(wordSourceText(paragraph)).find(match => match.index === 0)?.[1]).filter(Boolean).map(Number);
   const consecutive = numbered.length >= 2 && numbered.every((number, index) => !index || number === numbered[index - 1] + 1);
   // Only lettered choices, one after another, or choices beside a column of numbered items.
-  return labelled === split.length || consecutive && beside ? split : null;
+  return labelled === split.length || consecutive && beside && (!strict || labelled + numbered.length === split.length) ? split : null;
 }
 
 /** Indexes of the numbers that continue the paper's own sequence. A section or
@@ -463,6 +468,22 @@ export function wordQuestionAnswerLabels(blocks: ChalkLeeBlockNode[]): Set<strin
   const plain = texts.map(text => importQuestionAnchors(text).find(match => match.index === 0)?.[1]);
   const startsPart = (index: number) => blocks[index].type === "heading" || !!importSectionLabel(texts[index]);
   const labels = new Set<string>();
+  /**
+   * "【答案】" over "1. 原因一……" "2. ……", then the next question (17 → 18) or the analysis: the answer's own points. A
+   * key restarting its numbers would run on through this question's number, or key choices ("1. B").
+   */
+  const answerPoints = (label: number, question: number) => {
+    let expected = 1;
+    for (let at = label + 1; at < texts.length; at++) {
+      if (!texts[at].trim()) continue;
+      if (startsPart(at) || wordAnswerLabel.test(texts[at])) return false;
+      if (wordAnalysisLabel.test(texts[at])) return expected > 1;
+      if (!plain[at]) continue;
+      if (Number(plain[at]) === expected && expected < question && !/^\s*\d{1,3}\s*[.．、]\s*[A-H]{1,4}\s*$/.test(texts[at])) { expected++; continue; }
+      return expected > 1 && Number(plain[at]) === question + 1;
+    }
+    return false;
+  };
   let question: number | undefined, newPart = false, answered = false;
   texts.forEach((text, index) => {
     if (startsPart(index)) newPart = true;
@@ -472,10 +493,12 @@ export function wordQuestionAnswerLabels(blocks: ChalkLeeBlockNode[]): Set<strin
     if (question === undefined || !wordAnswerLabel.test(text)) return;
     if (wordBareLabel.test(text) && isImportAnswerHeading(text)) {
       const below = texts.findIndex((line, at) => at > index && line.trim());
-      if (below < 0 || plain[below] || startsPart(below)) return;
-      const after = plain.findIndex((number, at) => at > index && (Number(number) > question! || startsPart(at)));
-      const next = after < 0 ? undefined : plain[after];
-      if (next ? Number(next) !== question + 1 : !answered) return;
+      if (below < 0 || startsPart(below)) return;
+      if (plain[below] ? !answerPoints(index, question) : (() => {
+        const after = plain.findIndex((number, at) => at > index && (Number(number) > question! || startsPart(at)));
+        const next = after < 0 ? undefined : plain[after];
+        return next ? Number(next) !== question + 1 : !answered;
+      })()) return;
       labels.add(blocks[index].attrs.id);
     }
     answered = true;

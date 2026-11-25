@@ -21,7 +21,7 @@ import { assertInsideRoot, createWorkspaceChalkLee, readWorkspaceDocument } from
 import { workspaceStorageDirectory } from "../workspace/storage";
 import { openConversionStorage } from "./cacheStorage";
 import { locateWorkspaceOriginal, readConversionSource } from "./originals";
-import { assertWordImportPlan, normalizeWordImportPlan, plainTitlesInQuestions, WORD_PLAN_PROMPT, type MisprintedAnswers } from "./wordPlan";
+import { assertWordImportPlan, normalizeWordImportPlan, plainTitlesInQuestions, WORD_PLAN_PROMPT, type MisprintedAnswers, type WordPaperContext } from "./wordPlan";
 import { mergeAdjacentBlanks, sliceInlineContent, tidyWordInlines, wordPrefixLength, wordSourceEntries, wordSourceText } from "../../shared/conversion/wordSource";
 import { importQuestionAnchors, printedBlankNumbers } from "../../shared/conversion/questionAnchors";
 import { resolveWordFormulaImages } from "./wordFormulas";
@@ -66,7 +66,7 @@ function walk(value: unknown, visit: (node: Record<string, any>) => void): void 
   if (Array.isArray(node.content)) node.content.forEach(child => walk(child, visit));
 }
 
-export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: ImportUnit, continuation: ChalkLeeBlockNode | undefined, unitIndex: number, doubts?: string[], misprinted?: MisprintedAnswers) {
+export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: ImportUnit, continuation: ChalkLeeBlockNode | undefined, unitIndex: number, doubts?: string[], misprinted?: MisprintedAnswers, paper?: WordPaperContext) {
   if (unit.nativeReferences) {
     const first = wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers).find(entry => entry.text.trim());
     const printed = first && importQuestionAnchors(first.text).find(match => match.index === 0)?.[1];
@@ -81,7 +81,7 @@ export function prepareReply(reply: ReturnType<typeof parseImportReply>, unit: I
     if (unit.page && first?.role !== "heading" && continuation?.type === "questionGroup" && opening?.type === "questionGroup"
       && opening.kind === continuation.attrs.kind && String(opening.number ?? "") === (continuation.attrs.number.mode === "fixed" ? continuation.attrs.number.label : "")
       && (!opening.material || (Array.isArray(opening.material) && !opening.material.length)) && opening.questions?.length) reply.continuesPrevious = true;
-    assertWordImportPlan(reply.blocks, unit, reply.continuesPrevious ? continuation : undefined, doubts, misprinted);
+    assertWordImportPlan(reply.blocks, unit, reply.continuesPrevious ? continuation : undefined, doubts, misprinted, paper);
   }
   const originals = new Map<string, Record<string, any>>();
   walk(unit.blocks, node => { if (node.attrs?.id) originals.set(node.attrs.id, node); });

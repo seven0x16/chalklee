@@ -619,7 +619,15 @@ export function plainTitlesInQuestions(blocks: any[], unit: ImportUnit): any[] {
   return blocks.map(block => ["question", "questionGroup"].includes(block?.type) ? plain(block) : block);
 }
 
-export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, continuation?: ChalkLeeBlockNode, doubts?: string[], misprinted?: MisprintedAnswers): void {
+/**
+ * The whole paper around a part being checked. A fragment holds only the paragraphs it uses, so an answer key printed
+ * at the end, which may vouch for a blank whose number was not recognized, is not in it.
+ */
+export interface WordPaperContext { answered: Set<string> }
+export const wordPaperContext = (entries: { role: string; questionNumber?: string }[]): WordPaperContext =>
+  ({ answered: new Set(entries.filter(entry => entry.role === "answer" && entry.questionNumber).map(entry => entry.questionNumber!)) });
+
+export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, continuation?: ChalkLeeBlockNode, doubts?: string[], misprinted?: MisprintedAnswers, paper?: WordPaperContext): void {
   const doubt = (message: string) => { if (!doubts) throw new Error(message); doubts.push(message); };
   const entries = wordSourceEntries(unit.blocks, unit.sourceRoles, unit.sourceQuestionNumbers);
   const source = new Map(entries.map(entry => [entry.ref, entry]));
@@ -652,7 +660,7 @@ export function assertWordImportPlan(blocks: unknown[], unit: ImportUnit, contin
   const blanks = new Set(entries.flatMap(entry => [...entry.text.matchAll(/____(\d{1,3})____/g)].map(match => match[1])));
   // The paper's answers name the question: with its neighbouring blank found, a blank whose number recognition lost
   // ("35" missing from a seven-choice passage keyed 31-35) is that question, not an invented one.
-  const answered = new Set(entries.filter(entry => entry.role === "answer" && entry.questionNumber).map(entry => entry.questionNumber!));
+  const answered = new Set([...wordPaperContext(entries).answered, ...paper?.answered ?? []]);
   const keyedBlank = (number: string) => answered.has(number) && (blanks.has(String(Number(number) - 1)) || blanks.has(String(Number(number) + 1)));
   // Printed numbers the plan turns into blanks are blank sources too.
   const declared = (value: any): void => {
