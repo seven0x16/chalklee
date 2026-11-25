@@ -126,7 +126,7 @@ export async function scanWorkspace(rootPath: string, { workspaceRoot = rootPath
     root.children = pruneWorkspaceNodes(root.children, subfiles);
     for (let index = files.length - 1; index >= 0; index--) if (subfiles.has(path.normalize(files[index].path))) files.splice(index, 1);
   }
-  await linkWorkspaceConversions(files, { archiveCache, verifyArchive });
+  await linkWorkspaceConversions(files, { archiveCache, verifyArchive }, workspaceRoot === rootPath);
   await archiveCache?.save();
   await markSkills(workspaceRoot === rootPath ? canonicalRoot : await realpath(workspaceRoot), files);
   // A damaged marks file must not stop the folder from opening.

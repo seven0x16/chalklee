@@ -57,10 +57,13 @@ export const sourceTypeOf = (fileName: string) => {
   return isMarkdownKind(extension) ? "markdown" : isLatexKind(extension) ? "latex" : extension;
 };
 
-/** Keep all files in the snapshot so hidden originals remain readable/openable. */
-export async function linkWorkspaceConversions(files: WorkspaceFileNode[], { archiveCache, verifyArchive }: WorkspaceArchiveValidationOptions = {}): Promise<void> {
+/**
+ * Keep all files in the snapshot so hidden originals remain readable/openable. `whole`: these are all of the
+ * workspace's files, so remembered ones not among them are gone. A folder's listing is not.
+ */
+export async function linkWorkspaceConversions(files: WorkspaceFileNode[], { archiveCache, verifyArchive }: WorkspaceArchiveValidationOptions = {}, whole = true): Promise<void> {
   const paths = new Set(files.map(file => file.path));
-  for (const cache of [sourceHashes, documents]) {
+  if (whole) for (const cache of [sourceHashes, documents]) {
     for (const key of cache.keys()) if (!paths.has(key)) cache.delete(key);
   }
   const originals = files.filter(file => isOriginalKind(file.extension));
