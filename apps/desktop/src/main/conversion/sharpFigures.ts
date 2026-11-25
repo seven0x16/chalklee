@@ -48,11 +48,12 @@ const RENDER_TIMEOUT_MS = 60000;
 
 /** Read small printed glyphs from the PDF at print resolution, using the same
  * coordinate mapping as figure export. Failed renders retain reviewed pixels. */
-export async function renderPdfTextDetails(input: Pick<PreparedImport, "sourcePath" | "sourceHash">, unit: ImportUnit, boxes: ImportBox[], signal: AbortSignal) {
+export async function renderPdfTextDetails(input: Pick<PreparedImport, "sourcePath" | "sourceHash" | "sourceSnapshotPath">, unit: ImportUnit, boxes: ImportBox[], signal: AbortSignal) {
   const page = unit.images.find(image => image.id === unit.id);
   if (!renderer || !page || !unit.page || !boxes.length) return [];
   try {
-    const source = await readFile(input.sourcePath);
+    // The file this conversion read, which is where the original was found even if it has moved since it was queued.
+    const source = await readFile(input.sourceSnapshotPath ?? input.sourcePath);
     if (sha256(source) !== input.sourceHash) return [];
     return await renderer(source, boxes.map(box => ({ page: unit.page!, rect: importCropRect(page.dataUrl, box).rect })), AbortSignal.any([signal, AbortSignal.timeout(RENDER_TIMEOUT_MS)]));
   } catch {
@@ -78,7 +79,10 @@ export async function sharpenPdfFigures(input: PreparedImport, assets: ChalkLeeA
     if (asset.mediaType !== "image/png") return;
     const assetHash = sha256(asset.data);
     let from = croppedFrom.get(assetHash);
-    if (!from) {
+    // The same picture cropped from another PDF (the paper converted twice) is located on that one's pages, not these.
+    const here = (value: typeof from) => !!value && pages.get(value.unitId)?.key === value.pageImage;
+    if (!here(from)) {
+      from = undefined;
       // Recognition caches outlive the in-memory crop registry. Restore a
       // location only when both the saved asset and an exact source-page crop
       // have the same bytes; changed assets must keep their existing pixels.
