@@ -51,7 +51,8 @@ export async function planConversions(host: ToolHost, request: ConversionRequest
   for (const file of chosen.values()) {
     if (active.has(file.path)) plan.running.push(file);
     else if (file.noConversion && !named.has(file.path)) plan.notNeeded.push(file);
-    else if ((file.convertedTo?.length || file.earlierConversions?.length) && !reconvert) plan.converted.push(file);
+    // A note edited after its conversion converts to a new ChalkLee, as from its toolbar; only its present text counts as converted.
+    else if ((file.convertedTo?.length || file.earlierConversions?.length || file.markdownConversions?.some(entry => !entry.edited)) && !reconvert) plan.converted.push(file);
     else plan.start.push(file);
   }
   if (plan.start.length > MAX_CONVERSIONS) throw new Error(`一次最多转换 ${MAX_CONVERSIONS} 份原稿，这次有 ${plan.start.length} 份，请按文件夹分批转换。`);
@@ -88,7 +89,8 @@ export async function startConversions(host: ToolHost, plan: ConversionPlan) {
   for (const file of plan.start) {
     try {
       // Converting again updates the paper the original already has, keeping the teacher's edits.
-      const into = plan.reconvert ? file.convertedTo?.[0] ?? file.earlierConversions?.[0] : undefined;
+      // A note's earlier ChalkLee stays as it is once the note changed; only the one converted from its present text is updated.
+      const into = plan.reconvert ? file.convertedTo?.[0] ?? file.earlierConversions?.[0] ?? file.markdownConversions?.find(entry => !entry.edited)?.path : undefined;
       await app.startConversion(file.path, { force: plan.reconvert, ...(batch ? { batch } : {}), ...(into ? { into } : {}) });
       started.push(relative(host.root, file.path));
     } catch (error) {
@@ -100,7 +102,8 @@ export async function startConversions(host: ToolHost, plan: ConversionPlan) {
   return {
     started,
     ...(plan.converted.length ? { alreadyConverted: plan.converted.map(file => ({ source: relative(host.root, file.path),
-      results: (file.convertedTo ?? file.earlierConversions ?? []).map(result => relative(host.root, result)), ...(file.convertedTo?.length ? {} : { changedAfterConversion: true }) })) } : {}),
+      results: (file.convertedTo ?? file.earlierConversions ?? file.markdownConversions?.filter(entry => !entry.edited).map(entry => entry.path) ?? []).map(result => relative(host.root, result)),
+      ...(file.convertedTo?.length || file.markdownConversions?.length ? {} : { changedAfterConversion: true }) })) } : {}),
     ...(plan.running.length ? { alreadyConverting: plan.running.map(file => relative(host.root, file.path)) } : {}),
     ...(plan.notNeeded.length ? { notNeeded: plan.notNeeded.map(file => relative(host.root, file.path)) } : {}),
     ...(failed.length ? { failed } : {})

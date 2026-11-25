@@ -88,6 +88,19 @@ describe("converting several originals from the assistant", () => {
     expect((await host.documents.search("讲义", ".", "md")).matches).toHaveLength(1);
     await tool.execute(toolArguments(tool, { path: "讲义.md" }), host);
     expect(started).toEqual([{ path: "讲义.md" }]);
+    // Once converted, the note is not converted into a second ChalkLee; converting again updates the one it has.
+    const document = createEmptyChalkLeeDocument("讲义");
+    document.provenance = { method: "import", sources: [{ id: "original", type: "markdown", fileName: "讲义.md", sha256: digest("# 讲义\n\n1. 计算 $x^2$。"), coverage: "whole" }] };
+    await writeFile(path.join(root, "讲义.chalklee"), await createChalkLeeArchive(document));
+    expect((await tool.execute(toolArguments(tool, { path: "讲义.md" }), host)).details?.summary).toBe("没有需要转换的原稿");
+    await tool.execute(toolArguments(tool, { path: "讲义.md", reconvert: true }), host);
+    expect(started.at(-1)).toEqual({ path: "讲义.md", force: true, into: "讲义.chalklee" });
+    // Edited afterwards, the note converts to a new ChalkLee and the earlier one stays as it is.
+    await writeFile(path.join(root, "讲义.md"), "# 讲义\n\n1. 计算 $x^3$。");
+    await tool.execute(toolArguments(tool, { path: "讲义.md" }), host);
+    expect(started.at(-1)).toEqual({ path: "讲义.md" });
+    await tool.execute(toolArguments(tool, { path: "讲义.md", reconvert: true }), host);
+    expect(started.at(-1)).toEqual({ path: "讲义.md", force: true });
   });
 
   it("starts a single original without a card, and converts again only when asked", async () => {
