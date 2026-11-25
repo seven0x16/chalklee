@@ -107,6 +107,8 @@ export class ExternalImportService {
   private previews = new Map<string, { host: ImportPreviewHost; revision: string; value: AutonomousPreview }>();
   private pending: Promise<unknown> = Promise.resolve();
   private releaseTimer?: ReturnType<typeof setTimeout>;
+  /** Sessions still preparing their original, which the teacher can stop without waiting for the preparation to end. */
+  private preparing = new Map<string, AbortController>();
   private controller = new AbortController();
   readonly workspaceService: AgentWorkspaceService;
   constructor(private readonly options: ExternalImportOptions) {
@@ -218,8 +220,10 @@ export class ExternalImportService {
       // Shown as converting before page rendering, which can take a while on long sources.
       await this.options.track?.({ kind: "open", sessionId: id, agent, connectionId: this.client.getStore()?.connectionId, workspaceRoot: source.workspaceRoot, source: source.source, snapshot: source.snapshot, sourceHash: source.sourceHash });
       return this.duringSession(id, async () => {
+        const stop = new AbortController();
+        this.preparing.set(id, stop);
         try {
-          const input = await this.options.worker.prepare({ ...source, id, attempt: 1 }, this.controller.signal, () => {});
+          const input = await this.options.worker.prepare({ ...source, id, attempt: 1 }, AbortSignal.any([this.controller.signal, stop.signal]), () => {});
           const title = source.source.name.replace(/\.(pdf|docx?|tex|md|markdown)$/i, "");
           const session: ExternalSession = { version: 1, id, root: entry.root, sourceName: source.source.name, sourceCopy: source.snapshot.path, input,
             template: makeDocument(title, input, path.relative(entry.root, source.snapshot.path).split(path.sep).join("/")), draft: newAutonomousDraft(), viewedPreviewPages: [], agent,
@@ -227,14 +231,18 @@ export class ExternalImportService {
           await this.store(session); this.remember(session);
           return this.describe(session);
         } catch (error) {
+          // Stopped by the teacher: the task already says so, and the agent is told why.
+          if (stop.signal.aborted) throw new Error("用户已在 ChalkLee 中停止这次转换，不要继续写入。用户要求重新转换时，再调用 conversion_open 建立新会话。");
           this.notify({ kind: "failed", sessionId: id, error: error instanceof Error ? error.message : "原稿准备失败。" });
           throw error;
-        }
+        } finally { this.preparing.delete(id); }
       });
     });
   }
   /** The desktop stops an agent's conversion by closing its session; later calls explain why they fail. */
   stopSession(workspaceRoot: string, id: string) {
+    // Preparing a long original holds the queue; stopping it does not wait for that.
+    this.preparing.get(id)?.abort();
     return this.run(async () => {
       let session: ExternalSession;
       try { session = await this.load(id, workspaceRoot); }

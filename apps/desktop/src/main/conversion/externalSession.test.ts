@@ -404,4 +404,18 @@ describe("external-agent conversion sessions", () => {
       await expect(failing.stopSession(await realpath(root), sessionId)).resolves.toBeUndefined();
     } finally { await failing.close(); }
   });
+  it("stops a session while its original is still being prepared, without waiting for the preparation", async () => {
+    const track = vi.fn(async (_event: ExternalConversionEvent) => {});
+    let preparing!: () => void;
+    const started = new Promise<void>(resolve => { preparing = resolve; });
+    const prepare = vi.fn((_task: unknown, signal: AbortSignal) => { preparing(); return new Promise<PreparedImport>((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })); });
+    const slow = new ExternalImportService({ ...options(), worker: { prepare }, track });
+    try {
+      const opening = slow.openDocument("paper.pdf");
+      await started;
+      await slow.stopSession(await realpath(root), track.mock.calls[0][0].sessionId);
+      await expect(opening).rejects.toThrow("已在 ChalkLee 中停止");
+      expect(track.mock.calls.map(([event]) => event.kind)).not.toContain("failed");
+    } finally { await slow.close(); }
+  });
 });
