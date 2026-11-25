@@ -45,7 +45,7 @@ export async function auditImportContent(credentials: ImportCredentials, kind: "
     const batches = importFormulaAuditBatches(input.ids, context.formulas);
     if (batches.length > 1) {
       const issues: ImportAuditIssue[] = [];
-      for (let offset = 0; offset < batches.length; offset += 3) issues.push(...(await Promise.all(batches.slice(offset, offset + 3).map(ids => auditImportContent(credentials, kind, { ...input, ids, context: { formulas: Object.fromEntries(ids.map(id => [id, context.formulas[id]])), bands: context.bands } }, signal, observe)))).flat());
+      for (let offset = 0; offset < batches.length; offset += 3) issues.push(...(await Promise.all(batches.slice(offset, offset + 3).map(ids => auditImportContent(credentials, kind, { ...input, ids, context: { ...context, formulas: Object.fromEntries(ids.map(id => [id, context.formulas[id]])) } }, signal, observe)))).flat());
       return issues;
     }
   }
@@ -147,7 +147,8 @@ export function parseImportAudit(raw: string, ids: string[], kind: "figures" | "
       const region = IMPORT_AUDIT_REGIONS.find(region => region.id === issue.imageId);
       if (!region) throw new Error("公式核对缺少有效的原稿条带编号。");
       if (typeof issue.observedLatex !== "string" || !isPlausibleImportFormula(issue.observedLatex) || /\$|\[\[/.test(issue.observedLatex)) throw new Error("公式核对缺少有效的原稿公式。");
-      const normalized = (latex: string) => latex.replace(/\s|\\left|\\right/g, "").replace(/\\dfrac/g, "\\frac");
+      // Sizing commands only: \leftarrow and \rightarrow are different arrows.
+      const normalized = (latex: string) => latex.replace(/\s|\\left(?![a-zA-Z])|\\right(?![a-zA-Z])/g, "").replace(/\\dfrac/g, "\\frac");
       if (formulas && normalized(formulas[issue.id]) === normalized(issue.observedLatex)) return [];
       const [x, y, width, height] = issue.box, [left, top, bandWidth, bandHeight] = region.box;
       const box: ImportBox = [left + x * bandWidth / 1000, top + y * bandHeight / 1000, width * bandWidth / 1000, height * bandHeight / 1000];
