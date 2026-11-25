@@ -20,6 +20,7 @@ export interface LocalAgentServerOptions {
 const browserChannels = new Set([
   "agent-editor:register", "agent-editor:unregister", "agent-editor:reply",
   "conversion:list", "conversion:start", "conversion:stop", "conversion:batch", "conversion:resume", "conversion:dismiss", "conversion:open", "conversion:copy-instruction",
+  "conversion:proofread", "conversion:skip-proofread", "conversion:acknowledge-proofread", "conversion:acknowledge-unfinished", "conversion:review-follow-up", "conversion:reopen-follow-up",
   "ai:settings", "ai:test", "ai:cancel-import", "ai:import-history",
   "workspace:choose", "workspace:restore", "workspace:refresh", "workspace:reveal-entry", "workspace:set-conversion-needed", "workspace:copy-path",
   "workspace:file-clipboard", "workspace:set-file-clipboard", "workspace:clear-file-clipboard", "workspace:paste-entry", "workspace:duplicate-entry", "workspace:rename-entry", "workspace:trash-entry",
