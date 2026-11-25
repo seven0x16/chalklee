@@ -2,6 +2,13 @@ import type { ChalkLeeDocument } from "@chalklee/format";
 import type { ImportNotice } from "./types";
 import { normalizeImportNumber } from "./answerSource";
 
+/**
+ * What conversion leaves in the paper where it could not be sure: a short bracketed note naming 待核对, such as
+ * “[待核对]”, “[配图待核对]”, “〔公式待核对〕” or “（待核对续页）”. Plain prose mentioning 待核对 is not one.
+ * The editor highlights the same notes.
+ */
+export const REVIEW_MARKER_PATTERN = /[[【〔（(][^[\]【】〔〕（）()\n]{0,8}待核对[^[\]【】〔〕（）()\n]{0,8}[\]】〕）)]/;
+
 interface ReviewNode {
   type: string;
   text?: string;
@@ -24,7 +31,7 @@ export function associateQuestionNotices(notices: ImportNotice[], document: Chal
       parents = question.path;
     }
     if (id) owners.forEach(owner => owner.nodes.add(id));
-    if (node.text && /[\[【](?:公式)?待核对[\]】]/.test(node.text) && owners.length) {
+    if (node.text && REVIEW_MARKER_PATTERN.test(node.text) && owners.length) {
       const owner = owners.at(-1)!;
       if (!markers.some(notice => notice.questionIds?.includes(owner.id))) markers.push({
         message: "题目中有待核对标记，请对照原稿检查。", questionIds: [owner.id], nodeId: owner.id

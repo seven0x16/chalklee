@@ -2,14 +2,12 @@ import { Extension } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { REVIEW_MARKER_PATTERN } from "../../../shared/conversion/questionReview";
 
 export const chalkLeeReviewMarkerKey = new PluginKey<DecorationSet>("chalkLeeReviewMarkers");
 
-/**
- * What conversion leaves in the paper where it could not be sure: a short bracketed note naming 待核对, such as
- * “[待核对]”, “【待核对】”, “〔公式待核对〕” or “（待核对续页）”. Plain prose mentioning 待核对 is left alone.
- */
-const REVIEW_MARKER = /[[【〔（(][^[\]【】〔〕（）()\n]{0,8}待核对[^[\]【】〔〕（）()\n]{0,8}[\]】〕）)]/g;
+/** The review notes conversion leaves in the paper (REVIEW_MARKER_PATTERN), all of them in a block. */
+const REVIEW_MARKER = new RegExp(REVIEW_MARKER_PATTERN.source, "g");
 
 /** Marks every review note in one text block; formatting may split a note, atoms such as formulas break it. */
 function blockMarkers(block: ProseMirrorNode, position: number): Decoration[] {
