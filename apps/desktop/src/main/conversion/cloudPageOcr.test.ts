@@ -71,3 +71,17 @@ it("uploads one MinerU page, polls and extracts text and figure locations from i
   expect(request.mock.calls[1][1].headers).toBeUndefined();
   expect(request.mock.calls[4][1].headers).toBeUndefined();
 });
+
+it("asks again after a rate limit, and stops using an OCR whose account cannot pay though it answers 429", async () => {
+  vi.mocked(delay).mockResolvedValue(undefined);
+  const page = Response.json({ data_info: { pages: [{ width: 1000, height: 1000 }] }, layout_details: [[{ label: "text", content: "1. 题目", bbox_2d: [100, 100, 900, 150] }]] });
+  const limited = () => Response.json({ error: { code: "1302", message: "并发数过高" } }, { status: 429 });
+  const busy = vi.fn().mockResolvedValueOnce(limited()).mockResolvedValueOnce(page);
+  vi.stubGlobal("fetch", busy);
+  await expect(pageRecognizer({ provider: "glm-ocr", apiKey: "test" }).recognize(png, "page.png", signal)).resolves.toMatchObject({ provider: "glm-ocr" });
+  expect(busy).toHaveBeenCalledTimes(2);
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { code: "1113", message: "余额不足或无可用资源包,请充值。" } }, { status: 429 })));
+  await expect(pageRecognizer({ provider: "glm-ocr", apiKey: "test" }).recognize(png, "page.png", signal)).rejects.toMatchObject({ account: true });
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ code: "Arrearage", message: "Access denied, please make sure your account is in good standing." }, { status: 400 })));
+  await expect(pageRecognizer({ provider: "qwen-ocr", apiKey: "test", workspaceId: "llm-test" }).recognize(png, "page.png", signal)).rejects.toMatchObject({ account: true });
+});
