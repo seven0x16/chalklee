@@ -247,6 +247,15 @@ describe("PDF content references", () => {
     expect(assertPdfTranscriptFigures).toHaveBeenCalledTimes(2);
     expect(repairPdfTranscriptFigures).not.toHaveBeenCalled();
   });
+  it("does not check figures round after round when the model itself is unavailable", async () => {
+    const source = { ...transcript("1. 原题 [[figure_1]]"), figures: [{ id: "figure_1", crop: [100, 100, 200, 200] as [number, number, number, number], alt: "原图" }] };
+    vi.mocked(runImportAgent).mockResolvedValue(JSON.stringify(source));
+    vi.mocked(assertPdfTranscriptFigures).mockRejectedValue(new Error('402: {"message":"Insufficient Balance"}'));
+    const result = (await prepare([unit(1)]))!;
+    expect(assertPdfTranscriptFigures).toHaveBeenCalledTimes(1);
+    expect(runImportAgent).toHaveBeenCalledTimes(1);
+    expect(result.failure).toContain("余额");
+  });
   it("recognizes combined image choices again instead of recropping the same combined figure", async () => {
     const source = { ...transcript("1. 选图 [[figure_1]]"), figures: [{ id: "figure_1", crop: [100, 100, 200, 200] as [number, number, number, number], alt: "选项表格" }] };
     const split = { ...source, markdown: "1. 选图\nA. [[figure_1]]\nB. [[figure_2]]", figures: [

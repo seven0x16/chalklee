@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ChalkLeeBlockNode, ChalkLeeArchiveAssetInput } from "@chalklee/format";
 import type { ImportImage, ImportUnit } from "../../shared/conversion/types";
-import { isTransientImportFailure } from "../../shared/conversion/failure";
+import { conversionServiceProblem, isTransientImportFailure } from "../../shared/conversion/failure";
 import { keptPageHeading } from "../../shared/conversion/tasks";
 
 export class ImportPageFailure extends Error {}
@@ -13,6 +13,12 @@ export function pageFailure(error: unknown): never {
     || /\b(?:401|403|404)\b|unauthorized|forbidden|invalid.{0,15}(?:key|model)|api.?key|authentication|insufficient.{0,10}(?:quota|balance)|余额|鉴权|无权限/i.test(error.message)) throw error;
   throw new ImportPageFailure(error.message);
 }
+
+/**
+ * The model service or its settings failed, not what the model read: the balance, the Key, the model, a timeout or a
+ * dropped connection. Checking the same page again changes nothing, so it goes to the page's own failure handling.
+ */
+export const serviceFailure = (error: unknown) => error instanceof Error && (!!conversionServiceProblem(error.message) || isTransientImportFailure(error.message));
 
 export const draftParagraph = (text: string, id = `node_${randomUUID()}`): ChalkLeeBlockNode => ({ type: "paragraph", attrs: { id }, content: [{ type: "text", text }] });
 

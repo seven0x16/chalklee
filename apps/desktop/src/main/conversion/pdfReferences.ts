@@ -16,7 +16,7 @@ import { checkPdfTranscriptTables } from "./pdfTableFidelity";
 import { runImportAgent, type ImportCredentials } from "./model";
 import { formatTranscript, lockTranscript, parseTranscript, TRANSCRIBE_PROMPT, type ImportTranscript } from "./transcript";
 import { assignPdfSourceRoles, pdfTranscriptReferences } from "./pdfReferenceSource";
-import { ImportPageFailure, pageFailure, preserveImportPage } from "./draft";
+import { ImportPageFailure, pageFailure, preserveImportPage, serviceFailure } from "./draft";
 import { restorePdfTextUnderlines } from "./pdfTextFormatting";
 import { OcrError, pageRecognizer, type ConversionOcr } from "./pageOcr";
 import { ocrPageTranscript } from "./ocrTranscript";
@@ -52,6 +52,8 @@ export async function preparePdfReferences(options: {
   textReady?: (input: PreparedImport) => void;
 }): Promise<PdfReferences | undefined> {
   const { input, cacheDirectory, credentials, signal: parentSignal, progress } = options;
+  // What a service says may quote the Key; diagnosis files and repair requests never carry it.
+  const hidden = (text: string) => credentials.apiKey ? text.split(credentials.apiKey).join("[已隐藏]") : text;
   const recognizer = options.ocr && !options.cachedOnly ? pageRecognizer(options.ocr) : undefined;
   // Wrong keys, missing access or an exhausted quota would fail every page; stop asking after the first.
   let ocrUnavailable = "";
@@ -159,6 +161,8 @@ export async function preparePdfReferences(options: {
               }
               catch (error) {
                 signal.throwIfAborted();
+                // An unavailable model fails every round alike; it is not a crop to repair again.
+                if (serviceFailure(error)) throw error;
                 // Splitting combined choices needs new text and per-option
                 // references, not another crop of the combined drawing.
                 if (error instanceof Error && /^(?:图形选项未拆分|图注重复转录|题图归属不符|图文类型不符)：/.test(error.message)) throw error;
@@ -166,7 +170,7 @@ export async function preparePdfReferences(options: {
                 // A fixed page-wide allowance prematurely stopped later figures
                 // even after earlier ones had passed their checks.
                 if (attempt >= Math.min(12, Math.max(5, transcript.figures.length * 3))) { figureRepairExhausted = true; throw error; }
-                const reason = error instanceof Error ? error.message : String(error);
+                const reason = hidden(error instanceof Error ? error.message : String(error));
                 // Kept beside the page cache for diagnosis: why this page's figures needed another round.
                 figureRounds.push({ attempt, repairing, reason: reason.slice(0, 2000) });
                 await writeFile(path.join(cacheDirectory, `figure-rounds-${original.id}.json`), JSON.stringify(figureRounds), { mode: 0o600 }).catch(() => undefined);
@@ -196,9 +200,12 @@ export async function preparePdfReferences(options: {
               if (error instanceof OcrError && error.account) {
                 if (!ocrUnavailable) warnings.push(`OCR 模型不可用（${reason}），${original.label}起改用转换模型识别。`);
                 ocrUnavailable ||= reason;
+              } else if (reading && serviceFailure(error)) {
+                // The OCR read the page; the conversion model checking it is what failed, which correcting the reading cannot fix.
+                throw error;
               } else if (reading) {
                 // A reading that fails a check is corrected against the page rather than read again from the start.
-                repair = { error: reason, previous: reading };
+                repair = { error: hidden(reason), previous: reading };
                 correctedOcr = true;
                 emit(`正在修复${original.label}的识别结果`);
               } else pageWarnings.push(`${original.label}的 OCR 识别未完成（${reason}），已改用转换模型识别。`);
@@ -221,9 +228,8 @@ export async function preparePdfReferences(options: {
                 break;
               } catch (error) {
                 signal.throwIfAborted();
-
-                if (attempt === 2 || figureRepairExhausted) throw error;
-                repair = { error: error instanceof Error ? error.message : "转录格式未通过校验", previous: raw };
+                if (attempt === 2 || figureRepairExhausted || serviceFailure(error)) throw error;
+                repair = { error: hidden(error instanceof Error ? error.message : "转录格式未通过校验"), previous: raw };
                 emit(`正在修复${original.label}的识别结果`);
               }
             }
