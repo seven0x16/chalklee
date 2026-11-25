@@ -169,13 +169,17 @@ export function conversionIdleText(task: Pick<ConversionTask, "updatedAt">, now 
   const minutes = Math.floor((now - task.updatedAt) / 60_000);
   return minutes < 2 ? "" : `最近活动 ${minutes < 60 ? `${minutes} 分钟` : `${Math.floor(minutes / 60)} 小时`}前`;
 }
-/** Text a person pastes into their own agent; the agent resolves the workspace-relative path through ChalkLee MCP. */
+/**
+ * Text a person pastes into their own agent; the agent resolves the workspace-relative path through ChalkLee MCP.
+ * The leading "./" keeps a file at the workspace root from reading as a bare name to search for.
+ */
 export function conversionInstruction(relativePath: string, resume = false, sessionId?: string): string {
+  const target = `./${relativePath}`;
   return resume
-    ? `请通过已连接的 ChalkLee MCP，把当前工作区中的「${relativePath}」转换为 ChalkLee。这份原稿已有保存在 ChalkLee 中的转换进度，不需要之前 AI 的聊天记录。先调用 conversion_guide 读取转换规则，${sessionId
+    ? `请通过已连接的 ChalkLee MCP，把 ChalkLee 当前工作区中的「${target}」转换为 ChalkLee。这份原稿已有保存在 ChalkLee 中的转换进度，不需要之前 AI 的聊天记录。先调用 conversion_guide 读取转换规则，${sessionId
       ? `再调用 read_draft(${JSON.stringify({ sessionId })}) 读取已保存的内容和剩余任务，核对 source 对应这份原稿`
       : "再调用 list_import_sessions 查找 source 对应这份原稿且未停止、未交付的会话，用其 sessionId 调用 read_draft 读取已保存的内容和剩余任务"}。沿用同一 sessionId，只处理剩余内容，不要重新调用 conversion_open，也不要重复识别或覆盖已经保存的片段。写入时使用最新 revision；完成后调用 finish 保存，并打开结果。若会话不存在、已停止或原稿不匹配，请说明原因，不要自行新建会话。`
-    : `请通过已连接的 ChalkLee MCP，把当前工作区中的「${relativePath}」转换为 ChalkLee，完成后打开。`;
+    : `请通过已连接的 ChalkLee MCP，把 ChalkLee 当前工作区中的「${target}」转换为 ChalkLee，完成后打开。`;
 }
 /** Each step and each model reply reports progress, so this long without any means a request is likely stuck. */
 export const BUILT_IN_CONVERSION_STALL_MS = 5 * 60_000;

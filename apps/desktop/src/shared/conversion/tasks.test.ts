@@ -4,7 +4,7 @@ import type { ImportUnitResult } from "./types";
 
 describe("conversionInstruction", () => {
   it("tells an external agent to use ChalkLee MCP for new and interrupted conversions", () => {
-    expect(conversionInstruction("数学/期中卷.pdf")).toBe("请通过已连接的 ChalkLee MCP，把当前工作区中的「数学/期中卷.pdf」转换为 ChalkLee，完成后打开。");
+    expect(conversionInstruction("数学/期中卷.pdf")).toBe("请通过已连接的 ChalkLee MCP，把 ChalkLee 当前工作区中的「./数学/期中卷.pdf」转换为 ChalkLee，完成后打开。");
     const resumed = conversionInstruction("数学/期中卷.pdf", true, "12345678-1234-4234-8234-123456789abc");
     expect(resumed).toContain('read_draft({"sessionId":"12345678-1234-4234-8234-123456789abc"})');
     expect(resumed).toContain("conversion_guide");
