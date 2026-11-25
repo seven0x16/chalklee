@@ -115,6 +115,8 @@ export function misprintedAnswerKeys(entries: { ref: string; text: string; role:
 export function settleRepeatedAnswers(document: ChalkLeeDocument): { settledIds: string[]; doubts: string[] } {
   const settledIds: string[] = [], doubts: string[] = [];
   const letters = (node: any) => importText(node).normalize("NFKC").replace(/\s/g, "");
+  // A line with a picture says more than its letters: "A" beside the chosen figure is not the letter printed again.
+  const pictured = (node: any): boolean => ["image", "imageInline", "mathInline", "blockMath"].includes(node.type) || (node.content ?? []).some(pictured);
   const remove = (region: any, lines: any[]) => {
     settledIds.push(...lines.map(line => line.attrs.id));
     region.content = region.content.filter((child: any) => !lines.includes(child));
@@ -134,6 +136,7 @@ export function settleRepeatedAnswers(document: ChalkLeeDocument): { settledIds:
     const same: any[] = [], notes: any[] = [];
     for (const line of lines.slice(1)) {
       const value = letters(line);
+      if (pictured(line)) continue;
       if (value === first) same.push(line);
       else if (/^[A-H]{1,8}$/.test(value)) doubts.push(`第${label}题原稿两处答案不一致：“${first}”和“${value}”。对照原稿，确实如此时保留，不要自行选择。`);
       else if (value.startsWith(`${first}【`)) {
@@ -197,7 +200,7 @@ export function reconcileImportAnswers(document: ChalkLeeDocument, entries: Impo
         // Roman section numbers can differ between a paper and its key, or
         // look like digits in a scan. A repeated explicit type title provides
         // an independent scope; the question number must still be unique.
-        const name = text.normalize("NFKC").trim().match(/^(?:[IVX\d一二三四五六七八九十]+[、.．\s]+)(完形填空|语法填空|阅读理解|书面表达|信息匹配|选择题|填空题|解答题)(?:[（(\s]|$)/)?.[1];
+        const name = text.normalize("NFKC").trim().match(/^(?:[IVX\d一二三四五六七八九十]+[、.．\s]+)(完形填空|语法填空|阅读理解|书面表达|写作|信息匹配|选择题|填空题|解答题)(?:[（(\s]|$)/)?.[1];
         if (label || name) {
           section = label;
           // A paper's numbered subsection may be omitted from its answer key.
@@ -226,7 +229,7 @@ export function reconcileImportAnswers(document: ChalkLeeDocument, entries: Impo
     // A sample essay can be identified by the printed section title instead
     // of a question number. Only the unique unnumbered writing question fits.
     if (!numberedCandidates.length && !entry.parents.length && /^(?:书面表达|写作|writing)$/i.test(path.at(-1) ?? "")) candidates = index.filter(candidate =>
-      candidate.node.type === "question" && !candidate.path.length && candidate.sectionName === "书面表达");
+      candidate.node.type === "question" && !candidate.path.length && (candidate.sectionName === "书面表达" || candidate.sectionName === "写作"));
     // A key's plain "1. A" is question 1, not part (1) of some later question.
     const printedAsPart = (question: Question) => question.attrs.number.mode === "fixed" && /^\s*[（(]/.test(question.attrs.number.label);
     if (!entry.parents.length && !printedAsPart(node)) {

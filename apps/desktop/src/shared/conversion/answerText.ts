@@ -164,9 +164,12 @@ export function expandWordAnswerSources(blocks: ChalkLeeBlockNode[], expanded?: 
     if (!entries) return [block];
     const heading: ChalkLeeBlockNode[] = label ? [{ ...block, content: sliceInlineContent(content, 0, label.length) }] : [];
     if (label) expanded?.(block.attrs.id);
-    return [...heading, ...entries.map(entry => {
+    const used = new Set<string>();
+    return [...heading, ...entries.map((entry, index) => {
       const selected = sliceInlineContent(content, entry.start + label.length, entry.end + label.length);
-      const ref = `${block.attrs.id}_answer_${entry.number}`;
+      // A number printed twice on the line ("…5. B 5. C", the paper's own slip) still gives each its own reference.
+      const base = `${block.attrs.id}_answer_${entry.number}`, ref = used.has(base) ? `${base}_${index + 1}` : base;
+      used.add(ref);
       expanded?.(ref, entry.number);
       return { type: "paragraph" as const, attrs: { ...block.attrs, id: ref }, content: [{ type: "text" as const, text: `${entry.number}. ` }, ...selected] };
     })];
