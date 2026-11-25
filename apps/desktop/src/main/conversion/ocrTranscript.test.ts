@@ -43,6 +43,10 @@ describe("OCR page transcript", () => {
     ]));
     expect(result.markdown).toBe("3. 下列电路图正确的是（）\n\nA.  [[figure_1]]\n\nB.  [[figure_2]]");
     expect(result.figures.map(figure => [figure.optionLabel, figure.questionNumber, figure.prefixMask])).toEqual([["A", "3", [110, 138, 20, 16]], ["B", "3", undefined]]);
+    // A letter too big for its small figure would cover the drawing: no mask, the figure check asks for a better crop.
+    const small = ocrPageTranscript(page([layout("text", [100, 100, 500, 14], "4. 选图（）"), layout("text", [112, 140, 16, 12], "A."), layout("image", [105, 122, 60, 32]),
+      layout("text", [300, 140, 16, 12], "B."), layout("image", [325, 122, 150, 60])]));
+    expect(small.figures.map(figure => [figure.optionLabel, figure.prefixMask])).toEqual([["A", undefined], ["B", undefined]]);
   });
   it("takes a figure number printed under each figure into that figure's crop", () => {
     const result = ocrPageTranscript(page([

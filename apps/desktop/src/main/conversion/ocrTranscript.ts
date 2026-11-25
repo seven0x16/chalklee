@@ -1,5 +1,5 @@
 import type { OcrBox, OcrLayout, OcrReference } from "./ocrReference";
-import { placeTranscriptFigure, type ImportTranscript, type TranscriptFigure } from "./transcript";
+import { placeTranscriptFigure, prefixMaskFits, type ImportTranscript, type TranscriptFigure } from "./transcript";
 import { stripDistributorPromo } from "../../shared/conversion/promo";
 
 // Running headers, footers, page numbers, margin logos and seals repeat on every page.
@@ -105,7 +105,7 @@ export function ocrPageTranscript(page: OcrReference): ImportTranscript {
   // and on its line, so the figure becomes that option's figure; the letter is masked out of the crop below.
   const boxedLetters = new Map<Piece, Piece>();
   for (const letter of pieces.filter(piece => OPTION_LABEL.test(piece.text))) {
-    const holder = pieces.find(piece => figureOf.has(piece) && !boxedLetters.has(piece) && optionPrefixMask(letter.layout.box, piece.layout.box));
+    const holder = pieces.find(piece => figureOf.has(piece) && !boxedLetters.has(piece) && boxedInFigure(letter.layout.box, piece.layout.box));
     if (!holder) continue;
     boxedLetters.set(holder, letter);
     pieces.splice(pieces.indexOf(letter), 1);
@@ -157,11 +157,18 @@ export function ocrPageTranscript(page: OcrReference): ImportTranscript {
   return { markdown: markdown.replace(/\n{3,}/g, "\n\n").trim(), figures: figures.map(figure => ({ ...figure })), uncertainties: [], warnings: [] };
 }
 
-/** The letter's box, a little wider, when it lies inside the left part of its option figure's crop. */
-function optionPrefixMask(letter: OcrBox, crop: OcrBox): OcrBox | undefined {
+/** Whether an option letter lies inside the left part of its option figure's crop, where OCR boxed it with the figure. */
+function boxedInFigure(letter: OcrBox, crop: OcrBox): boolean {
   const inside = Math.max(0, Math.min(letter[0] + letter[2], crop[0] + crop[2]) - Math.max(letter[0], crop[0]))
     * Math.max(0, Math.min(letter[1] + letter[3], crop[1] + crop[3]) - Math.max(letter[1], crop[1]));
-  if (letter[2] * letter[3] <= 0 || inside < letter[2] * letter[3] * .8 || letter[0] + letter[2] / 2 > crop[0] + crop[2] * .3) return;
+  return letter[2] * letter[3] > 0 && inside >= letter[2] * letter[3] * .8 && letter[0] + letter[2] / 2 <= crop[0] + crop[2] * .3;
+}
+
+/** The letter's box, a little wider, when it lies inside the left part of its option figure's crop. */
+function optionPrefixMask(letter: OcrBox, crop: OcrBox): OcrBox | undefined {
+  if (!boxedInFigure(letter, crop)) return;
   const x = Math.max(crop[0], letter[0] - 2), y = Math.max(crop[1], letter[1] - 2);
-  return [x, y, Math.min(crop[0] + crop[2], letter[0] + letter[2] + 2) - x, Math.min(crop[1] + crop[3], letter[1] + letter[3] + 2) - y];
+  const mask: OcrBox = [x, y, Math.min(crop[0] + crop[2], letter[0] + letter[2] + 2) - x, Math.min(crop[1] + crop[3], letter[1] + letter[3] + 2) - y];
+  // A mask the crop cannot take would fail every figure check after it; the check asks for the letter's removal instead.
+  return prefixMaskFits(crop, mask) ? mask : undefined;
 }

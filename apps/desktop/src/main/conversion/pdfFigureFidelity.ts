@@ -6,7 +6,7 @@ import { ImportPageFailure, pageFailure } from "./draft";
 import { cropImportImage } from "./review";
 import { auditImportContent, FIGURE_CAPTION_RULE, isFigureNumberCaption } from "./audit";
 import { completeCropStrokes, cropComponentBox, cropContextBitmap, cropInkComponents, cropWhitespaceAlternatives, cutCropComponentEdges, cutCropEdges, importCropRect, pixelCropBox, trimCropTextSides, trimCropWhiteMargins, type CropSide } from "./crop";
-import { normalizeTranscriptBox, parseTranscript, type ImportTranscript, type TranscriptFigure } from "./transcript";
+import { normalizeTranscriptBox, parseTranscript, prefixMaskFits, type ImportTranscript, type TranscriptFigure } from "./transcript";
 
 function alreadyCovered(figure: TranscriptFigure, existing: TranscriptFigure[], unit: ImportUnit) {
   const bounds = (item: TranscriptFigure) => item.crop ?? unit.images.find(image => image.id === item.assetId)?.pageBounds;
@@ -47,6 +47,8 @@ export function completePdfFigureStrokes(original: ImportTranscript, unit: Impor
     if (JSON.stringify(trimmed) === JSON.stringify(rect)) continue;
     figure.crop = pixelCropBox([trimmed.x, trimmed.y, trimmed.x + trimmed.width, trimmed.y + trimmed.height], size);
     delete figure.assetId;
+    // The option letter masked on the old crop may not sit at the new one's edge.
+    if (figure.prefixMask && !prefixMaskFits(figure.crop, figure.prefixMask)) delete figure.prefixMask;
   }
   return transcript;
 }
@@ -170,6 +172,8 @@ export function applyPdfFigureRepair(original: ImportTranscript, unit: ImportUni
         figure.crop = pixelCropBox(update.pixelCrop, importCropRect(page.dataUrl, [0, 0, 1000, 1000]).size);
       } else figure.crop = normalizeTranscriptBox(update.crop, "xyxy");
       delete figure.assetId;
+      // A crop moved away from the masked letter cannot take the mask any more; one that still can keeps it.
+      if (figure.prefixMask && !prefixMaskFits(figure.crop, figure.prefixMask)) delete figure.prefixMask;
     }
     if (update.prefixMask !== undefined) {
       if (!figure.optionLabel) throw new Error("只有图形选项可以去掉独立选项前缀。");
@@ -422,12 +426,14 @@ export async function assertPdfTranscriptFigures(credentials: ImportCredentials,
   // their source neighbors; after a repair only changed pixels need rechecking.
   // A figure's check depends on its pixels and the text beside its marker; an edit elsewhere on the page,
   // such as removing another figure's repeated caption, does not ask for it again.
-  const lines = transcript.markdown.split("\n").map(line => line.trim()).filter(Boolean);
-  const besideMarker = (id: string) => { const at = lines.indexOf(`[[${id}]]`); return at < 0 ? transcript.markdown : lines.slice(Math.max(0, at - 4), at + 5); };
-  const keys = new Map(crops.map(crop => [crop.id, createHash("sha256").update(JSON.stringify([
-    unit.id, page.dataUrl, besideMarker(crop.id), transcript.figures.find(figure => figure.id === crop.id), crop.dataUrl,
-    neighbors.find(image => image.id === `source_${crop.id}`)?.dataUrl
-  ])).digest("hex")]));
+  const keyOf = (markdown: string, id: string) => {
+    const lines = markdown.split("\n").map(line => line.trim()).filter(Boolean), at = lines.indexOf(`[[${id}]]`);
+    return createHash("sha256").update(JSON.stringify([
+      unit.id, page.dataUrl, at < 0 ? markdown : lines.slice(Math.max(0, at - 4), at + 5), transcript.figures.find(figure => figure.id === id),
+      crops.find(crop => crop.id === id)?.dataUrl, neighbors.find(image => image.id === `source_${id}`)?.dataUrl
+    ])).digest("hex");
+  };
+  const keys = new Map(crops.map(crop => [crop.id, keyOf(transcript.markdown, crop.id)]));
   const pending = crops.filter(crop => !audited.has(keys.get(crop.id)!));
   const ids = new Set(pending.map(crop => crop.id));
   const checked = await auditImportContent(credentials, "figures", { ids: [...ids], context: { markdown: transcript.markdown, figures: transcript.figures.filter(figure => ids.has(figure.id))
@@ -467,7 +473,9 @@ export async function assertPdfTranscriptFigures(credentials: ImportCredentials,
   const details = [...checked.filter(issue => !(removed.has(issue.id) && issue.reason.startsWith("图注重复转录："))), ...edges];
   // A repair of one image does not invalidate another image's unchanged
   // pixels and source context. Never memoize a rejected or incomplete check.
-  for (const crop of pending) if (!details.some(issue => issue.id === crop.id)) audited.add(keys.get(crop.id)!);
+  // A figure whose repeated caption was taken off passed for the text without it: if another figure fails and this
+  // result is dropped, the caption is still there and the figure is checked again rather than skipped as passed.
+  for (const crop of pending) if (!details.some(issue => issue.id === crop.id)) audited.add(removed.has(crop.id) ? keyOf(result.markdown, crop.id) : keys.get(crop.id)!);
   const combined = details.filter(issue => /^(?:图形选项未拆分|图注重复转录|题图归属不符|图文类型不符)：/.test(issue.reason));
   if (combined.length) throw new Error(combined.map(issue => `${issue.reason}（${issue.id}）`).join("；"));
   if (details.length) throw new Error(`实际题图核对：${details.map(issue => `${issue.id}: ${issue.reason}`).join("；")}`);

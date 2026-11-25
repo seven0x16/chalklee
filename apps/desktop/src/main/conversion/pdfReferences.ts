@@ -140,6 +140,9 @@ export async function preparePdfReferences(options: {
           const figureRounds: { attempt: number; repairing: boolean; reason: string }[] = [];
           let figureRepairExhausted = false;
           const references = async (recognized: ImportTranscript) => {
+            // A new reading has new figures under the same ids: what was settled for the last reading's crops by id alone
+            // (an edge already moved once, a side already trimmed) does not carry over. Checks keyed by pixels still do.
+            for (const key of figureAudits) if (/^(?:edges|trim):/.test(key)) figureAudits.delete(key);
             const tabled = await checkPdfTranscriptTables(credentials, recognized, figureSource, signal, observe);
             const numbered = await checkPdfTranscriptNumbers(credentials, tabled, original, signal, observe);
             const text = await checkPdfTranscriptText(credentials, numbered, original, signal, observe, boxes => renderPdfTextDetails(input, original, boxes, signal));

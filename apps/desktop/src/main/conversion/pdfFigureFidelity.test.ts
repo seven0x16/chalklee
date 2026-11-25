@@ -34,6 +34,22 @@ describe("PDF figure completeness", () => {
     expect(result.figures).toEqual(source.figures);
     expect(source.markdown).toContain("\n图 1\n");
   });
+  it("checks a figure again whose repeated caption came off in a check another figure failed", async () => {
+    const page = { ...unit, images: [{ id: unit.id, dataUrl: "data:image/png;base64,cGFnZQ==", widthPt: 600, heightPt: 800 }] };
+    const source = { ...original, markdown: "16. 据图1回答。\n[[figure_1]]\n图1\n17. 据图回答。\n说明。\n说明。\n说明。\n说明。\n[[figure_2]]", figures: [
+      { id: "figure_1", crop: [100, 100, 200, 100] as [number, number, number, number], alt: "统计图" }, { id: "figure_2", crop: [100, 400, 200, 100] as [number, number, number, number], alt: "地图" }] };
+    const audited = new Set<string>(), credentials = { model: "test", baseUrl: "https://example.invalid", apiKey: "test-only" };
+    vi.mocked(auditImportContent).mockResolvedValueOnce([{ id: "figure_1", reason: "图注重复转录：图1", duplicateCaptions: ["图1"] }, { id: "figure_2", reason: "图例被截断" }]);
+    await expect(assertPdfTranscriptFigures(credentials, source, page, new AbortController().signal, undefined, audited)).rejects.toThrow("figure_2");
+    // The failed check's result, without the caption, was dropped; the caption is still there and figure_1 is looked at again.
+    vi.mocked(auditImportContent).mockResolvedValueOnce([{ id: "figure_1", reason: "图注重复转录：图1", duplicateCaptions: ["图1"] }]);
+    const result = await assertPdfTranscriptFigures(credentials, source, page, new AbortController().signal, undefined, audited);
+    expect(vi.mocked(auditImportContent).mock.calls.at(-1)![2]).toMatchObject({ ids: ["figure_1", "figure_2"] });
+    expect(result.markdown).not.toContain("图1\n");
+    // Its result is what the next check sees, which then has nothing left to ask about either figure.
+    await assertPdfTranscriptFigures(credentials, result, page, new AbortController().signal, undefined, audited);
+    expect(vi.mocked(auditImportContent).mock.calls.at(-1)![2]).toMatchObject({ ids: [] });
+  });
   it("removes a figure's number read away from the figure when the crop shows it", async () => {
     const page = { ...unit, images: [{ id: unit.id, dataUrl: "data:image/png;base64,cGFnZQ==", widthPt: 600, heightPt: 800 }] };
     const source = { ...original, markdown: "3. 天气过程是\n[[figure_1]]\nA.\n4. 变化是\nA.\n图 2\n图 3 示意天津。", figures: [{ id: "figure_1", crop: [100, 100, 200, 100] as [number, number, number, number], alt: "气象图" }] };
@@ -189,6 +205,11 @@ describe("PDF figure completeness", () => {
     expect(result.figures[0]).toMatchObject({ crop: source.figures[0].crop, prefixMask: [105, 120, 20, 20] });
     expect(result.markdown).toBe(source.markdown);
     expect(source.figures[0]).not.toHaveProperty("prefixMask");
+    // Re-cropped later: the mask stays while the letter is still at the crop's edge, and goes once the crop has left it.
+    const taller = applyPdfFigureRepair(result, page, JSON.stringify({ updates: [{ id: "figure_1", crop: [100, 100, 400, 320] }] }));
+    expect(taller.figures[0]).toMatchObject({ crop: [100, 100, 300, 220], prefixMask: [105, 120, 20, 20] });
+    const moved = applyPdfFigureRepair(result, page, JSON.stringify({ updates: [{ id: "figure_1", crop: [150, 100, 400, 300] }] }));
+    expect(moved.figures[0].crop).toEqual([150, 100, 250, 200]); expect(moved.figures[0]).not.toHaveProperty("prefixMask");
     expect(() => applyPdfFigureRepair({ ...source, figures: source.figures.map(({ optionLabel, ...figure }) => figure) }, page, JSON.stringify({ updates: [{ id: "figure_1", prefixMask: [105, 120, 125, 140] }] }))).toThrow("只有图形选项");
   });
   it.each(["图形选项未拆分：包含 A、B、C、D", "图注重复转录：人物名称已在图内，图后不应重复"])("rejects figure placement requiring transcription changes: %s", reason => {

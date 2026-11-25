@@ -48,6 +48,19 @@ questionCatalog列出此前已经识别的试题层级，仅用于答案归属�
 整道题的题图放在stem中，不能因为它排在选项后面就放入最后一个选项或analysis。只有选项自身的图形才放options[].content。没有答案解析标签时不得添加answer或analysis，即使只是为了放图也不允许。不要复制首题题干作为标题。
 [[math_1]]是不可修改的公式引用，必须原样且各保留一次，不重写成LaTeX，不增加新公式。[[figure_1]]必须在同一位置换成{"type":"image","figureId":"figure_1"}，每张图恰好保留一次。带optionLabel的图片必须放在对应题目对应options[].content中，不能把所有选项图片塞入stem或合并选项；多联主图保持完整。所有[待核对]、缺图提示原样保留，不能在拆题时消失。章节标题单独输出，页脚不混入题干。不生成CHALKLEE节点、attrs或id。`;
 
+/**
+ * Whether an option-letter mask can be applied to a crop (both [x, y, width, height]): a small piece at the crop's left,
+ * top or bottom edge, as maskCropPrefix requires, with a little room for pixel rounding. A crop moved away from the
+ * letter, or a letter box reaching into the drawing, no longer fits.
+ */
+export function prefixMaskFits(crop: ImportBox, mask: ImportBox): boolean {
+  if (!(crop[2] > 0 && crop[3] > 0)) return false;
+  const left = Math.max(0, (mask[0] - crop[0]) / crop[2]), top = Math.max(0, (mask[1] - crop[1]) / crop[3]);
+  const right = Math.min(1, (mask[0] + mask[2] - crop[0]) / crop[2]), bottom = Math.min(1, (mask[1] + mask[3] - crop[1]) / crop[3]);
+  return right > left && bottom > top && mask[2] * mask[3] <= crop[2] * crop[3] * .095 && (right - left) * (bottom - top) <= .095
+    && (right <= .24 || bottom <= .19 || top >= .81);
+}
+
 export function assertImportBox(box: unknown): asserts box is ImportBox {
   if (!Array.isArray(box) || box.length !== 4 || box.some(value => !Number.isFinite(value)) || box[0] < 0 || box[1] < 0 || box[2] <= 0 || box[3] <= 0 || box[0] + box[2] > 1000 || box[1] + box[3] > 1000) throw new Error("局部图像范围必须是整页0到1000内的[x,y,width,height]。");
 }
