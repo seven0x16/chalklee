@@ -74,6 +74,16 @@ describe("a paper followed by its solved version", () => {
     const separate = doc([title("a", "试卷甲"), q("q"), title("b", "试卷乙"), q("solved", undefined, "B")]);
     expect(reconcileRepeatedQuestions(separate, []).links).toEqual([]); expect(separate.content.content).toHaveLength(4);
   });
+  it("does not take a reading passage's letter for the start of another paper", () => {
+    const letter = (id: string, text: string) => ({ ...p(id, text), type: "heading", attrs: { id, level: 4, textAlign: "center" } });
+    const title = (id: string) => ({ ...p(id, "英语试卷"), type: "heading", attrs: { id, level: 1 } });
+    const listening = q("listening", "听对话，回答问题。");
+    listening.attrs.number.label = "5";
+    // The paper puts passage A's question under its letter; the solved copy reprints the title and the question, not the letter.
+    const document = doc([title("title"), listening, letter("a", "A"), q("q"), title("again"), q("solved", undefined, "B")]);
+    const result = reconcileRepeatedQuestions(document, []);
+    expect(result.links).toHaveLength(1); expect(document.content.content.map(node => node.attrs.id)).toEqual(["title", "listening", "a", "q"]);
+  });
   it("joins copies that were typeset and recognised differently but say the same thing", () => {
     const math = (latex: string) => ({ type: "mathInline", attrs: { latex } });
     const cell = (id: string, text: string) => ({ type: "tableCell", attrs: { id }, content: [p(`${id}-p`, text)] });

@@ -182,7 +182,10 @@ export function reconcileRepeatedQuestions(document: ChalkLeeDocument, assets: C
       const text = importText(node);
       // A paper starts at its first title line. A centred subtitle under it, or
       // a solved copy printing only the main title, still belongs to that paper.
-      if (!importSectionLabel(text) && !isImportAnswerHeading(text) && (node.type === "heading" && node.attrs.level === 1 || node.attrs.textAlign === "center")) {
+      // A reading passage's letter ("A", "B篇"), centred over its passage, and the
+      // small titles under a part are inside a paper, not the start of another.
+      const inside = node.type === "heading" && node.attrs.level >= 3 || /^\s*(?:(?:passage|text)\s*)?[A-H]\s*篇?\s*$/i.test(text);
+      if (!inside && !importSectionLabel(text) && !isImportAnswerHeading(text) && (node.type === "heading" && node.attrs.level === 1 || node.attrs.textAlign === "center")) {
         if (!masthead) paper = textKey(text);
         masthead = true;
       }
