@@ -184,7 +184,8 @@ export class ExternalImportService {
     this.sessions.clear();
     if (!session.result && !session.stopped) this.sessions.set(session.id, session);
   }
-  private async load(id: string, workspaceRoot?: string) {
+  /** `keep`: hold it as the session in use. A listing reads sessions without displacing the one being worked on. */
+  private async load(id: string, workspaceRoot?: string, keep = true) {
     if (!/^[\da-f-]{36}$/.test(id)) throw new Error("无效的转换会话 ID。");
     const root = workspaceRoot ?? await realpath(await this.options.workspace());
     let session = this.sessions.get(id);
@@ -194,14 +195,14 @@ export class ExternalImportService {
       if ((await lstat(file)).isSymbolicLink()) throw new Error("转换进度不能是符号链接。");
       session = JSON.parse(await readFile(file, "utf8")) as ExternalSession;
       if (session.version !== 1 || session.id !== id || session.root !== root) throw new Error("转换进度与当前工作区不一致。");
-      this.remember(session);
+      if (keep) this.remember(session);
     }
     if (session.root !== root) throw new Error("请在 ChalkLee 打开此转换会话所属工作区。");
     return session;
   }
   /** A session of this workspace for listing; null for another workspace's or an unreadable one. */
   private async peek(id: string, root: string) {
-    try { return await this.load(id, root); } catch { return null; }
+    try { return await this.load(id, root, false); } catch { return null; }
   }
   private async entry(candidate = ".", directory = false) {
     const root = await realpath(await this.options.workspace());
