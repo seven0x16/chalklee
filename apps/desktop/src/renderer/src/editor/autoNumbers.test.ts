@@ -10,7 +10,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { describe, expect, it } from "vitest";
 import { chalkLeeAutoNumberDecorations } from "./autoNumbers";
 import { ChalkLeeDocumentNode, ChalkLeeParagraphNode } from "./extensions/nodes";
-import { chalkLeeStructuralExtensions } from "./extensions/questionNodes";
+import { chalkLeeStructuralExtensions, plainQuestionStemEdit } from "./extensions/questionNodes";
 
 const schema = getSchema([
   StarterKit.configure({ document: false, paragraph: false }),
@@ -62,6 +62,19 @@ describe("ChalkLee automatic question numbers", () => {
     expect(undo(state, tr => { state = state.apply(tr); })).toBe(true);
     expect(state.doc.eq(original)).toBe(true);
     expect(displayed()).toContain("--chalklee-number-value:2");
+  });
+
+  it("keeps the wrapper only for text edits in a nonempty stem, not structure or attribute changes", () => {
+    const state = EditorState.create({ schema, doc: schema.nodes.doc.create(null, [question("first")]) });
+    const before = state.doc.firstChild!;
+    const edited = state.apply(state.tr.insertText("abc", 4)).doc.firstChild!;
+    expect(plainQuestionStemEdit(before, edited)).toBe(true);
+    expect(plainQuestionStemEdit(edited, before)).toBe(true);
+    const empty = state.apply(state.tr.delete(3, 8)).doc.firstChild!;
+    expect(plainQuestionStemEdit(before, empty)).toBe(false);
+    expect(plainQuestionStemEdit(before, before.type.create({ ...before.attrs, score: 2 }, before.content))).toBe(false);
+    const next = state.apply(state.tr.split(4)).doc.firstChild!;
+    expect(plainQuestionStemEdit(before, next)).toBe(false);
   });
 
   it("number subquestions within their group and keep counting top-level questions after it", () => {

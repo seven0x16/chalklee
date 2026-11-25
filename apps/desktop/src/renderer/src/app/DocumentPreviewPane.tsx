@@ -1,6 +1,6 @@
 import type { MarkdownConversion } from "../markdown/MarkdownToolbar";
 import { isHtmlKind, isLatexKind, isMarkdownKind } from "../../../shared/document/kinds";
-import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { DocumentKind, WorkspaceFileNode, WriteDocumentResult } from "../../../shared/contracts";
 import type { ChalkWordViewAnchor } from "../viewers/ChalkWordViewer";
 import { HtmlViewer } from "../viewers/HtmlViewer";
@@ -8,6 +8,7 @@ import { prewarmChalkLeeMathFonts } from "../editor/mathFonts";
 import { mergePreviewState, outlinesEqual, previewStatesEqual } from "../viewers/types";
 import type { OutlineItem, PreviewController, PreviewState } from "../viewers/types";
 import { type OpenTab, type ActivePreviewRuntime, DEFAULT_PREVIEW_STATE } from "./tabs";
+import { createPaperAgentConnection, type DormantPaperView } from "../editor/dormantPaper";
 import { LoadingState, ErrorState } from "./viewStates";
 
 const loadChalkLeeEditor = () => import("../editor/ChalkLeeEditor");
@@ -60,6 +61,9 @@ export const DocumentPreviewPane = memo(function DocumentPreviewPane({ tab, acti
   onDirtyChange(fileId: string, dirty: boolean): void;
   onSaved(fileId: string, result: WriteDocumentResult, automatic: boolean): void;
 }) {
+  const [sleeping, setSleeping] = useState(false);
+  const dormantView = useRef<DormantPaperView>();
+  const connection = useMemo(() => createPaperAgentConnection(crypto.randomUUID(), () => setSleeping(false)), [tab.file.path]);
   const [state, setState] = useState<PreviewState>(DEFAULT_PREVIEW_STATE);
   const [controller, setController] = useState<PreviewController | null>(null);
   const controllerRef = useRef<PreviewController | null>(null);
@@ -110,9 +114,48 @@ export const DocumentPreviewPane = memo(function DocumentPreviewPane({ tab, acti
 
   const error = tab.error ?? viewerError;
   const content = tab.content?.value;
+  const paper = content && "archive" in content;
+  const dormant = Boolean(paper && sleeping && !active);
+
+  // A live registration must remain even when no editor view is mounted. Agent
+  // edits wake the tab and use the same editor transaction/undo path as before.
+  useEffect(() => {
+    if (!paper || !window.chalkLee?.registerAgentEditor || !window.chalkLee.onAgentEditorRequest) return;
+    let disposed = false;
+    const register = () => { if (!disposed) void window.chalkLee.registerAgentEditor(connection.id, tab.file.path).catch(() => undefined); };
+    const off = window.chalkLee.onAgentEditorRequest(request => {
+      if (request.editorId !== connection.id) return;
+      void connection.dispatch(request).catch(error => window.chalkLee.reportAgentEditorReply({ editorId: connection.id, requestId: request.requestId,
+        error: error instanceof Error ? error.message : String(error) }).catch(() => undefined));
+    });
+    register();
+    const heartbeat = setInterval(register, 5000);
+    const stop = () => {
+      if (disposed) return;
+      disposed = true; off(); clearInterval(heartbeat); connection.dispose();
+      void window.chalkLee.unregisterAgentEditor(connection.id).catch(() => undefined);
+    };
+    window.addEventListener("pagehide", stop);
+    return () => { window.removeEventListener("pagehide", stop); stop(); };
+  }, [Boolean(paper), connection, tab.file.path]);
+
+  useEffect(() => {
+    if (active) { setSleeping(false); return; }
+    if (!paper || sleeping || tab.dirty || !controller) return;
+    // Leave recently visited tabs warm for quick back-and-forth navigation.
+    let timer: number;
+    const attempt = () => {
+      if (connection.busy) { timer = window.setTimeout(attempt, 1000); return; }
+      const saved = controllerRef.current?.captureDormantView?.();
+      if (saved) { dormantView.current = saved; setState(DEFAULT_PREVIEW_STATE); setSleeping(true); }
+    };
+    timer = window.setTimeout(attempt, 5000);
+    return () => window.clearTimeout(timer);
+  }, [active, Boolean(paper), sleeping, tab.dirty, controller, connection]);
   return (
     <div className={`cached-document-viewer${active ? " active" : ""}`} aria-hidden={!active}
-      data-paper-ready={tab.file.extension === "chalklee" && state.pageCount > 0 ? "true" : undefined}>
+      data-paper-ready={tab.file.extension === "chalklee" && state.pageCount > 0 && !dormant ? "true" : undefined}
+      data-paper-dormant={dormant ? "true" : undefined}>
       {tab.loading ? <LoadingState label="正在读取本地文件…" /> : null}
       {!tab.loading && error ? (
         <ErrorState
@@ -124,9 +167,11 @@ export const DocumentPreviewPane = memo(function DocumentPreviewPane({ tab, acti
         />
       ) : null}
       {!tab.loading && !error && content ? <Suspense fallback={<LoadingState label="正在打开文档…" />}>
-        {"archive" in content ? (
+        {"archive" in content ? dormant ? null : (
           <ChalkLeeEditor
             editableArchive={content.archive}
+            initialDormantView={dormantView.current}
+            agentConnection={connection}
             filePath={tab.file.path}
             modifiedAt={tab.loadedModifiedAt}
             active={active}

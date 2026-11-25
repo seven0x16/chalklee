@@ -32,13 +32,28 @@ async function files(archiveValidationCacheDirectory?: string) {
 }
 
 describe("workspace conversion associations", () => {
+  it("opens a paper-only directory without inflating archives, but checks mixed workspaces before hiding originals", async () => {
+    const cache = path.join(root, ".archive-validation");
+    const paper = await result("试卷.chalklee", [source("pdf", "pdf")]);
+    const verify = vi.spyOn(format, "openChalkLeeArchiveForReading");
+    try {
+      const fast = await scanWorkspace(root, { archiveValidationCacheDirectory: cache, browseFirst: true });
+      expect(fast.root.children).toMatchObject([{ path: paper }]);
+      expect(verify).not.toHaveBeenCalled();
+      await writeFile(path.join(root, "试卷.pdf"), "pdf");
+      const mixed = await scanWorkspace(root, { archiveValidationCacheDirectory: cache, browseFirst: true });
+      expect(mixed.root.children.find(node => node.name === "试卷.pdf")).toMatchObject({ convertedTo: [paper] });
+      expect(verify).toHaveBeenCalledOnce();
+    } finally { verify.mockRestore(); }
+  });
+
   it("reuses validation for the same archive bytes at a new path and recovers from a damaged cache", async () => {
     const cache = path.join(root, ".archive-validation");
     await writeFile(path.join(root, "试卷.pdf"), "pdf");
     const first = await result("试卷.chalklee", [source("pdf", "pdf")]);
     expect((await files(cache)).get("试卷.pdf").convertedTo).toEqual([first]);
 
-    const fullRead = vi.spyOn(format, "readChalkLeeArchive");
+    const fullRead = vi.spyOn(format, "openChalkLeeArchiveForReading");
     const metadataRead = vi.spyOn(format, "readChalkLeeArchiveMetadata");
     try {
       // A new path misses the in-memory file cache, even within this process.

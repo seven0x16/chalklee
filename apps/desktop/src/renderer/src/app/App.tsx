@@ -32,7 +32,7 @@ import type { WorkspaceCreationKind } from "../../../shared/workspace/names";
 import { addWorkspaceEntry, defaultWorkspaceEntryName, workspaceCreationDirectory } from "../workspace/creation";
 import { relocateWorkspacePath, workspaceOriginalOf, workspacePathContains } from "../../../shared/workspace/paths";
 import { relocateAcross, relocateWorkspaceFile, workspaceMutationSnapshot } from "../workspace/mutations";
-import { prepareWorkspaceEditors } from "../workspace/editorSessions";
+import { prepareWorkspaceEditors, workspaceEditorDirty } from "../workspace/editorSessions";
 import { useUnsavedClose } from "./UnsavedClose";
 import { SingleImportControls } from "../conversion/SingleImport";
 import { SettingsDialog } from "../settings/SettingsDialog";
@@ -545,6 +545,12 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
 
   useEffect(() => {
     let disposed = false;
+    // Load the last active viewer while the main process restores the directory.
+    // The first paint can happen before evaluating the heavier editor modules.
+    const activePath = new URLSearchParams(window.location.search).get("file") ?? loadSession().activePath;
+    const prewarm = activePath?.toLowerCase().endsWith(".chalklee") ? window.requestAnimationFrame(() => {
+      if (!disposed) void prepareDocumentViewer("chalklee")?.catch(() => undefined);
+    }) : undefined;
     void window.chalkLee.restoreWorkspace()
       .then((snapshot) => {
         if (disposed) return;
@@ -563,7 +569,7 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
           setWorkspaceLoading(false);
         }
       });
-    return () => { disposed = true; };
+    return () => { disposed = true; if (prewarm !== undefined) window.cancelAnimationFrame(prewarm); };
   }, [restoreTabs]);
 
   useEffect(() => {
@@ -581,7 +587,7 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
   const unsavedCloseDialog = useUnsavedClose(tabs);
   useEffect(() => {
     const warnBeforeClose = (event: BeforeUnloadEvent) => {
-      if (!tabs.some((tab) => tab.dirty) && !hasQuestionCardEdit()) return;
+      if (!tabs.some(tab => workspaceEditorDirty(tab.file.path, tab.dirty)) && !hasQuestionCardEdit()) return;
       event.preventDefault();
       event.returnValue = "";
     };
@@ -1258,7 +1264,7 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
     const load = () => {
       const version = questionBasketVersionRef.current;
       window.chalkLee.readQuestionBasket()
-        .then(items => { if (!cancelled && questionBasketVersionRef.current === version) setQuestionBasket(items); })
+        .then(items => { if (!cancelled && questionBasketVersionRef.current === version) setQuestionBasket(current => !current.length && !items.length ? current : items); })
         .catch(() => undefined);
     };
     load();

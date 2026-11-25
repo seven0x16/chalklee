@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { crossedBox, crossedBoxMirrored, encodePng, renderDrawing, ring, triangle, type TestDrawing } from "../../test-fixtures/png";
-import { pictureFigurePrint, pngLightness, sameFigurePrint } from "./figurePrints";
+import { figurePrintCandidateKeys, pictureFigurePrint, pngLightness, sameFigurePrint } from "./figurePrints";
 
 const print = (drawing: TestDrawing, width: number, height: number, margin: number, form: Parameters<typeof encodePng>[1] = "rgba") =>
   pictureFigurePrint("image/png", encodePng(renderDrawing(drawing, width, height, margin), form))!;
@@ -32,5 +32,17 @@ describe("question figure prints", () => {
     const blank = print(() => false, 40, 30, 5);
     expect(blank).toBe("blank");
     expect(sameFigurePrint(blank, print(ring, 40, 30, 5))).toBe(false);
+  });
+
+  it("finds visually matching candidates even when every differing bit falls in a different band", () => {
+    const left = "0000000000000000/1.000";
+    let bits = 0n;
+    for (let index = 0; index < 8; index++) bits |= 1n << BigInt(index * 7);
+    const right = `${bits.toString(16).padStart(16, "0")}/1.125`;
+    expect(sameFigurePrint(left, right)).toBe(true);
+    const keys = new Set(figurePrintCandidateKeys(left));
+    expect(figurePrintCandidateKeys(right).some(key => keys.has(key))).toBe(true);
+    expect(figurePrintCandidateKeys("0000000000000000/0.000")).not.toHaveLength(0);
+    expect(figurePrintCandidateKeys("blank")).toEqual(["visual:blank"]);
   });
 });

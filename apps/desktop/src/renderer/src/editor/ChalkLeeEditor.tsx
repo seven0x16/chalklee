@@ -62,7 +62,8 @@ import { ChalkLeeImageAssistantBindingContext, ChalkLeeQuestionAssistantBindingC
 import { CHALKLEE_REGION_ASSISTANT_EVENT, type ChalkLeeRegionAssistantDetail } from "./regionAssistant";
 import { ChalkLeeFindBar } from "./ChalkLeeFindBar";
 import { ChalkLeeTableSizePicker } from "./ChalkLeeTableSizePicker";
-import { chalkLeeNodeHighlightTransaction, chalkLeeSearchHighlightTransaction } from "./searchHighlight";
+import { chalkLeeNodeHighlightTransaction, chalkLeeSearchHighlightKey, chalkLeeSearchHighlightTransaction } from "./searchHighlight";
+import type { DormantPaperView, PaperAgentConnection } from "./dormantPaper";
 import type { AgentEditorRequest, AgentEditorSnapshot } from "../../../shared/agent/editing";
 import { chalkLeeAgentAppearanceTransaction, chalkLeeAgentContentTransaction, chalkLeeAgentDocumentTransaction, chalkLeeAgentQuestionTransaction, chalkLeeAgentRunStep, chalkLeeEndsAgentRun, type ChalkLeeAgentRun } from "./agentTransaction";
 import { chalkLeeDesignLayoutCss } from "./designLayout";
@@ -78,7 +79,7 @@ import { prepareEditorContent, prepareInsertedEditorContent, referencedAssetIds 
 import { base64, ChalkLeeImageDisplayContext, chalkLeeImageClipboardExtension, createChalkLeeImageDisplayUrls } from "./imageDisplayUrls";
 import { releaseChalkLeeHistoryCache } from "./historyCache";
 import { pageStyle, pageBackgroundStyle, pageSizePx, pageContentHeightPx, type ChalkLeeZoomAnchor, captureChalkLeeZoomAnchor, restoreChalkLeeZoomAnchor, clampZoom } from "./pageView";
-import { discardChalkLeeColumnQuestionMeasurer, discardChalkLeeFlowMeasurements, fitChalkLeeWideFormulas, reflowChalkLeeColumns, measureChalkLeePagination } from "./paginationMeasure";
+import { discardChalkLeeColumnQuestionMeasurer, discardChalkLeeFlowMeasurements, fitChalkLeeWideFormulas, reflowChalkLeeColumns, measureChalkLeePagination, rememberIntactQuestions, intactQuestionEditKeepsPagination, type IntactQuestionMeasurements } from "./paginationMeasure";
 import { createChalkLeePrintRoot } from "./printRoot";
 import { createChalkLeePaginatedPrintRoot } from "./paginatedPrint";
 import { decodeChalkLeePrintImages, PRINT_IMAGE_SELECTOR } from "./printImages";
@@ -98,6 +99,8 @@ interface ChalkLeeEditorProps {
   active: boolean;
   showToolbar?: boolean;
   initialSolutionVisibility?: Pick<DocumentOutputOptions, "answers" | "analysis">;
+  initialDormantView?: DormantPaperView;
+  agentConnection?: PaperAgentConnection;
   banner?: ReactNode;
   onController(controller: PreviewController | null): void;
   onState(state: Partial<PreviewState>): void;
@@ -136,6 +139,8 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
   active,
   showToolbar = true,
   initialSolutionVisibility,
+  initialDormantView,
+  agentConnection,
   banner,
   onController,
   onState,
@@ -171,10 +176,12 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
   const fileOperationPausedRef = useRef(false);
   const [fileOperationPaused, setFileOperationPaused] = useState(false);
   const revisionRef = useRef(0);
+  const lastEditAtRef = useRef(0);
+  const textUiTimerRef = useRef<number | undefined>(undefined);
   const savedRevisionRef = useRef(0);
   const pendingEditorDraftsRef = useRef(new Set<string>());
   const [pendingEditorDraftCount, setPendingEditorDraftCount] = useState(0);
-  const initialPristineFocusAppliedRef = useRef(false);
+  const initialPristineFocusAppliedRef = useRef(Boolean(initialDormantView));
   const pageAppearanceRef = useRef(archive.document.appearance.page);
   const [paperSettings, setPaperSettings] = useState(() => chalkLeePaperSettings(archive.document.metadata));
   const paperSettingsRef = useRef(paperSettings);
@@ -202,11 +209,14 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
   }, [layout.boxStyles, boxStylePreview, designScope]);
   const pageMetricsRef = useRef({ currentPage: 1, pageCount: 1 });
   const paperSheetsRef = useRef<HTMLDivElement>(null);
-  const zoomRef = useRef(100);
+  const zoomRef = useRef(initialDormantView?.zoom ?? 100);
+  const lastViewportScroll = useRef({ top: initialDormantView?.scrollTop ?? 0, left: initialDormantView?.scrollLeft ?? 0 });
+  const restoredDormantScroll = useRef(false);
   const zoomGestureAnchorRef = useRef<ChalkLeeZoomAnchor | null>(null);
   const pendingZoomAnchorRef = useRef<ChalkLeeZoomAnchor | null>(null);
   const paginationSchedulerRef = useRef<{ schedule(reason?: "edit"): void; pending(): boolean } | null>(null);
   const paginatedDocRef = useRef<ProseMirrorNode | undefined>(undefined);
+  const intactQuestionsRef = useRef<IntactQuestionMeasurements | undefined>(undefined);
   const paginationReadyRevisionRef = useRef(0);
   const paginationReadyRef = useRef(false);
   const settlePaginationRef = useRef(createChalkLeePaginationSettler());
@@ -224,9 +234,9 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     window.addEventListener(CHALKLEE_AUTO_SAVE_EVENT, refresh);
     return () => window.removeEventListener(CHALKLEE_AUTO_SAVE_EVENT, refresh);
   }, []);
-  const [showAnswers, setShowAnswers] = useState(initialSolutionVisibility?.answers !== false);
-  const [showAnalysis, setShowAnalysis] = useState(initialSolutionVisibility?.analysis !== false);
-  const [zoom, setZoom] = useState(100);
+  const [showAnswers, setShowAnswers] = useState(initialDormantView?.showAnswers ?? initialSolutionVisibility?.answers !== false);
+  const [showAnalysis, setShowAnalysis] = useState(initialDormantView?.showAnalysis ?? initialSolutionVisibility?.analysis !== false);
+  const [zoom, setZoom] = useState(initialDormantView?.zoom ?? 100);
   const zoomScheduler = useMemo(() => createChalkLeeFrameTaskScheduler(
     window.requestAnimationFrame.bind(window),
     window.cancelAnimationFrame.bind(window),
@@ -238,7 +248,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     zoomScheduler.schedule();
     return () => zoomScheduler.cancel();
   }, [zoomScheduler]);
-  const [zoomMode, setZoomMode] = useState<PreviewState["zoomMode"]>("fit-width");
+  const [zoomMode, setZoomMode] = useState<PreviewState["zoomMode"]>(initialDormantView?.zoomMode ?? "fit-width");
   const [pageMetrics, setPageMetrics] = useState({ currentPage: 1, pageCount: 1 });
   const [paginationReady, setPaginationReady] = useState(false);
   const [fitReady, setFitReady] = useState(false);
@@ -251,7 +261,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
   const [, refreshSelectionControls] = useState(0);
   // Until the teacher first puts the caret in the paper, its selection rests unseen at the top (usually a bold title),
   // so the toolbar shows no pressed formatting rather than the title's.
-  const [caretPlaced, setCaretPlaced] = useState(false);
+  const [caretPlaced, setCaretPlaced] = useState(initialDormantView?.caretPlaced ?? false);
   const [contentRevision, setContentRevision] = useState(0);
   const [insertMenuOpen, setInsertMenuOpen] = useState(false);
   const [tableSizePicking, setTableSizePicking] = useState(false);
@@ -313,6 +323,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
   const reportOutline = useCallback((editor: Editor) => {
     onOutline(buildChalkLeeOutline(editor.state.doc));
   }, [onOutline]);
+  useEffect(() => () => window.clearTimeout(textUiTimerRef.current), []);
 
   const editor = useEditor({
     // Start after React commits the tab. A suspended render can outlive Tiptap's initial destroy timer.
@@ -324,6 +335,10 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
       releaseChalkLeeHistoryCache();
     },
     onCreate: ({ editor: nextEditor }) => {
+      if (initialDormantView) {
+        try { nextEditor.view.dispatch(nextEditor.state.tr.setSelection(Selection.fromJSON(nextEditor.state.doc, initialDormantView.selection))); }
+        catch { /* The unchanged archive normally has exactly the same positions. */ }
+      }
       lastEditorStateRef.current = nextEditor.state;
       reportOutline(nextEditor);
     },
@@ -359,32 +374,49 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
       }
       const nextRevision = revisionRef.current + 1;
       revisionRef.current = nextRevision;
+      lastEditAtRef.current = performance.now();
       const nextDoc = nextEditor.state.doc;
       const paginatedDoc = paginatedDocRef.current;
       const pagination = paginationSchedulerRef.current;
       // ProseMirror updates an existing stem's text DOM before this callback.
       // Other revisions wait for the React commit to finish updating the paper.
-      if (pagination && paginatedDoc && !nextDesign?.css
+      const textEdit = pagination && paginatedDoc && !nextDesign?.css
         && paginationReadyRevisionRef.current === nextRevision - 1
         && chalkLeeEditedTopLevelStem(paginatedDoc, nextDoc) !== null
-        && (transaction.before === paginatedDoc || chalkLeeEditedTopLevelStem(transaction.before, nextDoc) !== null)) {
+        && (transaction.before === paginatedDoc || chalkLeeEditedTopLevelStem(transaction.before, nextDoc) !== null);
+      window.clearTimeout(textUiTimerRef.current);
+      textUiTimerRef.current = undefined;
+      if (textEdit) {
         paginationReadyRevisionRef.current = nextRevision;
         pagination.schedule("edit");
+        // The editable DOM and undo state are already current. Rebuilding the
+        // surrounding React toolbars and outline on each character makes React
+        // repeatedly save/restore a selection in the entire editable surface.
+        // Publish the derived text UI after typing pauses; saving still uses
+        // the live editor revision and the last actual edit time.
+        textUiTimerRef.current = window.setTimeout(() => {
+          textUiTimerRef.current = undefined;
+          if (nextEditor.isDestroyed) return;
+          setContentRevision(revisionRef.current);
+          reportOutline(nextEditor);
+        }, 120);
+      } else {
+        setContentRevision(nextRevision);
+        reportOutline(nextEditor);
       }
-      setContentRevision(nextRevision);
       dirtyRef.current = true;
       setDirty(true);
       setSaveFailed(false);
       setSaveMessage(autoSaveEnabledRef.current ? "等待自动保存…" : "有未保存更改");
       onDirtyChange(true);
-      reportOutline(nextEditor);
       setRecognitionSuggestion(null);
     },
     onTransaction: ({ editor: current, transaction }) => {
       const previous = lastEditorStateRef.current;
       const next = current.state;
       lastEditorStateRef.current = next;
-      if (!previous || chalkLeeSelectionControlsChanged(previous, next)) refreshSelectionControls(value => value + 1);
+      const textOnlyEdit = transaction.docChanged && chalkLeeEditedTopLevelStem(transaction.before, next.doc) !== null;
+      if (!previous || chalkLeeSelectionControlsChanged(previous, next, textOnlyEdit)) refreshSelectionControls(value => value + 1);
       const region = transaction.getMeta(CHALKLEE_REVEAL_QUESTION_REGION_META);
       if (region === "questionAnswer") setShowAnswers(true);
       if (region === "questionAnalysis") setShowAnalysis(true);
@@ -886,31 +918,33 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     return () => dom.removeEventListener(CHALKLEE_REGION_ASSISTANT_EVENT, ask);
   }, [editor, assistantBinding]);
 
-  useEffect(() => registerWorkspaceEditor(filePath, async saveChanges => {
+  useEffect(() => registerWorkspaceEditor(filePath, async (saveChanges, closing) => {
     if (fileOperationPausedRef.current) throw new Error("文档正在进行其他操作，请稍后重试。");
     fileOperationPausedRef.current = true;
-    setFileOperationPaused(true);
+    if (!closing) setFileOperationPaused(true);
     const pane = editor?.view.dom.closest<HTMLElement>(".cached-document-viewer");
     const properties = active ? inspectorHostRef.current : null;
     const wasInert = pane?.inert ?? false;
     const propertiesWereInert = properties?.inert ?? false;
     const wasEditable = editor?.isEditable ?? false;
-    if (pane) pane.inert = true;
-    if (properties) properties.inert = true;
-    editor?.setEditable(false, false);
+    if (!closing && pane) pane.inert = true;
+    if (!closing && properties) properties.inert = true;
+    // Closing has already blocked window input. Avoid updating every
+    // node view just to make a soon-to-be-destroyed editor read-only.
+    if (!closing) editor?.setEditable(false, false);
     const release = () => {
-      if (pane) pane.inert = wasInert;
-      if (properties) properties.inert = propertiesWereInert;
-      if (editor && !editor.isDestroyed) editor.setEditable(wasEditable, false);
+      if (!closing && pane) pane.inert = wasInert;
+      if (!closing && properties) properties.inert = propertiesWereInert;
+      if (!closing && editor && !editor.isDestroyed) editor.setEditable(wasEditable, false);
       fileOperationPausedRef.current = false;
-      setFileOperationPaused(false);
+      if (!closing) setFileOperationPaused(false);
     };
     try {
       await saveCompletionRef.current?.promise;
       if (saveChanges) await save("workspace");
       return release;
     } catch (error) { release(); throw error; }
-  }), [active, editor, filePath, save]);
+  }, () => dirtyRef.current || savingRef.current), [active, editor, filePath, save]);
 
   const agentRunRef = useRef<ChalkLeeAgentRun | null>(null);
   useEffect(() => {
@@ -921,7 +955,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
   }, [editor]);
   useEffect(() => {
     if (!editor || !window.chalkLee) return;
-    const editorId = crypto.randomUUID();
+    const editorId = agentConnection?.id ?? crypto.randomUUID();
     let disposed = false;
     const cancelledLocks = new Set<string>();
     let lock: { id: string; release(): void; timer: ReturnType<typeof setTimeout> } | null = null;
@@ -989,6 +1023,10 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
         await window.chalkLee.reportAgentEditorReply({ editorId, requestId: request.requestId, error: errorMessage(error) }).catch(() => undefined);
       }
     };
+    if (agentConnection) {
+      const detach = agentConnection.attach(handle);
+      return () => { disposed = true; detach(); release(); };
+    }
     const remove = window.chalkLee.onAgentEditorRequest(request => { void handle(request); });
     const register = () => { if (!disposed) void window.chalkLee.registerAgentEditor(editorId, filePath).catch(() => undefined); };
     register();
@@ -999,11 +1037,17 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     };
     window.addEventListener("pagehide", stop);
     return () => { window.removeEventListener("pagehide", stop); stop(); };
-  }, [editor, filePath, onDirtyChange, onSaved, save]);
+  }, [agentConnection, editor, filePath, onDirtyChange, onSaved, save]);
 
   useEffect(() => {
     if (!autoSaveEnabled || !dirty || saving || saveFailed || pendingEditorDraftCount || fileOperationPaused) return;
-    const timer = window.setTimeout(() => void save("auto"), CHALKLEE_AUTO_SAVE_DELAY_MS);
+    let timer: number;
+    const run = () => {
+      const remaining = CHALKLEE_AUTO_SAVE_DELAY_MS - (performance.now() - lastEditAtRef.current);
+      if (remaining > 0) timer = window.setTimeout(run, remaining);
+      else void save("auto");
+    };
+    timer = window.setTimeout(run, CHALKLEE_AUTO_SAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [autoSaveEnabled, contentRevision, dirty, save, saveFailed, saving, pendingEditorDraftCount, fileOperationPaused]);
 
@@ -1715,6 +1759,15 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     if (!editor || !paper || !content || (content.querySelector(".chalklee-image-node.is-resizing") || document.body.classList.contains("chalklee-image-dragging"))) return;
     if (!content.getClientRects().length) return;
     const scale = chalkLeeElementScale(paper);
+    const columns = chalkLeeColumnLayout(layoutDocument.appearance.page).count > 1;
+    const ordinaryFlow = !columns && !designSource && !designRef.current?.css;
+    const previous = paginatedDocRef.current;
+    if (onlyEdits && ordinaryFlow && editor.isFocused && paginationReadyRef.current && previous && intactQuestionsRef.current
+      && intactQuestionEditKeepsPagination(editor, content, scale, previous, intactQuestionsRef.current)) {
+      paginatedDocRef.current = editor.state.doc;
+      return;
+    }
+    intactQuestionsRef.current = undefined;
     const formulasChanged = fitChalkLeeWideFormulas(content, scale);
     if (content.querySelector(".chalklee-image-pair-row")
       && measureWithoutChalkLeePageGaps(content, () => syncChalkLeeImagePairPagination(content, scale, pageContentHeightPx(layoutDocument)))) {
@@ -1723,7 +1776,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     }
     let pageCount: number;
     let measuredColumnSize: { width: number; height: number } | undefined;
-    if (chalkLeeColumnLayout(layoutDocument.appearance.page).count > 1) {
+    if (columns) {
       const sameDesign = designRef.current?.css === designSource;
       const customLayout = designStyles?.affectsLayout === true || !sameDesign;
       const previous = onlyEdits && !formulasChanged && sameDesign && designStyles?.measurementCss !== null && document.fonts?.status === "loaded"
@@ -1744,6 +1797,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
       }
       alignChalkLeePageGaps(paper, content, pageSizePx(layoutDocument).height, scale);
       pageCount = appliedPageCountRef.current;
+      if (ordinaryFlow) intactQuestionsRef.current = rememberIntactQuestions(content, scale);
     }
     if (paginationReadyRevisionRef.current === revisionRef.current) paginatedDocRef.current = editor.state.doc;
     if ((editor.state.doc.attrs.runtimeLayout as ChalkLeeEditorLayout | null)?.tableOfContents) {
@@ -1762,6 +1816,9 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     setPageMetrics((current) => current.currentPage === currentPage && current.pageCount === pageCount
       ? current
       : { currentPage, pageCount });
+    // The chapter rail measures real geometry after a changed layout, not on
+    // every text mutation whose page positions stayed the same.
+    paper.dispatchEvent(new Event("chalklee:pagination-change"));
     return measuredColumnSize;
   }, [designSource, designStyles, editor, layoutDocument]);
 
@@ -1854,7 +1911,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
       resizeObserver.observe(content);
       content.addEventListener("chalklee:image-layout-ready", scheduleFull);
     }
-    const columnFonts = chalkLeeColumnLayout(layoutDocument.appearance.page).count > 1 ? document.fonts : undefined;
+    const columnFonts = document.fonts;
     columnFonts?.addEventListener("loadingdone", scheduleFull);
     const pane = scroller.closest<HTMLElement>(".chalklee-editor-pane");
     const syncScrolled = () => {
@@ -1871,6 +1928,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     scheduleFull();
     return () => {
       paginationSchedulerRef.current = null;
+      intactQuestionsRef.current = undefined;
       reflowScheduler.cancel();
       viewportScheduler.cancel();
       resizeObserver.disconnect();
@@ -1887,7 +1945,7 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
   }, [layoutDocument.appearance.page, reflowPagination, updateViewportPage]);
 
   // Until the teacher places a caret, question-bank insertions go to the end of the paper.
-  const editorFocusedRef = useRef(false);
+  const editorFocusedRef = useRef(initialDormantView?.editorFocused ?? false);
   useEffect(() => {
     if (!editor) return;
     const markFocused = () => { editorFocusedRef.current = true; };
@@ -1944,7 +2002,38 @@ export const LoadedChalkLeeEditor = memo(function LoadedChalkLeeEditor({
     if (paperRef.current && paginationReady) presentChalkLeePaper(paperRef.current, pageSizePx(layoutDocument), pageMetricsRef.current.pageCount, pageMetricsRef.current.currentPage);
   }, [layoutDocument, paginationReady]);
 
+  // Save the reading position while the pane is visible: a hidden pane may
+  // temporarily report no layout. Recreate only a pristine, quiescent model.
+  useLayoutEffect(() => {
+    if (!active || !scrollerRef.current) return;
+    const scroller = scrollerRef.current;
+    const remember = () => { lastViewportScroll.current = { top: scroller.scrollTop, left: scroller.scrollLeft }; };
+    scroller.addEventListener("scroll", remember, { passive: true });
+    if (!initialDormantView || restoredDormantScroll.current) remember();
+    return () => scroller.removeEventListener("scroll", remember);
+  }, [active, initialDormantView]);
+  useLayoutEffect(() => {
+    if (!initialDormantView || restoredDormantScroll.current || !active || !layoutVisible || !paginationReady || !scrollerRef.current) return;
+    restoredDormantScroll.current = true;
+    const scale = zoomRef.current / initialDormantView.zoom;
+    const scroller = scrollerRef.current;
+    scroller.scrollTop = initialDormantView.scrollTop * scale;
+    scroller.scrollLeft = initialDormantView.scrollLeft * scale;
+    lastViewportScroll.current = { top: scroller.scrollTop, left: scroller.scrollLeft };
+    updateViewportPage();
+  }, [active, initialDormantView, layoutVisible, paginationReady, updateViewportPage]);
+  const captureDormantView = useRef<() => DormantPaperView | null>(() => null);
+  captureDormantView.current = () => {
+    if (!editor || editor.isDestroyed || !paginationReadyRef.current || revisionRef.current !== 0 || dirtyRef.current || savingRef.current
+      || fileOperationPausedRef.current || pendingEditorDraftsRef.current.size || editor.view.composing
+      || editor.can().undo() || editor.can().redo() || insertingImage || exportingPdf || exportingDocx || printing || outputAction
+      || recognitionSuggestion || findRequest || selectedPaperElement || paperStylePreview || boxStylePreview
+      || chalkLeeSearchHighlightKey.getState(editor.state)?.find().length) return null;
+    return { zoom: zoomRef.current, zoomMode, scrollTop: lastViewportScroll.current.top, scrollLeft: lastViewportScroll.current.left,
+      showAnswers, showAnalysis, selection: editor.state.selection.toJSON(), caretPlaced, editorFocused: editorFocusedRef.current };
+  };
   const controller = useMemo<PreviewController>(() => ({
+    captureDormantView: () => captureDormantView.current(),
     insertQuestions,
     present,
     waitForPrintLayout,

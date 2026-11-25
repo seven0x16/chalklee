@@ -7,7 +7,7 @@ type Job = {
   reject: (error: Error) => void;
 };
 type Slot = { worker: Worker; job?: Job };
-const MAX_WORKER_ARCHIVE_BYTES = 32 * 1024 * 1024;
+const TRANSFER_ARCHIVE_BYTES = 32 * 1024 * 1024;
 
 /** At most one archive is inflated per worker. The workers release their heaps after the scan. */
 export class WorkspaceArchiveValidationService {
@@ -25,8 +25,7 @@ export class WorkspaceArchiveValidationService {
   }
 
   private async verify(bytes: Uint8Array) {
-    // Keep very large archives on the calling thread to avoid cloning their bytes.
-    if (!this.available || bytes.byteLength > MAX_WORKER_ARCHIVE_BYTES) return readWorkspaceArchiveIdentity(bytes);
+    if (!this.available) return readWorkspaceArchiveIdentity(bytes);
     let reply: WorkspaceArchiveValidationReply;
     try {
       reply = await new Promise<WorkspaceArchiveValidationReply>((resolve, reject) => {
@@ -48,7 +47,13 @@ export class WorkspaceArchiveValidationService {
         if (!slot && this.slots.length < 2) slot = this.startWorker();
         if (!slot) return;
         const job = slot.job = this.queue.shift()!;
-        slot.worker.postMessage(job.bytes);
+        if (job.bytes.byteLength > TRANSFER_ARCHIVE_BYTES) {
+          // Transfer a dedicated copy instead of keeping large ZIP parsing on
+          // the main thread. The original remains available for the existing
+          // validation fallback if the worker exits or rejects the message.
+          const copy = new Uint8Array(job.bytes);
+          slot.worker.postMessage(copy, [copy.buffer]);
+        } else slot.worker.postMessage(job.bytes);
       }
     } catch (error) {
       this.fail(error instanceof Error ? error : new Error(String(error)));

@@ -392,6 +392,22 @@ describe("question bank search", () => {
     expect(looked.every(pair => /^sha256:(same|other|recrop)\d~sha256:(same|other|recrop)\d$/.test(pair))).toBe(true);
   });
 
+  it("groups repeated figure signatures the same way as pairwise matching, including repeats within a paper", () => {
+    const base = index(documentWith([choice("q", [text("下列关于图像的说法正确的是，请指出其中的对应关系")], ["甲", "乙"])]), "甲.chalklee")[0];
+    const inputs = [
+      ["a", "1", "a"], ["a", "2", "a"], ["b", "3", "a"], ["a", "4", "b"],
+      ["c", "5", "b"], ["d", "6", "c"], ["d", "7", "c"], ["c", "8", "d"], ["d", "9", "e"]
+    ];
+    const make = () => inputs.map(([paper, id, figure]) => indexQuestionBankEntry({ ...base,
+      path: `/w/${paper}`, relativePath: paper, questionId: id, figures: [figure] }));
+    const same = (a: string, b: string) => (a === "a" || a === "b") && (b === "a" || b === "b") || (a === "d" && b === "e") || (a === "e" && b === "d");
+    const pairwise = make(), indexed = make();
+    assignDuplicateGroups(pairwise, same);
+    assignDuplicateGroups(indexed, same, undefined, { consider() {}, keys: figure => [figure === "a" || figure === "b" ? "ab" : figure === "d" || figure === "e" ? "de" : figure] });
+    const groups = (questions: IndexedQuestion[]) => questions.map(question => questions.filter(other => other.duplicateGroup === question.duplicateGroup).map(other => other.questionId).sort().join(","));
+    expect(groups(indexed)).toEqual(groups(pairwise));
+  });
+
   it("edits a question on every copy that disagrees, keeping each paper's score", async () => {
     const copies = [
       { path: "/w/甲.chalklee", questionId: "a", tags: ["函数", "易错"] },

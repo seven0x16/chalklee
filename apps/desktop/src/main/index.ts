@@ -141,6 +141,8 @@ const conversionAnnouncer = new ConversionAnnouncer({
   }
 });
 let quitting = false;
+let shutdownComplete = false;
+let libraryEditing: Promise<unknown> = Promise.resolve();
 const revealMainWindow = () => {
   if (!mainWindow || mainWindow.isDestroyed()) return false;
   if (mainWindow.isMinimized()) mainWindow.restore();
@@ -149,8 +151,8 @@ const revealMainWindow = () => {
 };
 const unsavedClose = createUnsavedCloseGuard({
   ask: () => {
-    if (!revealMainWindow() || mainWindow!.webContents.isCrashed()) return false;
-    mainWindow!.webContents.send("app:close-request");
+    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed() || mainWindow.webContents.isCrashed()) return false;
+    mainWindow.webContents.send("app:close-request");
     return true;
   },
   reveal: revealMainWindow,
@@ -176,6 +178,7 @@ app.on("second-instance", (_event, commandLine, workingDirectory) => {
 if (process.platform !== "darwin" || process.defaultApp) systemDocuments.enqueue(systemDocumentPaths(process.argv, process.cwd(), process.defaultApp));
 const agentEditors = new AgentEditorBridge();
 const questionBank = new QuestionBankService(() => createQuestionBankWorker({}), change => {
+  if (quitting) return;
   mainWindow?.webContents.send("question-bank:changed", change);
   localAgentServer?.publish("question-bank:changed", change);
 });
@@ -418,7 +421,7 @@ function createWindow(): void {
     window.on("leave-full-screen", reportState);
   }
   mainWindow.webContents.on("did-start-navigation", (_event, _url, inPlace, isMainFrame) => {
-    if (isMainFrame && !inPlace) desktopDocumentLinks.notReady();
+    if (isMainFrame && !inPlace) { unsavedClose.reset(); desktopDocumentLinks.notReady(); }
   });
   // Unsaved documents hold the close until the teacher decides in the app; the page's own guard then lets go.
   mainWindow.on("close", event => { if (unsavedClose.hold(quitting ? "quit" : "close")) event.preventDefault(); });
@@ -479,17 +482,17 @@ async function readDocumentHistoryInput(root: string, filePath: string, useValid
 }
 const workspaceTree = new WorkspaceTreeService(() => createWorkspaceTreeWorker({}));
 
-async function scanWorkspace(directoryPath: string) {
+async function scanWorkspace(directoryPath: string, browseFirst = false) {
   const scan = (verifyArchive?: VerifyWorkspaceArchive) => scanWorkspaceFiles(directoryPath, {
     archiveValidationCacheDirectory: workspaceArchiveValidationDirectory(),
-    verifyArchive,
+    browseFirst, verifyArchive,
     readTree: root => workspaceTree.read(root)
   });
   return workspaceArchiveValidation ? workspaceArchiveValidation.duringScan(scan) : scan();
 }
 
 async function openWorkspace(directoryPath: string): Promise<WorkspaceSnapshot> {
-  const snapshot = await scanWorkspace(directoryPath);
+  const snapshot = await scanWorkspace(directoryPath, true);
   await hideExistingWorkspaceStorage(snapshot.root.path);
   if (workspaceRoot && workspaceRoot !== snapshot.root.path) activeImport?.controller.abort();
   if (workspaceRoot !== snapshot.root.path) await workspaceFileOperations.clearClipboard();
@@ -942,7 +945,7 @@ function registerIpc(): void {
   });
 
   handleDesktop("workspace:restore", async () => {
-    if (workspaceRoot) return scanWorkspace(workspaceRoot);
+    if (workspaceRoot) return scanWorkspace(workspaceRoot, true);
     const savedRoot = await loadWorkspaceRoot();
     if (!savedRoot) return null;
     try {
@@ -1006,7 +1009,6 @@ function registerIpc(): void {
   handleDesktop("question-basket:write", (_event, items: unknown) => questionBank.writeBasket(items));
   // The teacher's own edits in the library: the same path as the assistant's, so an open paper updates in place and
   // can be undone there. They run one at a time, so an edit reaching several papers never interleaves with the next.
-  let libraryEditing: Promise<unknown> = Promise.resolve();
   const queueLibraryEdit = <T>(task: () => Promise<T>) => { const next = libraryEditing.then(task, task); libraryEditing = next.catch(() => undefined); return next; };
   // Edits that changed several papers, newest last, each undoable as a whole.
   const libraryUndo = new Map<string, QuestionAttributeChange[]>();
@@ -1416,7 +1418,10 @@ app.on("child-process-gone", (_event, details) => {
 
 app.on("before-quit", event => {
   // Nothing shuts down until unsaved documents are settled; cancelling leaves the app as it was.
-  if (!quitting && unsavedClose.hold("quit")) { event.preventDefault(); return; }
+  if (shutdownComplete) return;
+  if (quitting || unsavedClose.hold("quit")) { event.preventDefault(); return; }
+  event.preventDefault();
+  quitting = true;
   desktopDocumentLinks.close();
   const assistantClosing = assistant.shutdown();
   assistantUi.close();
@@ -1424,12 +1429,13 @@ app.on("before-quit", event => {
   assistantPreviews.abort();
   agentEditors.close();
   activeImport?.controller.abort();
-  if (quitting) return;
-  event.preventDefault();
-  quitting = true;
   workspaceTree.close();
-  void Promise.allSettled([assistantClosing, externalImports?.close(), localAgentServer?.close(), conversionQueue?.shutdown(), watcher?.close(), questionBank.dispose()]).then(() => {
+  void Promise.allSettled([assistantClosing, externalImports?.close(), localAgentServer?.close(), conversionQueue?.shutdown(), watcher?.close(), libraryEditing]).then(async () => {
+    // A conversion finishing its save may still write tag groups. Stop those
+    // producers first, then drain the question bank's durable writes.
+    await questionBank.dispose().catch(error => console.error("[question-bank] 退出时无法完成写入", error));
     conversionWorker.close();
+    shutdownComplete = true;
     app.quit();
   });
 });

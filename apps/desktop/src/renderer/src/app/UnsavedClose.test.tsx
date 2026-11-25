@@ -11,7 +11,7 @@ let root: Root;
 let requestClose: () => void;
 let answer: ReturnType<typeof vi.fn>;
 let unregister: () => void;
-const prepare = vi.fn(async (_save: boolean) => () => {});
+const prepare = vi.fn(async (_save: boolean, _closing?: boolean) => () => {});
 
 beforeEach(() => {
   const { window, document } = parseHTML("<html><body><div id='root'></div></body></html>");
@@ -52,6 +52,23 @@ describe("closing the window with unsaved documents", () => {
     expect(answer).toHaveBeenCalledExactlyOnceWith(true);
   });
 
+  it("saves a live edit before the tab dirty flag has been committed", async () => {
+    window.localStorage.getItem = () => null;
+    unregister();
+    let dirty = false;
+    unregister = registerWorkspaceEditor("/workspace/试卷.chalklee", async (save, closing) => {
+      const release = await prepare(save, closing);
+      dirty = false;
+      return release;
+    }, () => dirty);
+    mount([tab("试卷.chalklee", false)]);
+    dirty = true;
+    await act(async () => requestClose());
+    expect(prepare).toHaveBeenCalledExactlyOnceWith(true, true);
+    expect(answer).toHaveBeenCalledExactlyOnceWith(true);
+    expect(dirty).toBe(false);
+  });
+
   it("asks, and cancelling keeps the window and the edits", async () => {
     mount([tab("试卷.chalklee", true)]);
     act(() => requestClose());
@@ -66,7 +83,7 @@ describe("closing the window with unsaved documents", () => {
     mount([tab("试卷.chalklee", true)]);
     act(() => requestClose());
     await click(button("保存"));
-    expect(prepare).toHaveBeenCalledExactlyOnceWith(true);
+    expect(prepare).toHaveBeenCalledExactlyOnceWith(true, true);
     expect(answer).toHaveBeenCalledExactlyOnceWith(true);
   });
 
@@ -86,7 +103,7 @@ describe("closing the window with unsaved documents", () => {
     mount([tab("试卷.chalklee", true)]);
     await act(async () => requestClose());
     expect(dialog()).toBeNull();
-    expect(prepare).toHaveBeenCalledExactlyOnceWith(true);
+    expect(prepare).toHaveBeenCalledExactlyOnceWith(true, true);
     expect(answer).toHaveBeenCalledExactlyOnceWith(true);
   });
 

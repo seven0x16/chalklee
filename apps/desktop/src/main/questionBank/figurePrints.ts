@@ -133,6 +133,24 @@ const MAX_DISTANCE = 8;
 /** How far apart the ink's proportions may be, as a log ratio (about 12%). */
 const MAX_SHAPE = 0.12;
 
+/** A match at Hamming distance at most eight must share one of nine disjoint
+ * bands. Neighbouring log-shape buckets also overlap, so neither prefilter
+ * excludes a match accepted by sameFigurePrint. */
+export function figurePrintCandidateKeys(print: string): string[] {
+  if (print === "blank") return ["visual:blank"];
+  const match = /^([\da-f]{16})\/(\d+(?:\.\d+)?)$/i.exec(print);
+  if (!match) return [];
+  const bits = BigInt(`0x${match[1]}`), ratio = Number(match[2]);
+  const shape = Math.floor(Math.log(ratio) / MAX_SHAPE);
+  const shapes = ratio === 0 ? ["zero"] : [shape - 1, shape, shape + 1];
+  const keys: string[] = [];
+  for (let index = 0; index <= MAX_DISTANCE; index++) {
+    const band = Number((bits >> BigInt(index * 7)) & (index === MAX_DISTANCE ? 255n : 127n));
+    for (const bucket of shapes) keys.push(`visual:${index}:${band}:${bucket}`);
+  }
+  return keys;
+}
+
 export function sameFigurePrint(left: string, right: string): boolean {
   if (left === "blank" || right === "blank") return left === right;
   const [leftBits, leftShape] = left.split("/"), [rightBits, rightShape] = right.split("/");

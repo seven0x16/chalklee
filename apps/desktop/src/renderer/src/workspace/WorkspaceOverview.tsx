@@ -5,7 +5,7 @@ import type { QuestionBankOverview } from "../../../shared/questionBank/search";
 export function useWorkspaceOverview(workspaceRoot: string | null, enabled: boolean): QuestionBankOverview | null {
   const [overview, setOverview] = useState<QuestionBankOverview | null>(null);
   const [revision, setRevision] = useState(0);
-  useEffect(() => window.chalkLee.onQuestionBankChange(change => setRevision(change.revision)), []);
+  useEffect(() => enabled ? window.chalkLee.onQuestionBankChange(change => setRevision(change.revision)) : undefined, [enabled]);
   useEffect(() => { setOverview(null); }, [workspaceRoot]);
   useEffect(() => {
     if (!enabled || !workspaceRoot) return;

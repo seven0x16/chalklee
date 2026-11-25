@@ -1,3 +1,4 @@
+import type { DormantPaperView } from "../editor/dormantPaper";
 import type { QuestionSnapshot } from "../../../shared/questionBank/search";
 import type { ChalkLeeLayoutReport } from "../../../shared/document/layoutReport";
 import type { AssistantSelection } from "../../../shared/agent/assistant";
@@ -114,6 +115,8 @@ export interface PreviewController {
   goToOutline(target: unknown): void;
   /** ChalkLee editors only: the paper's scroll area, whose right edge carries the outline rail. */
   scrollElement?(): HTMLElement | null;
+  /** A pristine paper can recreate its view from the unchanged archive. */
+  captureDormantView?(): DormantPaperView | null;
   /** ChalkLee editors only: select a question, mark the search terms in it and bring the first match into view. */
   revealQuestion?(questionId: string, terms?: { words: readonly string[]; tokens: readonly string[] }): void;
   /** ChalkLee editors only: go to a place a conversion left to check, a numbered question or a page kept as an image; false when it is gone. */

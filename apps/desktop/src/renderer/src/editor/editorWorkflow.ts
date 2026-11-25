@@ -5,10 +5,12 @@ import { GapCursor } from "@tiptap/pm/gapcursor";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 
 /** Moving the caret within a text run leaves the block controls and typing format the same. */
-export function chalkLeeSelectionControlsChanged(previous: EditorState, current: EditorState): boolean {
+export function chalkLeeSelectionControlsChanged(previous: EditorState, current: EditorState, textOnlyEdit = false): boolean {
   const before = previous.selection, after = current.selection;
-  if (previous.doc === current.doc && before instanceof TextSelection && after instanceof TextSelection
-    && before.empty && after.empty && before.$from.sameParent(after.$from)) {
+  if (before instanceof TextSelection && after instanceof TextSelection && before.empty && after.empty
+    && (previous.doc === current.doc && before.$from.sameParent(after.$from)
+      || textOnlyEdit && before.$from.parent.sameMarkup(after.$from.parent)
+        && before.$from.depth === after.$from.depth && before.$from.start() === after.$from.start())) {
     const beforeMarks = before.$from.marks(), afterMarks = after.$from.marks();
     // A font attribute can come from the surrounding text when no stored
     // textStyle mark overrides it.

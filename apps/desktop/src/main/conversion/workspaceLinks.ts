@@ -77,7 +77,8 @@ export async function linkWorkspaceConversions(files: WorkspaceFileNode[], { arc
   const validation = { archiveCache, verifyArchive: chalkLeeFiles.length >= 8 ? verifyArchive : undefined };
   await visitFiles(chalkLeeFiles, async file => {
     try {
-      const { id, sources, archiveHash } = await readWorkspaceChalkLee(file.path, validation);
+      const { id, sources, archiveHash } = await readWorkspaceChalkLee(file.path,
+        file.size > 8 * 1024 * 1024 ? { archiveCache, verifyArchive } : validation);
       if (archiveHash) archiveCache?.record(archiveHash, { id, sources });
       const directory = path.dirname(file.path);
       for (const source of wholeSources(sources)) {

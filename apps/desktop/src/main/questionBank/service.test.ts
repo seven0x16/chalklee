@@ -61,13 +61,31 @@ describe("question bank background service", () => {
     await paper(root, "等差数列的新内容");
     await index.update(path.join(root, "试卷.chalklee"));
     await index.dispose();
-    const cache = JSON.parse(await readFile(path.join(root, ".chalklee", "question-bank", "index.json"), "utf8"));
+    const cache = JSON.parse(await readFile(path.join(root, ".chalklee", "question-bank", "index-changes.json"), "utf8"));
     expect(cache).toMatchObject({ version: 10, documents: [{ entries: [{ questionId: "q1", stem: "等差数列的新内容" }] }] });
     services.splice(services.indexOf(index), 1);
     const reopened = service();
     await reopened.open(root, (await scanWorkspace(root)).root);
     expect((await reopened.readBasket())[0].status).toBe("changed");
     expect((await reopened.search({ query: "数列" })).total).toBe(1);
+  });
+
+  it("preserves queued user writes when quitting an unfinished index", async () => {
+    const root = await workspace("函数");
+    const index = service();
+    await index.open(root, (await scanWorkspace(root)).root);
+    const [question] = (await index.search({ query: "函数" })).items;
+    // Reopen and immediately quit: basket and tag writes are durable, while
+    // any archive reads still needed for the search index are disposable.
+    const opening = index.open(root, (await scanWorkspace(root)).root).catch(() => undefined);
+    const basket = index.writeBasket([{ relativePath: question.relativePath, questionId: question.questionId, contentHash: question.contentHash, addedAt: 1, insertedInto: [] }]);
+    const tags = index.writeTagTree({ groups: [{ id: "math", name: "知识点", children: ["函数"] }], tags: [] });
+    await index.dispose();
+    await Promise.all([opening, basket, tags]);
+    const reopened = service();
+    await reopened.open(root, (await scanWorkspace(root)).root);
+    expect((await reopened.readBasket())[0]).toMatchObject({ status: "ready", questionId: question.questionId });
+    expect((await reopened.readTagTree()).groups).toMatchObject([{ id: "math", name: "知识点", children: ["函数"] }]);
   });
 
   it("keeps results isolated when a newer workspace supersedes an opening workspace", async () => {

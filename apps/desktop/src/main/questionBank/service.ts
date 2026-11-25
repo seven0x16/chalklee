@@ -8,6 +8,7 @@ export class QuestionBankService {
   private pending = new Map<number, { resolve(value: any): void; reject(error: Error): void }>();
   private failure?: Error;
   private disposed = false;
+  private closing?: Promise<void>;
   private worker?: Worker;
 
   constructor(private readonly createWorker: () => Worker, private readonly changed: (change: QuestionBankChange) => void) {}
@@ -35,7 +36,7 @@ export class QuestionBankService {
   }
 
   private call<K extends QuestionBankMethod>(method: K, ...args: QuestionBankArguments<K>): Promise<QuestionBankReply<K>> {
-    if (this.failure || this.disposed) return Promise.reject(this.failure ?? new Error("题库服务已关闭。"));
+    if (this.failure || this.disposed || this.closing) return Promise.reject(this.failure ?? new Error("题库服务已关闭。"));
     return new Promise((resolve, reject) => {
       const id = ++this.nextId;
       this.pending.set(id, { resolve, reject });
@@ -62,10 +63,14 @@ export class QuestionBankService {
   writeTagTree(...args: QuestionBankArguments<"writeTagTree">) { return this.call("writeTagTree", ...args); }
   flush() { return this.call("flush"); }
 
-  async dispose() {
-    if (this.disposed) return;
-    if (!this.worker) { this.disposed = true; return; }
-    try { await this.flush(); await this.close(); await this.flush(); }
-    finally { this.disposed = true; this.fail(new Error("题库服务已关闭。")); await this.worker.terminate(); }
+  dispose(): Promise<void> {
+    if (this.closing) return this.closing;
+    if (this.disposed || !this.worker) { this.disposed = true; return Promise.resolve(); }
+    const worker = this.worker;
+    return this.closing = this.call("shutdown").finally(async () => {
+      this.disposed = true;
+      this.fail(new Error("题库服务已关闭。"));
+      await worker.terminate();
+    });
   }
 }

@@ -7,10 +7,21 @@ function guard(answerable = true) {
 }
 
 describe("closing with unsaved documents", () => {
-  it("closes at once when nothing is unsaved", () => {
+  it("closes at once before the renderer is ready", () => {
     const { host, guard: closing } = guard();
     expect(closing.hold("quit")).toBe(false);
     expect(host.ask).not.toHaveBeenCalled();
+  });
+
+  it("checks the live renderer even when its last report said clean", () => {
+    const { host, guard: closing } = guard();
+    closing.report(false);
+    expect(closing.hold("quit")).toBe(true);
+    expect(host.ask).toHaveBeenCalledOnce();
+    expect(host.proceed).not.toHaveBeenCalled();
+    closing.report(true);
+    closing.answer(true);
+    expect(host.proceed).toHaveBeenCalledExactlyOnceWith("quit");
   });
 
   it("asks once, and closes only after the teacher agrees", () => {
@@ -20,7 +31,7 @@ describe("closing with unsaved documents", () => {
     expect(closing.hold("close")).toBe(true);
     expect(closing.hold("close")).toBe(true);
     expect(host.ask).toHaveBeenCalledOnce();
-    expect(host.reveal).toHaveBeenCalledOnce();
+    expect(host.reveal).toHaveBeenCalledTimes(2);
 
     closing.answer(true);
     expect(host.proceed).toHaveBeenCalledExactlyOnceWith("close");

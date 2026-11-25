@@ -697,8 +697,9 @@ const sameMeaningWords = (left: string, right: string) => MEANING_WORDS.every(wo
 const coreKey = (core: IndexedQuestion["core"]) => coreSize(core) < 8 ? null : `${core.values}\u0000${core.text}`;
 
 /** The questions just before and after each one in its document. */
-function questionSurroundings(questions: readonly IndexedQuestion[]) {
-  const surroundings = new Map<string, { previous: string | null; next: string | null }>();
+type QuestionSurrounding = { previous: string | null; next: string | null };
+export function questionSurroundings(questions: readonly IndexedQuestion[]) {
+  const surroundings = new Map<string, QuestionSurrounding>();
   const latest = new Map<string, IndexedQuestion>();
   for (const question of [...questions].sort((left, right) => left.order - right.order)) {
     const before = latest.get(question.path);
@@ -715,6 +716,15 @@ function questionSurroundings(questions: readonly IndexedQuestion[]) {
  */
 export type SameFigure = (left: string, right: string) => boolean;
 
+/** Every possible duplicate edge requires the same numbers/formulas and
+ * figure count, including an explicit copy inserted from the library. */
+export const questionDuplicatePartition = (question: IndexedQuestion) => question.figures.length
+  ? `${question.core.values}\u0000${question.figures.length}` : question.core.values;
+
+/** A visual match must share a candidate key. Exact byte matches always have
+ * their own key. Unread figures may be queued only in a text-matched bucket. */
+export type FigureCandidates = { keys(figure: string): readonly string[]; consider(figure: string): void };
+
 /**
  * Group copies of one question across documents. Copies inside the same document stay
  * separate. Digits and formulas must agree exactly, and so must the figures, one for one.
@@ -723,7 +733,8 @@ export type SameFigure = (left: string, right: string) => boolean;
  * meaning. Copies inserted from the question bank get no such allowance: their wording came
  * over unchanged, so a teacher's edit there makes a question of its own.
  */
-export function assignDuplicateGroups(questions: IndexedQuestion[], sameFigure: SameFigure = () => false): void {
+export function assignDuplicateGroups(questions: IndexedQuestion[], sameFigure: SameFigure = () => false,
+  surroundingOf?: (question: IndexedQuestion) => QuestionSurrounding | undefined, figureCandidates?: FigureCandidates): void {
   const parent = new Map<string, string>();
   const find = (key: string): string => {
     let root = key;
@@ -785,10 +796,59 @@ export function assignDuplicateGroups(questions: IndexedQuestion[], sameFigure: 
       }
     }
   };
+  const joinExactFigures = (members: IndexedQuestion[], candidates: FigureCandidates) => {
+    for (const group of [false, true]) {
+      const signatures = new Map<string, IndexedQuestion[]>();
+      let firstPath: string | undefined, crossPaper = false;
+      for (const question of members) {
+        if (question.group !== group) continue;
+        if (firstPath === undefined) firstPath = question.path;
+        else if (question.path !== firstPath) crossPaper = true;
+        const key = JSON.stringify(question.figures);
+        const copies = signatures.get(key);
+        if (copies) copies.push(question); else signatures.set(key, [question]);
+      }
+      if (!crossPaper) continue;
+      const distinct = [...signatures.values()];
+      for (const copies of distinct) if (copies.length > 1) joinExactWithoutFigures(copies);
+      if (distinct.length < 2) continue;
+      // Use the most discriminating figure position. Any duplicate must match
+      // at every position, so this cannot exclude a valid visual match.
+      const positions = Array.from({ length: distinct[0][0].figures.length }, (_, index) => new Set(distinct.map(copies => copies[0].figures[index])).size);
+      const position = positions.indexOf(Math.max(...positions));
+      for (const copies of distinct) copies[0].figures.forEach((figure, index) => {
+        if (positions[index] > 1) candidates.consider(figure);
+      });
+      const buckets = new Map<string, number[]>();
+      distinct.forEach((copies, index) => {
+        const first = copies[0], figure = first.figures[position];
+        const keys = [`bytes:${figure}`, ...candidates.keys(figure)];
+        const neighbours = new Set<number>();
+        for (const key of keys) for (const other of buckets.get(key) ?? []) neighbours.add(other);
+        for (const other of neighbours) {
+          const previous = distinct[other];
+          if (!sameFigures(first, previous[0])) continue;
+          // Exact signatures already join within themselves across different
+          // documents. One cross-document edge connects those components;
+          // same-document repetitions also each need a cross-document edge.
+          const a = first.path !== previous[0].path ? first : copies.find(copy => copy.path !== previous[0].path);
+          const b = a ? previous[0] : previous.find(copy => copy.path !== first.path);
+          if (!b) continue;
+          const left = a ?? first;
+          for (const copy of copies) if (copy.path !== b.path) union(copy, b);
+          for (const copy of previous) if (copy.path !== left.path) union(left, copy);
+        }
+        for (const key of keys) {
+          const bucket = buckets.get(key);
+          if (bucket) bucket.push(index); else buckets.set(key, [index]);
+        }
+      });
+    }
+  };
   let surroundings: ReturnType<typeof questionSurroundings> | undefined;
   const sameDocumentVersion = (a: IndexedQuestion, b: IndexedQuestion) => {
-    surroundings ??= questionSurroundings(questions);
-    const left = surroundings.get(a.key), right = surroundings.get(b.key);
+    const own = surroundingOf ?? (question => (surroundings ??= questionSurroundings(questions)).get(question.key));
+    const left = own(a), right = own(b);
     return Boolean(left && right && ((left.previous && left.previous === right.previous) || (left.next && left.next === right.next)));
   };
   const onlySlips = (a: IndexedQuestion, b: IndexedQuestion) => !a.copiedFrom && !b.copiedFrom
@@ -800,6 +860,10 @@ export function assignDuplicateGroups(questions: IndexedQuestion[], sameFigure: 
     if (!exact && members.length > DUPLICATE_BUCKET_LIMIT) continue;
     if (exact && distinctKeys && !members[0].figures.length) {
       joinExactWithoutFigures(members);
+      continue;
+    }
+    if (exact && distinctKeys && figureCandidates && members[0].figures.length) {
+      joinExactFigures(members, figureCandidates);
       continue;
     }
     for (let left = 0; left < members.length; left++) {

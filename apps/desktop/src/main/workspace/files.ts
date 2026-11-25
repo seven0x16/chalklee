@@ -1,4 +1,4 @@
-import { isMarkdownKind } from "../../shared/document/kinds";
+import { isMarkdownKind, isOriginalKind } from "../../shared/document/kinds";
 import { readMarkdownSource } from "../../shared/markdown/source";
 import { validateMarkdownBytes } from "./markdownSource";
 import { recordPageVersion } from "./pageVersions";
@@ -100,8 +100,10 @@ async function scanTree(root: WorkspaceDirectoryNode): Promise<WorkspaceFileNode
 }
 
 /** `workspaceRoot`, when only a folder inside the workspace is listed: skills count from the workspace's own root. */
-export async function scanWorkspace(rootPath: string, { workspaceRoot = rootPath, archiveValidationCacheDirectory, verifyArchive, readTree }: {
+export async function scanWorkspace(rootPath: string, { workspaceRoot = rootPath, archiveValidationCacheDirectory, verifyArchive, readTree, browseFirst = false }: {
   workspaceRoot?: string;
+  /** Opening a paper-only workspace need not prove conversion associations that cannot exist. */
+  browseFirst?: boolean;
   archiveValidationCacheDirectory?: string;
   verifyArchive?: VerifyWorkspaceArchive;
   readTree?: (root: WorkspaceDirectoryNode) => Promise<WorkspaceFileNode[] | undefined>;
@@ -126,11 +128,17 @@ export async function scanWorkspace(rootPath: string, { workspaceRoot = rootPath
     root.children = pruneWorkspaceNodes(root.children, subfiles);
     for (let index = files.length - 1; index >= 0; index--) if (subfiles.has(path.normalize(files[index].path))) files.splice(index, 1);
   }
-  await linkWorkspaceConversions(files, { archiveCache, verifyArchive }, workspaceRoot === rootPath);
-  await archiveCache?.save();
-  await markSkills(workspaceRoot === rootPath ? canonicalRoot : await realpath(workspaceRoot), files);
-  // A damaged marks file must not stop the folder from opening.
-  await markOriginalsNotNeedingConversion(canonicalRoot, files).catch(error => console.warn("[workspace] 无法读取不需要转换的原稿记录", error));
+  // No originals or Markdown means no conversion association can be displayed.
+  // The editor still checks a paper on open and the index and history maintenance
+  // read their own inputs. Mixed workspaces keep byte-exact validation before
+  // hiding originals or reporting whether conversion results are available.
+  const verifyLinks = !browseFirst || files.some(file => isOriginalKind(file.extension) || isMarkdownKind(file.extension));
+  await Promise.all([
+    ...(verifyLinks ? [linkWorkspaceConversions(files, { archiveCache, verifyArchive }, workspaceRoot === rootPath).then(() => archiveCache?.save())] : []),
+    markSkills(workspaceRoot === rootPath ? canonicalRoot : await realpath(workspaceRoot), files),
+    // A damaged marks file must not stop the folder from opening.
+    markOriginalsNotNeedingConversion(canonicalRoot, files).catch(error => console.warn("[workspace] 无法读取不需要转换的原稿记录", error))
+  ]);
   return { root, scannedAt: Date.now(), fileCount: files.length };
 }
 

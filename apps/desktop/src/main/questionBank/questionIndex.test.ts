@@ -194,6 +194,79 @@ describe("workspace question bank index", () => {
     expect(index.search({ query: "" }).status).toMatchObject({ totalDocuments: 1, questionCount: 2 });
   });
 
+  it("updates a saved paper and removes one without rewriting the base cache; reopening uses the correct questions", async () => {
+    const index = await openIndex();
+    const base = path.join(root, ".chalklee", "question-bank", "index.json");
+    const before = await readFile(base);
+    const file = path.join(root, "高三", "数列卷.chalklee");
+    const removed = path.join(root, "初三", "函数卷.chalklee");
+    await writePaper(file, [question("q3", "新题：等差数列的通项公式")]);
+    await index.update(file);
+    await rm(removed);
+    await index.remove(removed);
+    await index.flush();
+    expect(await readFile(base)).toEqual(before);
+    const reopened = await openIndex();
+    expect(reopened.search({ query: "" }).items.map(item => item.stem)).toEqual(["新题：等差数列的通项公式"]);
+    expect(reopened.search({ query: "" }).status.totalDocuments).toBe(1);
+    // A damaged delta is only a cache failure, never a lost paper.
+    await writeFile(path.join(path.dirname(base), "index-changes.json"), "incomplete");
+    const repaired = await openIndex();
+    expect(repaired.search({ query: "等差数列" }).total).toBe(1);
+    expect(repaired.search({ query: "函数" }).total).toBe(0);
+  });
+
+  it("ignores a previous delta after a large batch compacts the cache", async () => {
+    const index = await openIndex();
+    const directory = path.join(root, ".chalklee", "question-bank");
+    const original = path.join(root, "高三", "数列卷.chalklee");
+    await writePaper(original, [question("q3", "第一次修改的题目")]);
+    await index.update(original); await index.flush();
+    const oldOverlay = await readFile(path.join(directory, "index-changes.json"));
+    const files = Array.from({ length: 129 }, (_, n) => path.join(root, `书卷${n}.chalklee`));
+    await Promise.all(files.map((file, n) => writePaper(file, [question(`q${n}`, `批量整理后的第${n}题`)])));
+    await writePaper(original, [question("q3", "最后一次修改的题目")]);
+    await Promise.all([...files, original].map(file => index.update(file))); await index.flush();
+    // Simulate a stop after the new base was written but before the previous
+    // overlay was removed. Its old base id must not shadow the current paper.
+    await writeFile(path.join(directory, "index-changes.json"), oldOverlay);
+    const reopened = await openIndex();
+    expect(reopened.search({ query: "最后一次修改" }).total).toBe(1);
+    expect(reopened.search({ query: "第一次修改" }).total).toBe(0);
+    expect(reopened.search({ query: "批量整理后" }).total).toBe(129);
+  });
+
+  it("regroups a recognition slip when the neighbouring question changes in another numeric partition", async () => {
+    const a = path.join(root, "甲.chalklee"), b = path.join(root, "乙.chalklee");
+    const stem = "下列关于光合作用和呼吸作用的说法中，正确的是哪一项，请根据所学知识作出判断";
+    const neighbour = "同一套试卷的第123道题，请根据已知条件列出计算过程";
+    await writePaper(a, [question("a0", neighbour), question("a1", stem)]);
+    await writePaper(b, [question("b0", neighbour), question("b1", stem.replace("光合作用", "光台作用"))]);
+    const index = await openIndex();
+    expect(index.search({ query: "呼吸作用" }).total).toBe(1);
+    await writePaper(b, [question("b0", neighbour.replace("123", "456")), question("b1", stem.replace("光合作用", "光台作用"))]);
+    await index.update(b); await index.flush();
+    expect(index.search({ query: "呼吸作用" }).total).toBe(2);
+    await writePaper(b, [question("b0", neighbour), question("b1", stem.replace("光合作用", "光台作用"))]);
+    await index.update(b); await index.flush();
+    expect(index.search({ query: "呼吸作用" }).total).toBe(1);
+  });
+
+  it("settles a burst of updates and does not bring a removed paper back into the index", async () => {
+    const index = await openIndex();
+    const files = Array.from({ length: 12 }, (_, i) => path.join(root, `新增-${i}.chalklee`));
+    await Promise.all(files.map((file, i) => writePaper(file, [question(`q${i}`, `批量新增题目第${i}题`)])));
+    const updates = files.flatMap(file => [index.update(file), index.update(file)]);
+    await rm(files[11]);
+    await index.remove(files[11]);
+    await Promise.all(updates);
+    await index.flush();
+    expect(index.search({ query: "批量新增题目" }).total).toBe(11);
+    expect(index.search({ query: "" }).status.totalDocuments).toBe(13);
+    const reopened = await openIndex();
+    expect(reopened.search({ query: "批量新增题目" }).total).toBe(11);
+  });
+
   it("uses scanned creation times for cached papers and expires the weekly overview at the boundary", async () => {
     const firstIndex = await openIndex();
     firstIndex.close();

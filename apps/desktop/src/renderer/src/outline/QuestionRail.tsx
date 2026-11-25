@@ -95,7 +95,7 @@ export function QuestionRail({ scroller, outline, basketQuestionIds, currentQues
     const measured = measurementRef.current;
     const compatible = measured?.scroller === scroller && sameOutlineLocations(measured.outline, outline) ? measured : null;
     paintRailVisibility(trackRef.current, cardRef.current, marks, compatible);
-    scheduleRef.current?.();
+    if (!compatible) scheduleRef.current?.();
   }, [marks, outline, scroller, showEntries]);
 
   useLayoutEffect(() => {
@@ -131,12 +131,17 @@ export function QuestionRail({ scroller, outline, basketQuestionIds, currentQues
     scheduleRef.current = schedule;
     scroller.addEventListener("scroll", schedule, { passive: true });
     scroller.addEventListener("chalklee:viewport-change", schedule, true);
+    scroller.addEventListener("chalklee:pagination-change", schedule, true);
+    scroller.addEventListener("chalklee-active-question", schedule, true);
     const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
     resize?.observe(scroller);
     // Text edits can change geometry. Reindex only when navigation targets can change.
     const mutations = typeof MutationObserver === "undefined" ? null : new MutationObserver(records => {
-      if (records.some(changesOutlineTargets)) index = undefined;
-      schedule();
+      if (records.some(changesOutlineTargets)) { index = undefined; schedule(); }
+      // ChalkLee publishes changed pagination explicitly. An ordinary text
+      // edit that keeps its page geometry does not need another full outline
+      // measurement. Other viewer surfaces still follow their DOM mutations.
+      else if (!scroller.querySelector(".chalklee-editor-content") || records.some(changesMarginControls)) schedule();
     });
     mutations?.observe(scroller, { childList: true, characterData: true, attributes: true, attributeFilter: ["data-node-id"], subtree: true });
     return () => {
@@ -144,6 +149,8 @@ export function QuestionRail({ scroller, outline, basketQuestionIds, currentQues
       measurementRef.current = null;
       scroller.removeEventListener("scroll", schedule);
       scroller.removeEventListener("chalklee:viewport-change", schedule, true);
+      scroller.removeEventListener("chalklee:pagination-change", schedule, true);
+      scroller.removeEventListener("chalklee-active-question", schedule, true);
       resize?.disconnect();
       mutations?.disconnect();
       if (frame !== null) window.cancelAnimationFrame(frame);
@@ -302,6 +309,12 @@ function changesOutlineTargets(record: MutationRecord) {
     return element.matches(OUTLINE_TARGET) || Boolean(element.querySelector(OUTLINE_TARGET));
   });
   return containsTarget(record.addedNodes) || containsTarget(record.removedNodes);
+}
+
+function changesMarginControls(record: MutationRecord) {
+  if (record.type !== "childList") return false;
+  return [...record.addedNodes, ...record.removedNodes].some(node => node instanceof Element
+    && (node.matches(MARGIN_CONTROLS) || node.querySelector(MARGIN_CONTROLS)));
 }
 
 function findOutlineElements(scroller: HTMLElement, outline: readonly OutlineItem[]): OutlineElements {

@@ -3,6 +3,7 @@ import { ReactNodeViewRenderer, type ReactNodeViewRendererOptions } from "@tipta
 import { GapCursor } from "@tiptap/pm/gapcursor";
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { ChalkLeeQuestionSolutionNode } from "../groupSolutions";
 import { commonIdAttribute } from "./nodes";
 import { QuestionNodeView } from "./QuestionNodeView";
@@ -12,12 +13,29 @@ import { chalkLeeRegionAssistantWidget } from "../regionAssistant";
 
 import { chalkLeeAutoNumberValue } from "../autoNumbers";
 
+/** Text within an existing nonempty stem is drawn by ProseMirror itself. The
+ * React wrapper only needs refreshing when its controls/structure change. */
+export function plainQuestionStemEdit(before: ProseMirrorNode, after: ProseMirrorNode): boolean {
+  if (before.type.name !== "question" || !before.sameMarkup(after) || before.attrs.sourceBlankId) return false;
+  const start = before.content.findDiffStart(after.content), end = before.content.findDiffEnd(after.content);
+  if (start === null || !end) return false;
+  const inStem = (node: ProseMirrorNode, endPosition: number) => {
+    const from = node.resolve(start), to = node.resolve(Math.max(start, endPosition));
+    if (from.depth !== 2 || from.node(1).type.name !== "questionStem" || from.parent.type.name !== "paragraph"
+      || !from.sameParent(to) || !from.parent.textContent.trim()) return null;
+    return node.slice(from.pos, to.pos).content.content.every(child => child.isText) ? from : null;
+  };
+  const left = inStem(before, end.a), right = inStem(after, end.b);
+  return Boolean(left && right && left.node(1).sameMarkup(right.node(1)) && left.parent.sameMarkup(right.parent));
+}
+
 const questionNodeViewOptions: Partial<ReactNodeViewRendererOptions> = {
   attrs: ({ node }) => chalkLeeFrameWrapperAttrs(node.attrs),
   update: ({ oldNode, newNode, oldDecorations, newDecorations, updateProps }) => {
     // Position changes can renumber an unchanged question. Keep React's own
     // number current, including after a content edit resets the outer style.
-    if (oldNode !== newNode || chalkLeeAutoNumberValue(oldDecorations) !== chalkLeeAutoNumberValue(newDecorations)) updateProps();
+    if (oldNode !== newNode && !plainQuestionStemEdit(oldNode, newNode)
+      || chalkLeeAutoNumberValue(oldDecorations) !== chalkLeeAutoNumberValue(newDecorations)) updateProps();
     return true;
   }
 };

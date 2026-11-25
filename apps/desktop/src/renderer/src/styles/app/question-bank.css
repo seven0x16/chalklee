@@ -296,6 +296,13 @@
 .question-card:focus-visible { box-shadow: 0 0 0 1.5px var(--cm-theme-accent), 0 0 0 4.5px var(--cm-theme-selection-border); }
 /* Cards out of view skip layout and keep the height they will have. */
 .question-card:not(.editing) { content-visibility: auto; contain-intrinsic-block-size: auto var(--question-card-block, 200px); overflow-clip-margin: 6px; }
+/* A distant result is only a height and a keyboard target. Its content is
+   restored just before the viewport reaches it. */
+.question-card.question-card-placeholder {
+  height: var(--question-card-placeholder-height, calc(var(--question-card-block, 200px) + 26px));
+  padding: 0; display: block; content-visibility: visible; box-shadow: none; background: transparent;
+}
+.question-card.question-card-placeholder:hover, .question-card.question-card-placeholder:focus-visible { box-shadow: none; }
 .question-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 26px; color: var(--cm-ui-muted); font-size: var(--cm-font-size-small); }
 .question-card-number {
   flex: none; min-width: 24px; height: 20px; padding: 0 5px; box-sizing: border-box; display: inline-grid; place-items: center;

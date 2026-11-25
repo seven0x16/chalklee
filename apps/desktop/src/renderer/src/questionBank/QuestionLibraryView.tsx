@@ -7,8 +7,7 @@ import {
   type QuestionBankCount,
   type QuestionBankLocation,
   type QuestionBankResult,
-  type QuestionBasketItem,
-  type QuestionSnapshot
+  type QuestionBasketItem
 } from "../../../shared/questionBank/search";
 import {
   QuestionBankText,
@@ -24,6 +23,7 @@ import { questionBankHighlight, questionLocationOf, type QuestionBankHighlight }
 import { attachOverlayScrollbars } from "../viewers/overlayScrollbars";
 import { nodeKey, tagNodeName, tagNodePath } from "./tagSelection";
 import { createQuestionPaperQueue, findQuestionCard, readQuestionListPosition, restoreQuestionListPosition, useQuestionCardViewport, type QuestionListPosition, type QuestionPaperQueue } from "./questionCardViewport";
+import { createQuestionSnapshotLoader, type QuestionSnapshotLoader } from "./questionSnapshotCache";
 import {
   LIBRARY_FILTER_ROWS as FILTER_ROWS, libraryFilterLabel as filterLabel, questionKey,
   type QuestionLibrary, type QuestionLibraryFilterKey, type QuestionLibraryFilters
@@ -63,13 +63,16 @@ export function QuestionLibraryView({ library, active, focusRequest, basket, onT
   const scrollbarYRef = useRef<HTMLDivElement>(null);
   const composingRef = useRef(false);
   const handledFocus = useRef(0);
-  const snapshots = useSnapshotLoader();
+  const snapshots = useMemo(() => createQuestionSnapshotLoader((path, id) => window.chalkLee.readQuestionSnapshot(path, id)), [library.workspaceRoot]);
+  useEffect(() => () => snapshots.clear(), [snapshots]);
   const { observe, observeNear, revealVisible } = useQuestionCardViewport();
   const [papers] = useState(() => createQuestionPaperQueue(() => listRef.current));
   useEffect(() => () => papers.dispose(), [papers]);
   const items = response?.items ?? [];
   // Each search tab comes back where it was scrolled to.
   const searchId = library.currentSearchId;
+  const currentSearchRef = useRef(searchId);
+  currentSearchRef.current = searchId;
   const scrollPositions = useRef(new Map<string, QuestionListPosition>());
   const shownSearchRef = useRef(searchId);
   // The saved offset may be inside a tall rich card, so give it its full height before restoring.
@@ -107,6 +110,48 @@ export function QuestionLibraryView({ library, active, focusRequest, basket, onT
     shownSearchRef.current = searchId;
     if (listRef.current) restoreQuestionListPosition(listRef.current, listContentRef.current, scrollPositions.current.get(searchId));
   }, [searchId]);
+  const shownPlace = useRef({ active, searchId });
+  // A paper can finish rendering without a scroll event. Keep the anchor in
+  // sync with that new geometry, not just the last wheel position.
+  useLayoutEffect(() => {
+    const list = listRef.current, content = listContentRef.current;
+    if (!active || !list || !content) return;
+    const remember = () => {
+      if (currentSearchRef.current === searchId && list.clientHeight) scrollPositions.current.set(searchId, readQuestionListPosition(list, content));
+    };
+    const observer = new ResizeObserver(remember);
+    observer.observe(content);
+    return () => { observer.disconnect(); remember(); };
+  }, [active, searchId]);
+  useLayoutEffect(() => {
+    const returning = active && (!shownPlace.current.active || shownPlace.current.searchId !== searchId);
+    shownPlace.current = { active, searchId };
+    const list = listRef.current, content = listContentRef.current;
+    const position = scrollPositions.current.get(searchId);
+    if (!returning || !list || !content || !position) return;
+    // Replacing the hidden placeholders with real cards can adjust Chromium's
+    // automatic scroll anchor. Restore the saved question and offset as their
+    // heights settle; any new teacher interaction ends this restoration.
+    const previousAnchor = list.style.overflowAnchor;
+    list.style.overflowAnchor = "none";
+    const restore = () => restoreQuestionListPosition(list, content, position);
+    restore();
+    const frame = window.requestAnimationFrame(restore);
+    const observer = new ResizeObserver(restore);
+    observer.observe(content);
+    let stopped = false;
+    const events = ["wheel", "pointerdown", "keydown", "touchstart", "input"] as const;
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      observer.disconnect(); window.cancelAnimationFrame(frame); window.clearTimeout(timer);
+      list.style.overflowAnchor = previousAnchor;
+      for (const event of events) window.removeEventListener(event, stop, true);
+    };
+    const timer = window.setTimeout(() => { restore(); stop(); }, 500);
+    for (const event of events) window.addEventListener(event, stop, true);
+    return stop;
+  }, [active, searchId]);
   useLayoutEffect(() => {
     if (!active || !listRef.current || !listContentRef.current) return;
     revealVisible(listRef.current, listContentRef.current);
@@ -280,7 +325,7 @@ export function QuestionLibraryView({ library, active, focusRequest, basket, onT
         <div className="question-library-list sidebar-overlay-scroll-area" ref={listRef} role="listbox" aria-label="题目" aria-busy={pending}
           onScroll={event => {
             papers.noteScroll(event.currentTarget.scrollTop);
-            if (listContentRef.current) scrollPositions.current.set(shownSearchRef.current, readQuestionListPosition(event.currentTarget, listContentRef.current));
+            if (active && shownSearchRef.current === searchId && event.currentTarget.clientHeight && listContentRef.current) scrollPositions.current.set(searchId, readQuestionListPosition(event.currentTarget, listContentRef.current));
           }}>
           <div className="question-library-list-content sidebar-overlay-scroll-content" ref={listContentRef}>
             {!library.workspaceRoot ? <div className="question-bank-empty"><SquareLibrary size={26} /><span>打开工作区后，即可在这里浏览其中所有 ChalkLee 的题目</span></div>
@@ -395,6 +440,7 @@ function QuestionCard({ item, selected, highlight, inBasket, snapshots, papers, 
   // Near the view it wants its paper; the queue decides when it is drawn or taken down.
   const [wanted, setWanted] = useState(initiallyNear);
   const [near, setNear] = useState(initiallyNear);
+  const [focused, setFocused] = useState(false);
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
@@ -407,26 +453,63 @@ function QuestionCard({ item, selected, highlight, inBasket, snapshots, papers, 
   }, [observeNear]);
   const bodyRef = useRef<HTMLDivElement>(null);
   const held = useRef<{ renderHash: string; height: number } | null>(null);
+  const retained = editing || active && (wanted || near);
+  // A distant card needs only its scroll position and keyboard target, not all
+  // of its buttons, tags, icons and paper. Keep the component state so the
+  // teacher's solution choice and measured height survive leaving the viewport.
+  const shellLive = editing || active && (wanted || near || focused || selected);
+  const heldShell = useRef<{ hash: string; solutions: boolean; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!shellLive || !element) return;
+    const remember = () => {
+      const height = element.getBoundingClientRect().height;
+      if (height) heldShell.current = { hash: item.renderHash, solutions: solutionsOpen, height };
+    };
+    remember();
+    const observer = new ResizeObserver(remember);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [shellLive, item.renderHash, solutionsOpen]);
+  useLayoutEffect(() => retained ? snapshots.retain(item) : undefined, [retained, snapshots, item.path, item.questionId, item.renderHash]);
   const hasSnapshot = Boolean(snapshot);
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
+    if (editing && !hasSnapshot) { snapshots.request(item); return; }
+    if (!active) { papers.cancel(element); return; }
     if (wanted && !hasSnapshot) papers.request(element, () => snapshots.request(item));
     else if (wanted && !near) papers.request(element, () => setNear(true));
     else if (!wanted && near) papers.request(element, () => {
       // A hidden list measures nothing; the card keeps the height it last had.
-      if (bodyRef.current?.offsetHeight) held.current = { renderHash: item.renderHash, height: bodyRef.current.offsetHeight };
+      const height = bodyRef.current?.getBoundingClientRect().height;
+      if (height) held.current = { renderHash: item.renderHash, height };
       setNear(false);
     });
     else papers.cancel(element);
     return () => papers.cancel(element);
-  }, [wanted, near, hasSnapshot, item, papers, snapshots]);
+  }, [active, editing, wanted, near, hasSnapshot, item, papers, snapshots]);
   // While a saved edit is read back the paper stays as it is.
   const lastSnapshot = useRef<QuestionCardPaperProps["snapshot"] | null>(null);
-  if (snapshot && !(snapshot instanceof Error) && snapshot.document) lastSnapshot.current = snapshot as QuestionCardPaperProps["snapshot"];
+  if (!retained) lastSnapshot.current = null;
+  else if (snapshot && !(snapshot instanceof Error) && snapshot.document) lastSnapshot.current = snapshot as QuestionCardPaperProps["snapshot"];
   const paperSnapshot = lastSnapshot.current;
-  const live = Boolean(paperSnapshot) && (editing || near);
-  const showsText = !live && snapshot instanceof Error;
+  const live = Boolean(paperSnapshot) && (editing || active && near);
+  const showsText = !live && snapshot instanceof Error && (editing || active && near);
+  // Remember what was on paper before another surface hides the list.
+  // Holding the number is enough; it must not keep the editor or its images.
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!live || !body) return;
+    const remember = () => {
+      const height = body.getBoundingClientRect().height;
+      if (height) held.current = { renderHash: item.renderHash, height };
+    };
+    remember();
+    const observer = new ResizeObserver(remember);
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, [live, item.renderHash]);
   const { widthPx, heightPx, solutionsPx } = item.paper;
   const paperHeight = (solutionsOpen ? heightPx + solutionsPx : knownQuestionPaperHeight(item.renderHash) ?? heightPx);
   // The shown height folds past a limit, with a row for the button under it; clamp() stands in for that condition.
@@ -438,18 +521,23 @@ function QuestionCard({ item, selected, highlight, inBasket, snapshots, papers, 
   return (
     <article
       ref={ref}
-      className={`question-card${selected ? " selected" : ""}${editing ? " editing" : ""}`}
+      className={`question-card${selected ? " selected" : ""}${editing ? " editing" : ""}${shellLive ? "" : " question-card-placeholder"}`}
       role="option"
       aria-selected={selected}
       aria-label={`${QUESTION_BANK_TYPE_LABELS[item.type]}，${item.documentTitle}${item.number ? ` 第 ${item.number} 题` : ""}`}
       tabIndex={0}
       data-question-key={questionKey(item)}
-      style={{ "--question-card-waiting": waiting, "--question-card-block": `calc(${waiting} + ${CARD_CHROME + (topics.length ? CARD_FOOT : 0)}px)` } as CSSProperties}
+      style={{ "--question-card-waiting": waiting, "--question-card-block": `calc(${waiting} + ${CARD_CHROME + (topics.length ? CARD_FOOT : 0)}px)`,
+        ...(!shellLive && heldShell.current?.hash === item.renderHash && heldShell.current.solutions === solutionsOpen
+          ? { "--question-card-placeholder-height": `${heldShell.current.height}px` } : {}) } as CSSProperties}
+      data-card-placeholder={shellLive ? undefined : "true"}
       onClick={event => { if (!(event.target as HTMLElement).closest("button")) onSelect(); }}
       onFocus={event => {
+        setFocused(true);
         setWanted(true);
         if (event.target === event.currentTarget && !selected) onSelect();
       }}
+      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false); }}
       onKeyDown={onKeyDown}
       onDoubleClick={event => {
         if (editing || (event.target as HTMLElement).closest("button, header, footer")) return;
@@ -457,6 +545,7 @@ function QuestionCard({ item, selected, highlight, inBasket, snapshots, papers, 
         onEdit({ x: event.clientX, y: event.clientY });
       }}
     >
+      {shellLive ? <>
       <header className="question-card-head">
         {item.number ? <span className="question-card-number">{item.number}</span> : null}
         <QuestionTypeTag type={item.type} />
@@ -500,6 +589,7 @@ function QuestionCard({ item, selected, highlight, inBasket, snapshots, papers, 
           <button key={tag} type="button" className="question-card-tag" title={`只看“${tag}”`} onClick={() => onPickTag(tag)}><Tag size={11} aria-hidden="true" />{tag}</button>
         ))}
       </footer> : null}
+      </> : null}
     </article>
   );
 }
@@ -526,58 +616,4 @@ function IndexedQuestionText({ item, highlight, showSolutions, formatFormulas }:
       ) : null)}
     </div>
   );
-}
-
-const SNAPSHOT_CONCURRENCY = 3;
-const SNAPSHOT_CACHE = 400;
-
-type QuestionSnapshotLoader = ReturnType<typeof useSnapshotLoader>;
-
-/** Saved questions with their figures, read as cards come near the view, the latest asked for first. */
-function useSnapshotLoader() {
-  const [loader] = useState(() => {
-    const cache = new Map<string, QuestionSnapshot | Error>();
-    const listeners = new Map<string, Set<() => void>>();
-    const queue: Array<{ key: string; path: string; questionId: string }> = [];
-    const requested = new Set<string>();
-    let running = 0;
-    const keyOf = (item: { path: string; questionId: string; renderHash: string }) => `${item.path}\u0000${item.questionId}\u0000${item.renderHash}`;
-    const pump = () => {
-      while (running < SNAPSHOT_CONCURRENCY && queue.length) {
-        const job = queue.pop()!;
-        running++;
-        window.chalkLee.readQuestionSnapshot(job.path, job.questionId)
-          .then(snapshot => { cache.set(job.key, snapshot); })
-          .catch(reason => { cache.set(job.key, reason instanceof Error ? reason : new Error(String(reason))); })
-          .finally(() => {
-            running--;
-            requested.delete(job.key);
-            if (cache.size > SNAPSHOT_CACHE) cache.delete(cache.keys().next().value!);
-            listeners.get(job.key)?.forEach(listener => listener());
-            pump();
-          });
-      }
-    };
-    return {
-      get: (item: QuestionBankResult) => cache.get(keyOf(item)),
-      request: (item: QuestionBankResult) => {
-        const key = keyOf(item);
-        if (cache.has(key) || requested.has(key)) return;
-        requested.add(key);
-        queue.push({ key, path: item.path, questionId: item.questionId });
-        pump();
-      },
-      subscribe: (item: QuestionBankResult, listener: () => void) => {
-        const key = keyOf(item);
-        const set = listeners.get(key) ?? new Set<() => void>();
-        listeners.set(key, set);
-        set.add(listener);
-        return () => {
-          set.delete(listener);
-          if (!set.size) listeners.delete(key);
-        };
-      }
-    };
-  });
-  return loader;
 }

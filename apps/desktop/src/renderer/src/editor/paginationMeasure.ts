@@ -65,6 +65,73 @@ export function fitChalkLeeWideFormulas(content: HTMLElement, scale: number) {
   return changes.length > 0;
 }
 
+// A text edit inside an intact prompt does not change pagination when the
+// whole prompt still occupies exactly the same space. The page decorations
+// already map through the edit's ProseMirror transaction. Only remember
+// ordinary top-level questions whose body is treated as an atomic flow item.
+// Complex layouts and a question containing a page break use the full pass.
+type IntactQuestionGeometry = { top: number; left: number; width: number; height: number; bodyHeight: number };
+export type IntactQuestionMeasurements = {
+  questions: WeakMap<HTMLElement, IntactQuestionGeometry>;
+  width: number;
+  fontsReady: Promise<FontFaceSet>;
+};
+
+function intactQuestion(host: HTMLElement) {
+  const question = host.matches(".chalklee-question-object") ? host
+    : host.querySelector<HTMLElement>(":scope > .chalklee-question-object");
+  if (!question || question.classList.contains("group") || question.dataset.linkedPlaceholder === "true"
+    || question.dataset.paginationKeepTogether !== "true" && question.dataset.paginationKeepBody !== "true"
+    || question.querySelector(".chalklee-page-gap, .chalklee-page-repeat-header, [data-chalklee-page-break], [data-chalklee-image], [data-chalklee-table], [data-chalklee-graphic], .chalklee-box, [data-chalklee-answer-lines]")) return;
+  return question;
+}
+
+function intactQuestionGeometry(host: HTMLElement, contentRect: DOMRect, scale: number): IntactQuestionGeometry | undefined {
+  const question = intactQuestion(host);
+  if (!question) return;
+  const bounds = host.getBoundingClientRect(), rect = question.getBoundingClientRect();
+  if (!bounds.height || !bounds.width) return;
+  const solution = question.dataset.paginationKeepBody === "true" ? chalkLeeQuestionSolutions(question)[0] : undefined;
+  const bodyHeight = solution ? (solution.getBoundingClientRect().top - rect.top) / scale : rect.height / scale;
+  return { top: (bounds.top - contentRect.top) / scale, left: (bounds.left - contentRect.left) / scale,
+    width: bounds.width / scale, height: bounds.height / scale, bodyHeight };
+}
+
+export function rememberIntactQuestions(content: HTMLElement, scale: number): IntactQuestionMeasurements | undefined {
+  const fonts = content.ownerDocument.fonts;
+  if (fonts.status !== "loaded" || content.querySelector("[data-image-layout^='wrap-'], .chalklee-image-pair-row")) return;
+  const rect = content.getBoundingClientRect();
+  const questions = new WeakMap<HTMLElement, IntactQuestionGeometry>();
+  for (const host of content.children) {
+    if (!(host instanceof HTMLElement)) continue;
+    const geometry = intactQuestionGeometry(host, rect, scale);
+    if (geometry) questions.set(host, geometry);
+  }
+  return { questions, width: rect.width / scale, fontsReady: fonts.ready };
+}
+
+/** The only changed node is a text run inside a prompt. If its body and
+ * position have not changed, the mapped page breaks remain exact. */
+export function intactQuestionEditKeepsPagination(editor: Editor, content: HTMLElement, scale: number,
+  previous: ProseMirrorNode, measured: IntactQuestionMeasurements): boolean {
+  const fonts = content.ownerDocument.fonts;
+  if (fonts.status !== "loaded" || fonts.ready !== measured.fontsReady) return false;
+  const pos = chalkLeeEditedTopLevelStem(previous, editor.state.doc);
+  if (pos === null) return false;
+  const host = editor.view.nodeDOM(pos);
+  if (!(host instanceof HTMLElement) || host.parentElement !== content) return false;
+  const before = measured.questions.get(host);
+  if (!before || fitChalkLeeWideFormulas(host, scale)) return false;
+  const rect = content.getBoundingClientRect();
+  // Chromium measures at 1/64 CSS pixel precision. Compare unscaled geometry,
+  // tolerating only floating-point noise from a transform or scroll offset.
+  const unchanged = (a: number, b: number) => Math.abs(a - b) < .01;
+  if (!unchanged(rect.width / scale, measured.width)) return false;
+  const after = intactQuestionGeometry(host, rect, scale);
+  return Boolean(after && unchanged(before.top, after.top) && unchanged(before.left, after.left)
+    && unchanged(before.width, after.width) && unchanged(before.height, after.height) && unchanged(before.bodyHeight, after.bodyHeight));
+}
+
 export function reflowChalkLeeColumns(
   editor: Editor, content: HTMLElement, document: ChalkLeeDocument, scale: number,
   { previous, customLayout, measurementCss }: { previous?: ProseMirrorNode; customLayout: boolean; measurementCss: string }

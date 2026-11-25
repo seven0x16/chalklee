@@ -68,7 +68,9 @@ export function useQuestionLibrary({ workspaceRoot, active, notify }: { workspac
   const tagTreeRef = useRef(tagTree);
   tagTreeRef.current = tagTree;
 
-  useEffect(() => window.chalkLee.onQuestionBankChange(change => setRevision(change.revision)), []);
+  // Opening a tab revalidates its search version with the worker anyway. Do
+  // not re-render the document surface for every indexing batch in the background.
+  useEffect(() => active ? window.chalkLee.onQuestionBankChange(change => setRevision(change.revision)) : undefined, [active]);
   // Tag groups of the workspace the library last read them for.
   const treeRootRef = useRef<string | null>(null);
   useEffect(() => {

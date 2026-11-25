@@ -197,7 +197,7 @@ export function MarkdownEditor({ data, filePath, modifiedAt, active, banner, sho
       paused = true; clearTimeout(timer); view.dispatch({ effects: editable.reconfigure(EditorView.editable.of(false)) }); setEditableState(false);
       const release = () => { paused = false; view.dispatch({ effects: editable.reconfigure(EditorView.editable.of(true)) }); setEditableState(true); schedule(); };
       try { await saving; if (saveChanges) await save(true); return release; } catch (error) { release(); throw error; }
-    });
+    }, () => dirty || !!saving);
     const editorId = crypto.randomUUID();
     let disposed = false, lock: { id: string; release(): void; timer: ReturnType<typeof setTimeout> } | null = null;
     const cancelled = new Set<string>();

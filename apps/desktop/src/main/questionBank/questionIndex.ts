@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { openChalkLeeArchiveForReading, readChalkLeeArchive, type ChalkLeeArchiveReader, type ChalkLeeDocument } from "@chalklee/format";
+import { openChalkLeeArchiveForReading, type ChalkLeeArchiveReader, type ChalkLeeDocument } from "@chalklee/format";
 import type { WorkspaceDirectoryNode, WorkspaceFileNode } from "../../shared/contracts";
 import {
   assignDuplicateGroups,
@@ -13,6 +13,8 @@ import {
   publicQuestionBankEntry,
   questionContentHash,
   questionCopies,
+  questionDuplicatePartition,
+  questionSurroundings,
   summarizeQuestionBank,
   type IndexedQuestion,
   type PreparedQuestionBankSearch,
@@ -32,7 +34,7 @@ import { documentKind, inspectWorkspaceDocument } from "../workspace/files";
 import { openWorkspaceArchiveValidationCache, type WorkspaceArchiveValidationCache } from "../workspace/archiveValidationCache";
 import { workspaceStorageDirectory } from "../workspace/storage";
 import { EMPTY_QUESTION_TAG_TREE, normalizeQuestionTagTree, type QuestionTagTree } from "../../shared/questionBank/tagTree";
-import { pictureFigurePrint, sameFigurePrint } from "./figurePrints";
+import { figurePrintCandidateKeys, pictureFigurePrint, sameFigurePrint } from "./figurePrints";
 
 // Bump when QuestionBankEntry changes shape or meaning so stale caches are re-indexed.
 const CACHE_VERSION = 10;
@@ -43,6 +45,7 @@ const INDEX_CONCURRENCY = 4;
 /** Recently read papers, so a page of library cards from one paper parses it once. */
 const ARCHIVE_CACHE = 6;
 const ARCHIVE_ASSET_CACHE_BYTES = 4 * 1024 * 1024;
+const ARCHIVE_CACHE_BYTES = 48 * 1024 * 1024;
 const SEARCH_CACHE_SIZE = 4;
 const SEARCH_CACHE_MATCHES = 80_000;
 const SEARCH_CACHE_TAGS = 1_000;
@@ -53,18 +56,42 @@ interface IndexedDocument {
   relativePath: string;
   size: number;
   modifiedAt: number;
+  fingerprint?: string;
   createdAt?: number | Promise<number>;
   failed: boolean;
   questions: IndexedQuestion[];
+  surroundings?: ReturnType<typeof questionSurroundings>;
 }
+type IndexUpdate = { path: string; root: string; generation: number; cancelled: boolean; done: Array<() => void> };
 interface IndexCache {
   version: number;
-  documents: Array<{ relativePath: string; size: number; modifiedAt: number; failed: boolean; entries: CachedEntry[] }>;
+  /** Identifies the base snapshot so an old overlay is ignored after compaction. */
+  cacheId?: string;
+  documents: CachedDocument[];
   /** Figure prints by figure id; null for a picture that cannot be compared by its look. */
   figures?: Record<string, string | null>;
   /** Height over width of pictures whose documents do not say, by sha256; null when the file could not be read. */
   aspects?: Record<string, number | null>;
 }
+type CachedDocument = { relativePath: string; size: number; modifiedAt: number; failed: boolean; entries: CachedEntry[] };
+type IndexOverlay = {
+  version: number; baseId: string;
+  documents: CachedDocument[]; removed: string[];
+  figures: Record<string, string | null>; aspects: Record<string, number | null>;
+};
+type CacheState = {
+  baseId: string | null;
+  changes: Map<string, CachedDocument | null>;
+  figures: Map<string, string | null>;
+  aspects: Map<string, number | null>;
+  dirtyDocuments: Set<string>;
+  dirtyFigures: Set<string>;
+  dirtyAspects: Set<string>;
+};
+const emptyCacheState = (): CacheState => ({ baseId: null, changes: new Map(), figures: new Map(), aspects: new Map(),
+  dirtyDocuments: new Set(), dirtyFigures: new Set(), dirtyAspects: new Set() });
+const CACHE_OVERLAY_DOCUMENTS = 128;
+const CACHE_OVERLAY_FIGURES = 2_000;
 
 type JsonNode = { type?: string; attrs?: Record<string, any>; content?: JsonNode[] };
 
@@ -78,6 +105,11 @@ export class QuestionBankIndex {
   private generation = 0;
   private opening: Promise<void> = Promise.resolve();
   private documents = new Map<string, IndexedDocument>();
+  // Duplicate edges never cross partitions. A common unique numeric/formula
+  // signature needs only one map entry rather than three temporary buckets.
+  private partitions = new Map<string, IndexedQuestion | Set<IndexedQuestion>>();
+  private dirtyPartitions = new Set<string>();
+  private waitingFigurePartitions = new Set<string>();
   private questions: IndexedQuestion[] = [];
   private overviewCache?: { calculatedAt: number; expiresAt: number; value: QuestionBankOverview };
   private searches = new Map<string, PreparedQuestionBankSearch>();
@@ -86,11 +118,15 @@ export class QuestionBankIndex {
   private status: QuestionBankIndexStatus = { state: "idle", indexedDocuments: 0, totalDocuments: 0, questionCount: 0, failedDocuments: 0 };
   private rebuildTimer: ReturnType<typeof setTimeout> | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private cacheState = emptyCacheState();
+  private cacheWrite: Promise<unknown> = Promise.resolve();
   private basketWrite: Promise<unknown> = Promise.resolve();
   private tagTree: QuestionTagTree = EMPTY_QUESTION_TAG_TREE;
   private tagTreeLoad: Promise<unknown> = Promise.resolve();
   private tagTreeWrite: Promise<unknown> = Promise.resolve();
-  private archives = new Map<string, { fingerprint: string; archive: Promise<ChalkLeeArchiveReader> }>();
+  private archives = new Map<string, { fingerprint: string; bytes: number; pending: boolean; archive: Promise<ChalkLeeArchiveReader> }>();
+  private pendingUpdates = new Map<string, IndexUpdate>();
+  private activeUpdates = new Map<string, IndexUpdate>();
   private verifiedArchives?: Pick<WorkspaceArchiveValidationCache, "has">;
   /** How figures look, read only for questions whose wording already matches another paper's. */
   private figurePrints = new Map<string, string | null>();
@@ -107,8 +143,13 @@ export class QuestionBankIndex {
   private async openWorkspace(root: string, tree: WorkspaceDirectoryNode, validationCacheDirectory?: string): Promise<void> {
     const generation = ++this.generation;
     this.clearTimers();
+    this.cancelUpdates();
+    this.cacheState = emptyCacheState();
     this.root = root;
     this.documents.clear();
+    this.partitions.clear();
+    this.dirtyPartitions.clear();
+    this.waitingFigurePartitions.clear();
     this.questions = [];
     this.overviewCache = undefined;
     this.searches.clear();
@@ -119,12 +160,14 @@ export class QuestionBankIndex {
     this.tagTree = EMPTY_QUESTION_TAG_TREE;
     this.tagTreeLoad = this.loadTagTree(root).then(tagTree => this.updateTagTree(tagTree, generation));
     const files = chalkLeeFiles(tree);
-    const [{ documents: cache, figures, aspects }, , verifiedArchives] = await Promise.all([
+    this.status = { state: "indexing", indexedDocuments: 0, totalDocuments: files.length, questionCount: 0, failedDocuments: 0 };
+    const [{ documents: cache, figures, aspects, state }, , verifiedArchives] = await Promise.all([
       this.readCache(root), this.tagTreeLoad,
       validationCacheDirectory ? openWorkspaceArchiveValidationCache(validationCacheDirectory, root) : undefined
     ]);
     if (generation !== this.generation) return;
     this.verifiedArchives = verifiedArchives;
+    this.cacheState = state;
     this.figurePrints = figures;
     this.figureAspects = aspects;
     const pending: WorkspaceFileNode[] = [];
@@ -132,13 +175,18 @@ export class QuestionBankIndex {
       const relativePath = this.relative(file.path);
       const cached = cache.get(relativePath);
       if (cached && !cached.failed && cached.size === file.size && cached.modifiedAt === file.modifiedAt) {
-        this.documents.set(file.path, { relativePath, size: cached.size, modifiedAt: cached.modifiedAt, createdAt: file.createdAt, failed: cached.failed,
-          questions: cached.entries.map(entry => indexQuestionBankEntry({ ...entry, path: file.path, relativePath })) });
-      } else pending.push(file);
+        this.setIndexedDocument(file.path, { relativePath, size: cached.size, modifiedAt: cached.modifiedAt, createdAt: file.createdAt, failed: cached.failed,
+          questions: cached.entries.map(entry => indexQuestionBankEntry({ ...entry, path: file.path, relativePath })) }, false);
+      } else {
+        pending.push(file);
+        state.dirtyDocuments.add(relativePath);
+      }
+      cache.delete(relativePath);
     }
+    for (const relativePath of cache.keys()) state.dirtyDocuments.add(relativePath);
     this.status = { state: pending.length ? "indexing" : "ready", indexedDocuments: files.length - pending.length, totalDocuments: files.length, questionCount: 0, failedDocuments: 0 };
     this.rebuild();
-    if (!pending.length) return;
+    if (!pending.length) { if (state.dirtyDocuments.size) this.schedulePersist(); return; }
     let next = 0;
     const worker = async () => {
       while (next < pending.length && generation === this.generation) {
@@ -159,8 +207,13 @@ export class QuestionBankIndex {
   close() {
     this.generation++;
     this.clearTimers();
+    this.cancelUpdates();
+    this.cacheState = emptyCacheState();
     this.root = null;
     this.documents.clear();
+    this.partitions.clear();
+    this.dirtyPartitions.clear();
+    this.waitingFigurePartitions.clear();
     this.questions = [];
     this.overviewCache = undefined;
     this.searches.clear();
@@ -178,14 +231,49 @@ export class QuestionBankIndex {
     if (!root || documentKind(filePath) !== "chalklee" || isInternalPath(root, filePath)) return;
     await this.opening;
     if (generation !== this.generation) return;
-    const known = this.documents.has(filePath);
-    await this.indexFile(root, filePath, generation);
-    if (generation !== this.generation) return;
-    if (!known && this.documents.has(filePath)) {
-      this.status = { ...this.status, totalDocuments: this.status.totalDocuments + 1, indexedDocuments: this.status.indexedDocuments + 1 };
+    return new Promise<void>(resolve => {
+      let job = this.pendingUpdates.get(filePath);
+      if (!job) {
+        job = { path: filePath, root, generation, cancelled: false, done: [] };
+        this.pendingUpdates.set(filePath, job);
+      }
+      job.done.push(resolve);
+      this.pumpUpdates();
+    });
+  }
+
+  private pumpUpdates() {
+    if (this.activeUpdates.size >= INDEX_CONCURRENCY) return;
+    for (const [filePath, job] of this.pendingUpdates) {
+      if (this.activeUpdates.size >= INDEX_CONCURRENCY) break;
+      // Changes to a file are processed in order; one later read is enough
+      // for all events that arrived while the current read was in flight.
+      if (this.activeUpdates.has(filePath)) continue;
+      this.pendingUpdates.delete(filePath);
+      this.activeUpdates.set(filePath, job);
+      const current = () => !job.cancelled && job.generation === this.generation;
+      const known = this.documents.has(filePath);
+      void this.indexFile(job.root, filePath, job.generation, current).then(changed => {
+        if (!changed || !current()) return;
+        const delta = Number(this.documents.has(filePath)) - Number(known);
+        if (delta) this.status = { ...this.status, totalDocuments: this.status.totalDocuments + delta, indexedDocuments: this.status.indexedDocuments + delta };
+        this.scheduleRebuild();
+        this.schedulePersist();
+      }).finally(() => {
+        this.activeUpdates.delete(filePath);
+        job.done.forEach(done => done());
+        this.pumpUpdates();
+      });
     }
-    this.scheduleRebuild();
-    this.schedulePersist();
+  }
+
+  private cancelUpdates(contains: (file: string) => boolean = () => true) {
+    for (const [file, job] of this.pendingUpdates) if (contains(file)) {
+      this.pendingUpdates.delete(file);
+      job.cancelled = true;
+      job.done.forEach(done => done());
+    }
+    for (const [file, job] of this.activeUpdates) if (contains(file)) job.cancelled = true;
   }
 
   /** Forget a removed file, or every file below a removed directory. */
@@ -194,9 +282,11 @@ export class QuestionBankIndex {
     const generation = this.generation;
     await this.opening;
     if (generation !== this.generation) return;
+    const contains = (file: string) => file === entryPath || file.startsWith(`${entryPath}${path.sep}`);
+    this.cancelUpdates(contains);
     let removed = 0;
     for (const filePath of [...this.documents.keys()]) {
-      if (filePath === entryPath || filePath.startsWith(`${entryPath}${path.sep}`)) { this.documents.delete(filePath); removed++; }
+      if (contains(filePath)) { this.setIndexedDocument(filePath, undefined); removed++; }
     }
     if (!removed) return;
     this.overviewCache = undefined;
@@ -434,25 +524,48 @@ export class QuestionBankIndex {
     const archive = readFile(canonicalFile).then(async (bytes): Promise<ChalkLeeArchiveReader> => {
       // The scan verified the entire archive. Compare the bytes we actually read,
       // including when a file was replaced between stat and readFile.
-      if (verifiedArchives?.has(createHash("sha256").update(bytes).digest("hex"))) {
-        return cachePreviewAssets(await openChalkLeeArchiveForReading(bytes));
+      const reader = cachePreviewAssets(await openChalkLeeArchiveForReading(bytes));
+      if (!verifiedArchives?.has(createHash("sha256").update(bytes).digest("hex"))) {
+        // A new or changed archive must still pass every asset check before
+        // previewing. Discard inflated bytes as we go instead of keeping an
+        // entire paper's pictures in the preview cache.
+        for (const asset of reader.manifest.assets) await reader.readAsset(asset.id);
       }
-      const { document, manifest, assets } = await readChalkLeeArchive(bytes);
-      return { document, manifest, readAsset: async id => assets[id] };
+      return reader;
     });
-    this.archives.set(canonicalFile, { fingerprint, archive });
-    if (this.archives.size > ARCHIVE_CACHE) this.archives.delete(this.archives.keys().next().value!);
-    archive.catch(() => { if (this.archives.get(canonicalFile)?.archive === archive) this.archives.delete(canonicalFile); });
+    const entry = { fingerprint, archive, bytes: size + ARCHIVE_ASSET_CACHE_BYTES, pending: true };
+    this.archives.set(canonicalFile, entry);
+    this.trimArchives();
+    void archive.then(() => {
+      entry.pending = false;
+      if (this.archives.get(canonicalFile) === entry) this.trimArchives();
+    }, () => { if (this.archives.get(canonicalFile) === entry) this.archives.delete(canonicalFile); });
     return archive;
   }
 
-  private async indexFile(root: string, filePath: string, generation: number) {
+  private trimArchives() {
+    let retained = [...this.archives.values()].reduce((total, entry) => total + entry.bytes, 0);
+    for (const [key, entry] of this.archives) {
+      if (this.archives.size <= ARCHIVE_CACHE && retained <= ARCHIVE_CACHE_BYTES) break;
+      // While a large paper is being verified, concurrent requests share the
+      // same read. Once settled it can be dropped even if no other entry fits.
+      if (entry.pending) continue;
+      this.archives.delete(key);
+      retained -= entry.bytes;
+    }
+  }
+
+  private async indexFile(root: string, filePath: string, generation: number, current = () => generation === this.generation): Promise<boolean> {
     const relativePath = this.relative(filePath);
     let createdAt: number | undefined;
     try {
       const { canonicalFile, fileStats } = await inspectWorkspaceDocument(root, filePath);
+      if (!current()) return false;
+      const fingerprint = `${fileStats.dev}:${fileStats.ino}:${fileStats.size}:${fileStats.mtimeMs}:${fileStats.ctimeMs}`;
+      if (this.documents.get(filePath)?.fingerprint === fingerprint) return false;
       createdAt = fileStats.birthtimeMs;
       const archive = await openChalkLeeArchiveForReading(await readFile(canonicalFile));
+      if (!current()) return false;
       const { document, manifest } = archive;
       const assetHashes = new Map(manifest.assets.map(asset => [asset.id, asset.sha256]));
       const assetAspects = new Map<string, number>();
@@ -460,19 +573,26 @@ export class QuestionBankIndex {
         const sha256 = assetHashes.get(id);
         if (!sha256) continue;
         // A picture that cannot be read only makes its card's reserved height a guess.
-        if (!this.figureAspects.has(sha256)) this.figureAspects.set(sha256, await archive.readAsset(id).then(imageFileAspect, () => null));
+        if (!this.figureAspects.has(sha256)) {
+          const aspect = await archive.readAsset(id).then(imageFileAspect, () => null);
+          if (!current()) return false;
+          this.figureAspects.set(sha256, aspect);
+          this.cacheState.dirtyAspects.add(sha256);
+        }
         const aspect = this.figureAspects.get(sha256);
         if (aspect) assetAspects.set(id, aspect);
       }
       const entries = extractQuestionBankEntries(document, { path: filePath, relativePath, documentTitle: documentTitle(filePath), assetHashes, assetAspects });
-      if (generation !== this.generation) return;
-      this.documents.set(filePath, { relativePath, size: fileStats.size, modifiedAt: fileStats.mtimeMs, createdAt, failed: false, questions: entries.map(indexQuestionBankEntry) });
+      if (!current()) return false;
+      this.setIndexedDocument(filePath, { relativePath, size: fileStats.size, modifiedAt: fileStats.mtimeMs, fingerprint, createdAt, failed: false, questions: entries.map(indexQuestionBankEntry) });
     } catch (error) {
-      if (generation !== this.generation) return;
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") this.documents.delete(filePath);
-      else this.documents.set(filePath, { relativePath, size: -1, modifiedAt: -1, createdAt, failed: true, questions: [] });
+      if (!current()) return false;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT" && !this.documents.has(filePath)) return false;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") this.setIndexedDocument(filePath, undefined);
+      else this.setIndexedDocument(filePath, { relativePath, size: -1, modifiedAt: -1, createdAt, failed: true, questions: [] });
     }
     this.overviewCache = undefined;
+    return true;
   }
 
   private findEntry(filePath: string, questionId: string) {
@@ -480,19 +600,69 @@ export class QuestionBankIndex {
     return document?.questions.find(question => question.questionId === questionId);
   }
 
+  private setIndexedDocument(filePath: string, document: IndexedDocument | undefined, dirty = true) {
+    const before = this.documents.get(filePath);
+    if (dirty) this.cacheState.dirtyDocuments.add(document?.relativePath ?? before?.relativePath ?? this.relative(filePath));
+    for (const question of before?.questions ?? []) {
+      const key = questionDuplicatePartition(question), partition = this.partitions.get(key);
+      if (partition instanceof Set) {
+        this.dirtyPartitions.add(key);
+        partition.delete(question);
+        if (partition.size === 1) this.partitions.set(key, partition.values().next().value!);
+        else if (!partition.size) this.partitions.delete(key);
+      } else {
+        this.partitions.delete(key);
+        this.dirtyPartitions.delete(key);
+      }
+    }
+    if (!document) { this.documents.delete(filePath); return; }
+    this.documents.set(filePath, document);
+    for (const question of document.questions) {
+      const key = questionDuplicatePartition(question), partition = this.partitions.get(key);
+      // A new question with no candidate already has its own group id. No
+      // need to enqueue all the unique questions during a warm open.
+      if (partition) this.dirtyPartitions.add(key);
+      if (partition instanceof Set) partition.add(question);
+      else this.partitions.set(key, partition ? new Set([partition, question]) : question);
+    }
+  }
+
   private rebuild() {
     if (this.rebuildTimer) { clearTimeout(this.rebuildTimer); this.rebuildTimer = null; }
     const questions = [...this.documents.values()].flatMap(document => document.questions);
     // Figures that differ in bytes are compared by look once read; until then the questions stay apart.
     const unread = new Set<string>();
-    assignDuplicateGroups(questions, (left, right) => {
-      const prints = [left, right].map(figure => {
-        const print = this.figurePrints.get(figure);
-        if (print === undefined && figure.startsWith("sha256:")) unread.add(figure);
-        return print;
-      });
-      return prints.every(print => print != null) && sameFigurePrint(prints[0]!, prints[1]!);
-    });
+    const figureKeys = new Map<string, string[]>();
+    for (const key of this.dirtyPartitions) {
+      const partition = this.partitions.get(key);
+      if (!partition) continue;
+      if (!(partition instanceof Set)) { partition.duplicateGroup = partition.key; continue; }
+      const consider = (figure: string) => {
+        if (!this.figurePrints.has(figure) && figure.startsWith("sha256:")) {
+          unread.add(figure);
+          this.waitingFigurePartitions.add(key);
+        }
+      };
+      assignDuplicateGroups([...partition], (left, right) => {
+        consider(left); consider(right);
+        const a = this.figurePrints.get(left), b = this.figurePrints.get(right);
+        return a != null && b != null && sameFigurePrint(a, b);
+      }, question => {
+        const document = this.documents.get(question.path);
+        if (!document) return undefined;
+        document.surroundings ??= questionSurroundings(document.questions);
+        return document.surroundings.get(question.key);
+      }, { consider, keys: figure => {
+        let keys = figureKeys.get(figure);
+        if (!keys) {
+          const print = this.figurePrints.get(figure);
+          keys = print == null ? [] : figurePrintCandidateKeys(print);
+          figureKeys.set(figure, keys);
+        }
+        return keys;
+      } });
+    }
+    this.dirtyPartitions.clear();
     this.questions = questions;
     this.overviewCache = undefined;
     this.searches.clear();
@@ -507,9 +677,10 @@ export class QuestionBankIndex {
   private printFigures(figures: ReadonlySet<string>, questions: readonly IndexedQuestion[]) {
     const root = this.root, generation = this.generation;
     if (this.printing || !root) return;
-    const papers = new Map<string, Set<string>>();
+    const papers = new Map<string, Set<string>>(), assigned = new Set<string>();
     for (const question of questions) for (const figure of question.figures) {
-      if (!figures.has(figure) || [...papers.values()].some(needed => needed.has(figure))) continue;
+      if (!figures.has(figure) || assigned.has(figure)) continue;
+      assigned.add(figure);
       papers.set(question.path, (papers.get(question.path) ?? new Set()).add(figure));
     }
     this.printing = (async () => {
@@ -522,15 +693,20 @@ export class QuestionBankIndex {
           const data = await archive.readAsset(asset.id).catch(() => undefined);
           if (generation !== this.generation) return;
           this.figurePrints.set(figure, pictureFigurePrint(asset.mediaType, data));
+          this.cacheState.dirtyFigures.add(figure);
         }
         // A paper that cannot be read leaves its figures apart from every other.
-        for (const figure of needed) if (!this.figurePrints.has(figure)) this.figurePrints.set(figure, null);
+        for (const figure of needed) if (!this.figurePrints.has(figure)) {
+          this.figurePrints.set(figure, null);
+          this.cacheState.dirtyFigures.add(figure);
+        }
       }
     })().finally(() => {
       this.printing = null;
-      if (generation !== this.generation) return;
-      this.scheduleRebuild();
-      this.schedulePersist();
+      for (const key of this.waitingFigurePartitions) this.dirtyPartitions.add(key);
+      this.waitingFigurePartitions.clear();
+      if (this.root && this.dirtyPartitions.size) this.scheduleRebuild();
+      if (generation === this.generation) this.schedulePersist();
     });
   }
 
@@ -544,55 +720,160 @@ export class QuestionBankIndex {
     const root = this.root, generation = this.generation;
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      if (root && generation === this.generation) void this.writeCache(root).catch(() => undefined);
+      // The initial cache, or a delta, should contain the completed indexing
+      // batch rather than be rewritten again as its figures finish.
+      if (this.status.state === "indexing" || this.printing) return;
+      if (root && generation === this.generation) void this.persist(root, generation).catch(() => undefined);
     }, this.options.persistDelayMs ?? 1500);
   }
 
   /** Flush pending index work; used by tests and before quitting. */
   async flush() {
+    await Promise.all([...this.activeUpdates.values(), ...this.pendingUpdates.values()].map(job => new Promise<void>(resolve => job.done.push(resolve))));
     if (this.rebuildTimer) this.rebuild();
     while (this.printing) {
       await this.printing;
       if (this.rebuildTimer) this.rebuild();
     }
-    if (this.persistTimer && this.root) {
-      clearTimeout(this.persistTimer);
+    if (this.root && (this.persistTimer || this.cacheState.dirtyDocuments.size || this.cacheState.dirtyFigures.size || this.cacheState.dirtyAspects.size)) {
+      if (this.persistTimer) clearTimeout(this.persistTimer);
       this.persistTimer = null;
-      await this.writeCache(this.root);
+      await this.persist(this.root, this.generation);
     }
+    await this.cacheWrite;
     await this.basketWrite;
     await this.tagTreeWrite;
   }
 
-  private async readCache(root: string) {
-    const documents = new Map<string, IndexCache["documents"][number]>(), figures = new Map<string, string | null>(), aspects = new Map<string, number | null>();
+  /** User-authored basket and tag changes must finish. An unfinished search index
+   * or image comparison is disposable: rebuilding it next time is safe. */
+  async shutdown() {
+    this.clearTimers();
     try {
-      const file = path.join(await workspaceStorageDirectory(root, ["question-bank"], false), "index.json");
-      const cache = JSON.parse(await readFile(file, "utf8")) as IndexCache;
-      if (cache?.version !== CACHE_VERSION || !Array.isArray(cache.documents)) return { documents, figures, aspects };
-      for (const document of cache.documents) if (typeof document?.relativePath === "string" && Array.isArray(document.entries)) documents.set(document.relativePath, document);
+      // Keep the useful completed batch when this costs no further indexing.
+      if (this.root && this.status.state === "ready" && !this.activeUpdates.size && !this.pendingUpdates.size && !this.printing
+        && (this.cacheState.dirtyDocuments.size || this.cacheState.dirtyFigures.size || this.cacheState.dirtyAspects.size)) {
+        await this.persist(this.root, this.generation);
+      }
+    } finally {
+      this.close();
+      await Promise.all([this.cacheWrite, this.basketWrite, this.tagTreeWrite]);
+    }
+  }
+
+  private async readCache(root: string) {
+    const documents = new Map<string, CachedDocument>(), figures = new Map<string, string | null>(), aspects = new Map<string, number | null>();
+    const state = emptyCacheState();
+    const empty = () => ({ documents: new Map<string, CachedDocument>(), figures: new Map<string, string | null>(),
+      aspects: new Map<string, number | null>(), state: emptyCacheState() });
+    const readDocument = (document: CachedDocument) => {
+      if (typeof document?.relativePath === "string" && Array.isArray(document.entries)) documents.set(document.relativePath, document);
+    };
+    try {
+      const directory = await workspaceStorageDirectory(root, ["question-bank"], false);
+      const cache = JSON.parse(await readFile(path.join(directory, "index.json"), "utf8")) as IndexCache;
+      if (cache?.version !== CACHE_VERSION || !Array.isArray(cache.documents)) return empty();
+      state.baseId = typeof cache.cacheId === "string" ? cache.cacheId : "";
+      for (const document of cache.documents) readDocument(document);
       for (const [figure, print] of Object.entries(cache.figures ?? {})) if (typeof print === "string" || print === null) figures.set(figure, print);
       for (const [sha256, aspect] of Object.entries(cache.aspects ?? {})) if (typeof aspect === "number" || aspect === null) aspects.set(sha256, aspect);
-    } catch { /* Missing or stale cache: index from the files. */ }
-    return { documents, figures, aspects };
+      // Only overlays written against this base can supersede it. A damaged
+      // overlay is not a reason to trust potentially older cached entries.
+      const overlayText = await readFile(path.join(directory, "index-changes.json"), "utf8").catch(error => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+        throw error;
+      });
+      if (overlayText !== undefined) {
+        const overlay = JSON.parse(overlayText) as IndexOverlay;
+        if (overlay?.version === CACHE_VERSION && overlay.baseId === state.baseId) {
+          if (!Array.isArray(overlay.documents) || !Array.isArray(overlay.removed)) return empty();
+          for (const document of overlay.documents) {
+            if (typeof document?.relativePath !== "string" || !Array.isArray(document.entries)) return empty();
+            readDocument(document);
+            state.changes.set(document.relativePath, document);
+          }
+          for (const relativePath of overlay.removed) {
+            if (typeof relativePath !== "string") return empty();
+            documents.delete(relativePath);
+            state.changes.set(relativePath, null);
+          }
+          for (const [figure, print] of Object.entries(overlay.figures ?? {})) if (typeof print === "string" || print === null) {
+            figures.set(figure, print); state.figures.set(figure, print);
+          }
+          for (const [sha256, aspect] of Object.entries(overlay.aspects ?? {})) if (typeof aspect === "number" || aspect === null) {
+            aspects.set(sha256, aspect); state.aspects.set(sha256, aspect);
+          }
+        }
+      }
+      return { documents, figures, aspects, state };
+    } catch { return empty(); }
+  }
+
+  private persist(root: string, generation: number) {
+    const write = this.cacheWrite.then(() => generation === this.generation ? this.writeCache(root) : undefined);
+    this.cacheWrite = write.catch(() => undefined);
+    return write;
+  }
+
+  private cachedDocument(document: IndexedDocument): CachedDocument {
+    return {
+      relativePath: document.relativePath, size: document.size, modifiedAt: document.modifiedAt, failed: document.failed,
+      entries: document.questions.map(question => {
+        const { path: _path, ...entry } = publicQuestionBankEntry(question);
+        return entry;
+      })
+    };
   }
 
   private async writeCache(root: string) {
-    const used = new Set(this.questions.flatMap(question => question.figures));
-    const cache: IndexCache = {
-      version: CACHE_VERSION,
-      documents: [...this.documents.values()].filter(document => document.size >= 0).map(document => ({
-        relativePath: document.relativePath, size: document.size, modifiedAt: document.modifiedAt, failed: document.failed,
-        entries: document.questions.map(question => {
-          const { path: _path, ...entry } = publicQuestionBankEntry(question);
-          return entry;
-        })
-      })),
-      figures: Object.fromEntries([...this.figurePrints].filter(([figure]) => used.has(figure))),
-      aspects: Object.fromEntries([...this.figureAspects].filter(([sha256]) => used.has(`sha256:${sha256}`)))
-    };
-    const directory = await workspaceStorageDirectory(root, ["question-bank"], true);
-    await writeAtomic(path.join(directory, "index.json"), JSON.stringify(cache));
+    const state = this.cacheState;
+    const { dirtyDocuments, dirtyFigures, dirtyAspects } = state;
+    if (!dirtyDocuments.size && !dirtyFigures.size && !dirtyAspects.size && state.baseId !== null) return;
+    // New updates may arrive while this atomic write is in flight.
+    state.dirtyDocuments = new Set(); state.dirtyFigures = new Set(); state.dirtyAspects = new Set();
+    try {
+      const compact = state.baseId === null
+        || new Set([...state.changes.keys(), ...dirtyDocuments]).size > CACHE_OVERLAY_DOCUMENTS
+        || new Set([...state.figures.keys(), ...dirtyFigures, ...state.aspects.keys(), ...dirtyAspects]).size > CACHE_OVERLAY_FIGURES;
+      const directory = await workspaceStorageDirectory(root, ["question-bank"], true);
+      if (state !== this.cacheState) return;
+      if (compact) {
+        const used = new Set<string>();
+        for (const document of this.documents.values()) for (const question of document.questions) for (const figure of question.figures) used.add(figure);
+        const cache: IndexCache = {
+          version: CACHE_VERSION, cacheId: randomUUID(),
+          documents: [...this.documents.values()].filter(document => document.size >= 0).map(document => this.cachedDocument(document)),
+          figures: Object.fromEntries([...this.figurePrints].filter(([figure]) => used.has(figure))),
+          aspects: Object.fromEntries([...this.figureAspects].filter(([sha256]) => used.has(`sha256:${sha256}`)))
+        };
+        await writeAtomic(path.join(directory, "index.json"), JSON.stringify(cache));
+        // Even if interrupted here, the former overlay has another base id.
+        state.baseId = cache.cacheId!;
+        state.changes.clear(); state.figures.clear(); state.aspects.clear();
+        await unlink(path.join(directory, "index-changes.json")).catch(() => undefined);
+      } else {
+        const changes = new Map(state.changes), figures = new Map(state.figures), aspects = new Map(state.aspects);
+        for (const relativePath of dirtyDocuments) {
+          const document = this.documents.get(joinWorkspacePath(root, relativePath));
+          changes.set(relativePath, document && document.size >= 0 ? this.cachedDocument(document) : null);
+        }
+        for (const figure of dirtyFigures) if (this.figurePrints.has(figure)) figures.set(figure, this.figurePrints.get(figure)!);
+        for (const hash of dirtyAspects) if (this.figureAspects.has(hash)) aspects.set(hash, this.figureAspects.get(hash)!);
+        const overlay: IndexOverlay = {
+          version: CACHE_VERSION, baseId: state.baseId!,
+          documents: [...changes.values()].filter((document): document is CachedDocument => document !== null),
+          removed: [...changes].flatMap(([relativePath, document]) => document === null ? [relativePath] : []),
+          figures: Object.fromEntries(figures), aspects: Object.fromEntries(aspects)
+        };
+        await writeAtomic(path.join(directory, "index-changes.json"), JSON.stringify(overlay));
+        state.changes = changes; state.figures = figures; state.aspects = aspects;
+      }
+    } catch (error) {
+      for (const relativePath of dirtyDocuments) state.dirtyDocuments.add(relativePath);
+      for (const figure of dirtyFigures) state.dirtyFigures.add(figure);
+      for (const hash of dirtyAspects) state.dirtyAspects.add(hash);
+      throw error;
+    }
   }
 
   private requireRoot() {

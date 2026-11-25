@@ -131,7 +131,12 @@ async function packChalkLeeArchive(
   const zip = new JSZip();
   zip.file(MIMETYPE_PATH, CHALKLEE_MEDIA_TYPE, { compression: "STORE", date: archiveDate });
   zip.file(MANIFEST_PATH, manifestJson, { date: archiveDate });
-  zip.file(DOCUMENT_PATH, documentJson, { date: archiveDate });
+  zip.file(DOCUMENT_PATH, documentJson, {
+    date: archiveDate,
+    // Interactive saves favor low latency. The document JSON is highly
+    // compressible; keep the same ZIP format and reuse verified image entries.
+    ...(previous ? { compressionOptions: { level: 6 } } : {})
+  });
   if (sortedAssets.length) {
     zip.file("assets/", new Uint8Array(), { compression: "STORE", createFolders: false, date: archiveDate, dir: true });
   }

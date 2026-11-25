@@ -60,12 +60,25 @@ function isNestedQuestion(editor: Editor, position: number) {
   return false;
 }
 
-export function QuestionNodeView({ editor, node, getPos, selected, decorations }: NodeViewProps) {
+export function QuestionNodeView({ editor, node: publishedNode, getPos, selected, decorations }: NodeViewProps) {
   const inspector = useChalkLeePropertiesToggle();
   const basket = useChalkLeeQuestionBasket();
   const askAssistant = useChalkLeeQuestionAssistant();
   const resolvedPosition = typeof getPos === "function" ? getPos() : undefined;
   const position = typeof resolvedPosition === "number" ? resolvedPosition : false;
+  // Plain text changes do not rebuild the React wrapper. Always resolve
+  // actions against the current model rather than a previously rendered size
+  // or position, particularly after a question above this one was edited.
+  const currentPosition = () => {
+    const value = getPos();
+    return typeof value === "number" && editor.state.doc.nodeAt(value)?.attrs.id === publishedNode.attrs.id ? value : null;
+  };
+  const withPosition = (action: (position: number) => void) => {
+    const value = currentPosition();
+    if (value !== null) action(value);
+  };
+  const liveNode = position === false ? null : editor.state.doc.nodeAt(position);
+  const node = liveNode?.type === publishedNode.type && liveNode.attrs.id === publishedNode.attrs.id ? liveNode : publishedNode;
   const basketAvailable = Boolean(basket) && position !== false && !isNestedQuestion(editor, position);
   const inBasket = basketAvailable && basket!.has(String(node.attrs.id));
   const [basketBusy, setBasketBusy] = useState(false);
@@ -276,23 +289,23 @@ export function QuestionNodeView({ editor, node, getPos, selected, decorations }
             title="题目属性"
             aria-label="题目属性"
             onClick={run(() => inspector.showProperties(), true)}><Settings2 size={14} /><span>属性</span></button> : null}
-          <button type="button" title="整题上移" aria-label="整题上移" disabled={!moveAvailability?.up} onClick={run(() => position !== false && moveQuestion(editor, position, -1), true)}><ArrowUp size={14} /><span>上移</span></button>
-          <button type="button" title="整题下移" aria-label="整题下移" disabled={!moveAvailability?.down} onClick={run(() => position !== false && moveQuestion(editor, position, 1), true)}><ArrowDown size={14} /><span>下移</span></button>
-          <button type="button" title="复制整题" aria-label="复制整题" onClick={run(() => position !== false && duplicateQuestion(editor, position), true)}><Copy size={14} /><span>复制</span></button>
-          {canPutInBox ? <button type="button" title="放进盒子" aria-label="放进盒子" onClick={run(() => {
-            const transaction = chalkLeePutQuestionInBoxTransaction(editor.state, position);
+          <button type="button" title="整题上移" aria-label="整题上移" disabled={!moveAvailability?.up} onClick={run(() => withPosition(value => moveQuestion(editor, value, -1)), true)}><ArrowUp size={14} /><span>上移</span></button>
+          <button type="button" title="整题下移" aria-label="整题下移" disabled={!moveAvailability?.down} onClick={run(() => withPosition(value => moveQuestion(editor, value, 1)), true)}><ArrowDown size={14} /><span>下移</span></button>
+          <button type="button" title="复制整题" aria-label="复制整题" onClick={run(() => withPosition(value => duplicateQuestion(editor, value)), true)}><Copy size={14} /><span>复制</span></button>
+          {canPutInBox ? <button type="button" title="放进盒子" aria-label="放进盒子" onClick={run(() => withPosition(value => {
+            const transaction = chalkLeePutQuestionInBoxTransaction(editor.state, value);
             if (transaction) editor.view.dispatch(transaction);
-          }, true)}><PanelTop size={14} /><span>放进盒子</span></button> : null}
-          {inBox ? <button type="button" title="移出盒子" aria-label="移出盒子" onClick={run(() => {
-            const transaction = chalkLeeMoveQuestionOutOfBoxTransaction(editor.state, position);
+          }), true)}><PanelTop size={14} /><span>放进盒子</span></button> : null}
+          {inBox ? <button type="button" title="移出盒子" aria-label="移出盒子" onClick={run(() => withPosition(value => {
+            const transaction = chalkLeeMoveQuestionOutOfBoxTransaction(editor.state, value);
             if (transaction) editor.view.dispatch(transaction);
-          }, true)}><SquareArrowOutUpRight size={14} /><span>移出盒子</span></button> : null}
+          }), true)}><SquareArrowOutUpRight size={14} /><span>移出盒子</span></button> : null}
           {confirmDelete ? (
             <>
               <button type="button" className="danger confirm" title="确认删除整题" aria-label="确认删除整题" onClick={run(() => {
                 setConfirmDelete(false);
                 setActionsOpen(false);
-                if (position !== false) deleteQuestion(editor, position);
+                withPosition(value => deleteQuestion(editor, value));
               }, true)}><Check size={14} /><span>确认删除</span></button>
               <button type="button" title="取消删除" aria-label="取消删除" onClick={run(() => setConfirmDelete(false))}><X size={14} /><span>取消</span></button>
             </>
@@ -325,7 +338,11 @@ export function QuestionNodeView({ editor, node, getPos, selected, decorations }
           onMouseDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            selectQuestionOutsideGap(editor, outsideGapPosition);
+            withPosition(value => {
+              const size = editor.state.doc.nodeAt(value)?.nodeSize;
+              const gap = size ? questionOutsideGapPosition(editor, value, size) : null;
+              if (gap !== null) selectQuestionOutsideGap(editor, gap);
+            });
           }}
         />
       ) : null}

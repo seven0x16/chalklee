@@ -24,30 +24,70 @@ export interface QuestionBasketPanelProps {
 
 const NO_HIGHLIGHT = { words: [], tokens: [] };
 
-/** Shared blob URLs keep reopened rows from refetching; cleared in bulk to bound memory. */
-const thumbUrlCache = new Map<string, string>();
+/** Cache the small thumbnails, not the original pictures. Each mounted row
+ * owns its own URL so evicting another row never breaks the visible image. */
+const thumbCache = new Map<string, Blob | null>();
+const pendingThumbnails = new Set<() => Promise<void>>();
+let activeThumbnails = 0;
+function pumpThumbnails() {
+  while (activeThumbnails < 3 && pendingThumbnails.size) {
+    const job = pendingThumbnails.values().next().value!;
+    pendingThumbnails.delete(job);
+    activeThumbnails++;
+    void job().finally(() => { activeThumbnails--; pumpThumbnails(); });
+  }
+}
+
+async function compactThumbnail(blob: Blob): Promise<Blob> {
+  try {
+    const image = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    try {
+      const scale = Math.min(1, 128 / Math.max(image.width, image.height));
+      if (scale === 1) return blob;
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) return blob;
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      return await new Promise<Blob>(resolve => canvas.toBlob(value => resolve(value ?? blob), "image/png"));
+    } finally { image.close(); canvas.width = canvas.height = 0; }
+  } catch { return blob; }
+}
 
 /** The question's first figure as a small recognition cue in collapsed rows. */
 function BasketThumb({ path, questionId, contentHash }: { path: string; questionId: string; contentHash: string }) {
   const key = `${path} ${questionId} ${contentHash}`;
-  const [url, setUrl] = useState(() => thumbUrlCache.get(key) ?? null);
+  const [picture, setPicture] = useState<{ key: string; url: string } | null>(null);
   useEffect(() => {
-    if (thumbUrlCache.has(key)) return;
     let cancelled = false;
-    void window.chalkLee.readQuestionThumbnail(path, questionId).then(thumb => {
-      if (!thumb || cancelled) return;
-      const url = URL.createObjectURL(new Blob([thumb.data], { type: thumb.mediaType }));
-      if (thumbUrlCache.size >= 100) {
-        for (const old of thumbUrlCache.values()) URL.revokeObjectURL(old);
-        thumbUrlCache.clear();
-      }
-      thumbUrlCache.set(key, url);
-      setUrl(url);
-    }).catch(() => undefined);
-    return () => { cancelled = true; };
+    let url: string | undefined;
+    const job = async () => {
+      try {
+        let blob = thumbCache.get(key);
+        if (blob === undefined) {
+          const thumb = await window.chalkLee.readQuestionThumbnail(path, questionId);
+          if (cancelled) return;
+          blob = thumb ? await compactThumbnail(new Blob([thumb.data], { type: thumb.mediaType })) : null;
+          if (cancelled) return;
+        }
+        if (blob === null || blob.size <= 128 * 1024) {
+          thumbCache.delete(key);
+          thumbCache.set(key, blob);
+          if (thumbCache.size > 100) thumbCache.delete(thumbCache.keys().next().value!);
+        }
+        if (blob && !cancelled) {
+          url = URL.createObjectURL(blob);
+          setPicture({ key, url });
+        }
+      } catch { /* A missing image should not block the basket. */ }
+    };
+    pendingThumbnails.add(job);
+    pumpThumbnails();
+    return () => { cancelled = true; pendingThumbnails.delete(job); if (url) URL.revokeObjectURL(url); };
   }, [key, path, questionId]);
-  if (!url) return null;
-  return <img className="question-basket-thumb" src={url} alt="" draggable={false} />;
+  if (picture?.key !== key) return null;
+  return <img className="question-basket-thumb" src={picture.url} alt="" draggable={false} />;
 }
 
 /** Collected questions from any paper or search, in the right pane beside the paper they go into. */
