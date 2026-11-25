@@ -10,7 +10,10 @@ export function normalizeBaiduOcr(result: any): OcrReference[] {
     if (!(width > 0 && height > 0) || page.page_num !== index || page.page_angle !== 0) throw new Error("OCR 页面顺序或坐标系与原稿不一致。");
     const box = (value: number[]): OcrBox => {
       if (!Array.isArray(value) || value.length !== 4 || !value.every(Number.isFinite) || value[2] <= 0 || value[3] <= 0) throw new Error("OCR 区域坐标无效。");
-      return value.map((n, i) => Math.round(n / (i % 2 ? height : width) * 1000000) / 1000) as OcrBox;
+      const [x, y, w, h] = value.map((n, i) => Math.round(n / (i % 2 ? height : width) * 1000000) / 1000);
+      // A block reaching the page edge, rounded or a pixel past it, stays on the page.
+      const left = Math.min(Math.max(0, x), 1000), top = Math.min(Math.max(0, y), 1000);
+      return [left, top, Math.min(w, 1000 - left), Math.min(h, 1000 - top)];
     };
     const layouts: OcrLayout[] = (page.layouts ?? []).map((layout: any) => ({
       id: layout.layout_id, type: layout.type, box: box(layout.position),

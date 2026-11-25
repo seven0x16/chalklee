@@ -62,13 +62,18 @@ function sourceInk(pixels: Uint8Array, size: { width: number; height: number }) 
   };
 }
 
+/** Pixel edges as a whole-page box; a crop touching the right or bottom edge must not come out a hair past 1000. */
+function pageBox(left: number, top: number, right: number, bottom: number, size: { width: number; height: number }): ImportBox {
+  const x = left / size.width * 1000, y = top / size.height * 1000;
+  return [x, y, Math.min((right - left) / size.width * 1000, 1000 - x), Math.min((bottom - top) / size.height * 1000, 1000 - y)];
+}
+
 /** Pillow-compatible [left, top, right, bottom], with exclusive right/bottom. */
 export function pixelCropBox(box: PixelBox, size: { width: number; height: number }): ImportBox {
   if (!Array.isArray(box) || box.length !== 4 || box.some(value => !Number.isInteger(value))) throw new Error("裁框必须是四个整数像素：[left, top, right, bottom]。");
   const [left, top, right, bottom] = box;
   if (left < 0 || top < 0 || right > size.width || bottom > size.height || right <= left || bottom <= top) throw new Error("裁框超出原稿或没有面积，请根据 sourcePixelSize 重新选择。");
-  const x = left / size.width * 1000, y = top / size.height * 1000;
-  return [x, y, Math.min((right - left) / size.width * 1000, 1000 - x), Math.min((bottom - top) / size.height * 1000, 1000 - y)];
+  return pageBox(left, top, right, bottom, size);
 }
 
 /** A separate inspection image; red bounds never alter the saved source crop. */
@@ -335,7 +340,7 @@ export function adjustCropBox(rect: PixelRect, size: { width: number; height: nu
   const x = rect.x + Math.round(edges.left ?? 0), y = rect.y + Math.round(edges.top ?? 0);
   const right = rect.x + rect.width - Math.round(edges.right ?? 0), bottom = rect.y + rect.height - Math.round(edges.bottom ?? 0);
   if (x < 0 || y < 0 || right > size.width || bottom > size.height || right <= x || bottom <= y) throw new Error("调整后的裁框超出原稿或没有面积，请根据pagePixelSize和pixelRect重新计算。");
-  return [x / size.width * 1000, y / size.height * 1000, (right - x) / size.width * 1000, (bottom - y) / size.height * 1000];
+  return pageBox(x, y, right, bottom, size);
 }
 
 export interface InkComponent { id: number; rect: PixelRect; inkPixels: number; extendsRegion?: true }
@@ -444,5 +449,5 @@ export function cropComponentBox(components: InkComponent[], ids: number[], size
   const selected = components.filter(component => ids.includes(component.id)).map(component => component.rect);
   const x = Math.max(0, Math.min(...selected.map(r => r.x)) - 4), y = Math.max(0, Math.min(...selected.map(r => r.y)) - 4);
   const right = Math.min(size.width, Math.max(...selected.map(r => r.x + r.width)) + 4), bottom = Math.min(size.height, Math.max(...selected.map(r => r.y + r.height)) + 4);
-  return [x / size.width * 1000, y / size.height * 1000, (right - x) / size.width * 1000, (bottom - y) / size.height * 1000];
+  return pageBox(x, y, right, bottom, size);
 }
