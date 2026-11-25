@@ -435,8 +435,13 @@ export class ExternalImportService {
       const session = await this.session(id), compiled = compileAutonomousDraft(session.input, session.template, session.draft);
       const preparing = !!session.pdfSources && !session.pdfSources.ready;
       const issues = preparing ? [] : assessAutonomousDraft(session.input, session.draft, compiled);
+      // Questions are numbered for tags as finish will deliver them, after loose "41. A. …" lines become questions.
+      const delivered = () => {
+        const settled = settleReferenceDraft(session.input, session.template, session.draft);
+        return settled === session.draft ? compiled : compileAutonomousDraft(session.input, session.template, settled);
+      };
       const tagging = !session.result && (!session.pdfSources || session.pdfSources.ready) && !issues.length
-        ? await conversionTaggingRequest(session.root, compiled.document, path.relative(session.root, session.input.sourcePath)) : null;
+        ? await conversionTaggingRequest(session.root, delivered().document, path.relative(session.root, session.input.sourcePath)) : null;
       return { ...this.describe(session), fragments: session.draft.fragments.filter(fragment => !keys || keys.includes(fragment.key)), figures: session.draft.figures,
         sourceRevisions: sourceRevisionChanges(session.draft.sourceRevisions), sourceRevisionCount: session.draft.sourceRevisions?.length ?? 0,
         summary: compiled.summary, answers: compiled.answers, ...(preparing ? { issues } : assemblyProgress(session.input, session.draft, issues)), ...(tagging ? { tagging: { ...tagging, revision: session.draft.revision } } : {}), layout: session.draft.layout };
@@ -492,9 +497,10 @@ export class ExternalImportService {
       }
       // As before ChalkLee AI delivers: loose "41. A. …" lines followed by B, C and D can only be a question, and a "(4)" placed
       // after its question whose parts end at (3) can only be its next part.
+      // The tags were numbered on this settled draft too (read_draft), so they still fit; the agent's next read sees the change.
       if (!draft) {
         const settled = settleReferenceDraft(session.input, session.template, session.draft);
-        if (settled !== session.draft) { session.draft = settled; await this.store(session); }
+        if (settled !== session.draft) { session.draft = { ...settled, revision: settled.revision + 1 }; await this.store(session); }
       }
       const compiled = draft && session.input.units.every(unit => unit.nativeReferences)
         ? compileUnfinishedReferenceDraft(session.input, session.template, session.draft)

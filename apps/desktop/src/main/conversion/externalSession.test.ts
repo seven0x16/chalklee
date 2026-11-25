@@ -239,6 +239,8 @@ describe("external-agent conversion sessions", () => {
     ] }] });
     const asked = String(await service.finish(sessionId, "WorkBuddy").catch((error: Error) => error.message));
     expect(asked).toMatch(/\[chk_[0-9a-f]{8}\] 结构存疑[^\n]*不能移入第 2 题/);
+    // The program made question 3 from the loose lines: the agent's next read sees a new revision, its tags numbered on it.
+    expect((await service.readDraft(sessionId, [])).revision).toBe(2);
     const keep = [...asked.matchAll(/\[(chk_[0-9a-f]{8})\]/g)].map(match => ({ id: match[1], reason: "原稿里这段说明印在第 2 题题干前面" }));
     const result = await service.finish(sessionId, "WorkBuddy", false, undefined, keep);
     expect(result.record.conversion?.followUp?.items).toEqual([{ question: "2", sourceText: "这一段说明", reason: "“这一段说明”可能属于第 1 题，请核对" }]);
