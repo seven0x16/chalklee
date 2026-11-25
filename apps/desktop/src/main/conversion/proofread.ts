@@ -137,8 +137,19 @@ export function mergeProofread(base: ProofreadSide, theirs: ProofreadSide & { as
       node.content?.forEach((child: Node, index: number) => carry(child, before?.type === node.type ? before.content?.[index] : undefined));
     };
     carry(next, original);
-    // Tags, a frame label or a score the teacher added stay on the question.
-    for (const [key, value] of Object.entries(teacher.attrs ?? {})) if (!(key in (original.attrs ?? {})) && !(key in next.attrs)) next.attrs[key] = value;
+    // Tags, a frame label or a score the teacher added stay on the question. Knowledge-point tags join the ones a new
+    // conversion gives rather than give way to them, on the question and on each of its parts: the delivered copy this
+    // is compared with has no tags, so the teacher's own cannot be told apart from those the last conversion added.
+    const keep = (node: Node, before: Node | undefined, mine: Node | undefined, top: boolean) => {
+      if (!node?.attrs || mine?.type !== node.type) return;
+      for (const [key, value] of Object.entries(mine.attrs ?? {})) {
+        if (key in (before?.attrs ?? {}) || !top && key !== "tags") continue;
+        if (key === "tags" && Array.isArray(value) && Array.isArray(node.attrs.tags)) node.attrs.tags = [...new Set([...value, ...node.attrs.tags])];
+        else if (!(key in node.attrs)) node.attrs[key] = value;
+      }
+      node.content?.forEach((child: Node, index: number) => keep(child, before?.type === node.type ? before.content?.[index] : undefined, mine.content?.[index], false));
+    };
+    keep(next, original, teacher, true);
     return next;
   };
   const byId = new Map(current.map(node => [node.attrs?.id, node]));

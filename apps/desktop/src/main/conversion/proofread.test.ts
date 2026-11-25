@@ -61,6 +61,25 @@ describe("merging a proofread into the teacher's draft", () => {
     expect(merge).toMatchObject({ applied: 1, kept: ["q1"] });
   });
 
+  it("keeps the tags a teacher added when converting again tags the question too", () => {
+    const part = (id: string, number: string, stem: string) => question(id, number, stem);
+    const group = (id: string, stem: string) => ({ type: "questionGroup", attrs: { id, kind: "composite", number: { mode: "fixed", label: "3" } },
+      content: [{ type: "questionMaterial", attrs: { id: `${id}-m` }, content: [paragraph(`${id}-mp`, stem)] }, { type: "subQuestionList", attrs: { id: `${id}-l` }, content: [part(`${id}-1`, "(1)", "求 a")] }] });
+    // What was delivered is compared without tags; the teacher's copy carries the last conversion's tags and their own.
+    const delivered = paper([question("q1", "1", "计算 $a-b$"), group("g", "已知函数")]);
+    const teacher = structuredClone(delivered);
+    blocks(teacher)[0].attrs.tags = ["整式运算", "老师的标签"];
+    blocks(teacher)[1].content[1].content[0].attrs.tags = ["函数", "压轴"];
+    const again = paper([question("t-q1", "1", "计算 $a+b$"), group("t-g", "已知函数 f(x)")]);
+    blocks(again)[0].attrs.tags = ["整式运算", "代数式"];
+    blocks(again)[1].content[1].content[0].attrs.tags = ["函数"];
+    const merge = mergeProofread(side(delivered), side(again), side(teacher));
+    expect(stemText(blocks(merge.document)[0])).toBe("计算 $a+b$");
+    expect(blocks(merge.document)[0].attrs.tags).toEqual(["整式运算", "老师的标签", "代数式"]);
+    expect(blocks(merge.document)[1].content[0].content[0].content[0].text).toBe("已知函数 f(x)");
+    expect(blocks(merge.document)[1].content[1].content[0].attrs.tags).toEqual(["函数", "压轴"]);
+  });
+
   it("does not report a correction the teacher already made", () => {
     const draft = paper([question("q1", "1", "计算 $a-b$")]);
     const teacher = paper([question("q1", "1", "计算 $a+b$")]);
