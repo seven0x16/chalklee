@@ -43,6 +43,11 @@ describe("DeepSeek OCR pages", () => {
       .toBe("| 作物 | 产量 |  |\n| --- | --- | --- |\n|  | 今年 | 去年 |\n| 水稻 | 3 \\| 4 | 5 |");
     const page = normalizeDeepSeekOcr(block("text", [100, 80, 700, 96], "(1) 加速度 $a = \\_\\_\\_\\_\\_\\_ \\text{m/s}^2$；") + block("table", [100, 100, 500, 160], "<table><tr><td>t/s</td><td>0</td></tr></table>"), A4);
     expect(ocrPageTranscript(page).markdown).toBe("(1) 加速度 $a =$______$\\text{m/s}^2$；\n\n| t/s | 0 |\n| --- | --- |");
+    // Comparison signs in a cell's formulas are not tags; a display formula with a blank keeps its other formulas whole.
+    expect(markdownTable("<table><tr><td>范围</td><td>$x < 5$ 且 $x > 0$</td><td><b>甲</b>&lt;乙</td></tr></table>"))
+      .toBe("| 范围 | $x < 5$ 且 $x > 0$ | 甲<乙 |\n| --- | --- | --- |");
+    const display = normalizeDeepSeekOcr(block("text", [100, 80, 700, 96], "\\[v = \\_\\_\\_\\_ \\text{m/s}\\] 且 $t = 2$"), A4);
+    expect(ocrPageTranscript(display).markdown).toBe("$v =$______$\\text{m/s}$ 且 $t = 2$");
   });
 
   it("treats a page without recognized blocks as not recognized", () => {

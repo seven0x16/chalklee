@@ -20,7 +20,11 @@ const OPTION_LABEL = /^[（(]?[A-HＡ-Ｈ][)）]?[.．、]?$/;
 const TALL_FORMULA = /\\(?:d?frac|sqrt|sum|int|begin|overset|underset|xrightarrow)/;
 
 const entities: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: " ", "#39": "'" };
-const plainText = (html: string) => html.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").replace(/&(amp|lt|gt|quot|apos|nbsp|#39);/g, (_, name: string) => entities[name]);
+/** Formulas in a recognized table cell, "$x < 5$ 且 $x > 0$", keep their comparison signs: only real tags outside them go. */
+const MATH = /(\$\$[\s\S]*?\$\$|\$[^$]*\$)/;
+const HTML_TAG = /<\/?(?:table|thead|tbody|tfoot|tr|td|th|caption|colgroup|col|p|div|span|font|center|b|strong|i|em|u|s|sub|sup)\b[^<>]*>/gi;
+const plainText = (html: string) => html.split(MATH).map((part, index) => index % 2 ? part : part.replace(/<br\s*\/?>/gi, " ").replace(HTML_TAG, ""))
+  .join("").replace(/&(amp|lt|gt|quot|apos|nbsp|#39);/g, (_, name: string) => entities[name]);
 
 /** Tables come as HTML; merged areas keep their text in the first cell and stay empty elsewhere. */
 export function markdownTable(html: string): string {
@@ -42,9 +46,14 @@ export function markdownTable(html: string): string {
   return [line(grid[0]), `| ${Array(width).fill("---").join(" | ")} |`, ...grid.slice(1).map(line)].join("\n");
 }
 
-/** Blanks recognized inside a formula, as in `$a = \_\_\_\_ \text{m/s}^2$`, are written outside it like the model's own transcripts. */
-const blanksOutsideMath = (text: string) => text.replace(/\$([^$]+)\$/g, (whole, body: string) => /(?:\\_\s*){3,}/.test(body)
-  ? body.split(/(?:\\_\s*){3,}/).map(part => part.trim() ? `$${part.trim()}$` : "").join("______") : whole);
+/**
+ * Blanks recognized inside a formula, as in `$a = \_\_\_\_ \text{m/s}^2$`, are written outside it like the model's own
+ * transcripts. A display formula with a blank is a line to fill in: its parts become inline formulas around the blank.
+ */
+const blanksOutsideMath = (text: string) => text.replace(/\$\$([\s\S]+?)\$\$|\$([^$]+)\$/g, (whole, display: string | undefined, inline: string | undefined) => {
+  const body = display ?? inline ?? "";
+  return /(?:\\_\s*){3,}/.test(body) ? body.split(/(?:\\_\s*){3,}/).map(part => part.trim() ? `$${part.trim()}$` : "").join("______") : whole;
+});
 
 export function ocrBlockText(type: string, raw: string): string {
   if (type === "table") return /<table/i.test(raw) ? markdownTable(raw) : raw.trim();
