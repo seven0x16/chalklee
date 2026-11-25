@@ -1026,3 +1026,22 @@ describe("lossless Word source plans", () => {
     expect(() => assertWordImportPlan([{ ref: "a" }, { ...next, answer: [] }], source, previous)).toThrow("空白小题");
   });
 });
+
+it("leaves a table, an option's later line and a solution's own working as printed", () => {
+  const line = (id: string, text: string) => ({ type: "paragraph", attrs: { id }, content: [{ type: "text", text }] });
+  const cell = (id: string, text: string) => ({ type: "tableCell", attrs: { id: `${id}_cell` }, content: [line(id, text)] });
+  const source: any = { id: "part", label: "原稿", images: [], nativeReferences: true, blocks: [
+    line("q", "1. 根据下表回答。"),
+    // A table whose first cell opens with the question's own number is still referenced whole.
+    { type: "table", attrs: { id: "table" }, content: [{ type: "tableRow", attrs: { id: "row" }, content: [cell("c1", "1. 甲组"), cell("c2", "2. 乙组")] }] },
+    line("a", "A. The first answer"), line("a2", "A dog ran after it."), line("b", "B. The second answer"),
+    line("key", "【答案】A"), line("label", "【解析】"), line("m1", "方法一：直接代入。"), line("m2", "方法二：先化简。"), line("proof", "证明：由题意可知。")
+  ] };
+  const plan = normalizeWordImportPlan([{ type: "question", number: "1", kind: "choice", stem: [{ ref: "q" }, { ref: "table" }],
+    options: [{ label: "A", content: [{ ref: "a" }, { ref: "a2" }] }, { label: "B", content: [{ ref: "b" }] }],
+    answer: [{ ref: "key" }], analysis: ["label", "m1", "m2", "proof"].map(ref => ({ ref })) }], source);
+  expect(plan[0].stem).toEqual([{ ref: "q", stripPrefix: "1. " }, { ref: "table" }]);
+  expect(plan[0].options[0].content).toEqual([{ ref: "a", stripPrefix: "A. " }, { ref: "a2" }]);
+  expect(plan[0].analysis).toEqual([{ ref: "label", stripPrefix: "【解析】" }, { ref: "m1" }, { ref: "m2" }, { ref: "proof" }]);
+  expect(() => assertWordImportPlan(plan, source)).not.toThrow();
+});

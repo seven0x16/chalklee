@@ -8,6 +8,11 @@ export const wordAnswerLabel = /^\s*(?:【\s*(?:参\s*考\s*)?答\s*案\s*】|�
 /** A label standing alone: "【答案】", "【解析】", "【24 题答案】", "【1~3题答案】". */
 export const wordBareLabel = /^\s*【\s*(?:(?:参\s*考\s*)?答\s*案|解\s*析|分\s*析|详\s*解|点\s*睛|点\s*评|\d{1,3}\s*(?:[~～—–-]\s*\d{1,3}\s*)?题\s*(?:答\s*案|解\s*析|详\s*解|分\s*析))\s*】\s*$/;
 export const wordAnalysisLabel = /^\s*(?:【\s*(?:导\s*语|解\s*析|简\s*析|详\s*析|评\s*析|分\s*析|详\s*解|解\s*答|点\s*睛|点\s*评|\d{1,3}\s*(?:[~～—–-]\s*\d{1,3}\s*)?题\s*(?:解\s*析|详\s*解|分\s*析))\s*】|(?:解析|简析|详析|评析|分析|详解|解答|点睛|点评|解|证明|[解方]法[一二三四五]?|评价|思路)\s*[:：]|Solutions?\s*:)/i;
+/**
+ * The labels an analysis region shows by itself, which the program may take off its lines. The working that opens a
+ * solution ("解：", "证明：", "方法一：", "评价：", "思路：") also marks an analysis, but it is the solution's own words and stays.
+ */
+export const wordAnalysisRegionLabel = /^\s*(?:【\s*(?:导\s*语|解\s*析|简\s*析|详\s*析|评\s*析|分\s*析|详\s*解|解\s*答|点\s*睛|点\s*评|\d{1,3}\s*(?:[~～—–-]\s*\d{1,3}\s*)?题\s*(?:解\s*析|详\s*解|分\s*析))\s*】|(?:解析|简析|详析|评析|分析|详解|解答|点睛|点评)\s*[:：]|Solutions?\s*:)/i;
 
 /** A knowledge point printed inside a solution, between 【答案】 and 【解析】. */
 const knowledgeLabel = /^\s*【(?:知识点|考点)】/;

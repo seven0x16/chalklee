@@ -1,6 +1,6 @@
 import type { ImportUnit } from "../../shared/conversion/types";
 import { canonicalChalkLeeKind, type ChalkLeeBlockNode } from "@chalklee/format";
-import { wordSourceEntries, wordSourceText, wordPrefixLength, wordAnswerLabel, wordAnalysisLabel } from "../../shared/conversion/wordSource";
+import { wordSourceEntries, wordSourceText, wordPrefixLength, wordAnswerLabel, wordAnalysisLabel, wordAnalysisRegionLabel } from "../../shared/conversion/wordSource";
 import { isImportSampleHeading, normalizeImportNumber } from "../../shared/conversion/answerSource";
 
 /** A worked solution's own title: one restating a part ("(1) 求离心率。", "(2)(i) 求轨迹方程。") or a short bracketed
@@ -374,11 +374,13 @@ export function normalizeWordImportPlan(value: any, unit?: ImportUnit, misprinte
       used.add(entry.ref);
     });
   }
+  // The first line of each option: only there can a letter without its dot ("A Buy…") be the option's label.
+  const optionOpenings = new Set<any>();
   const labels = (node: any, number?: string, option?: string, region?: string, answerEntry = false) => {
     if (Array.isArray(node)) { node.forEach(item => labels(item, number, option, region, answerEntry)); return; }
     if (!node || typeof node !== "object") return;
     if (["question", "questionGroup", "answerEntry"].includes(node.type)) { number = String(node.number ?? ""); option = undefined; answerEntry = node.type === "answerEntry"; }
-    if (node.label && Array.isArray(node.content)) option = String(node.label);
+    if (node.label && Array.isArray(node.content)) { option = String(node.label); if (node.content[0]) optionOpenings.add(node.content[0]); }
     // Word heading styles can be applied to a question's first paragraph.
     // Inside a question it is body content; only document headings stay headings.
     if (node.ref && number !== undefined && !node.as && originalEntries.get(node.ref)?.type === "heading"
@@ -395,13 +397,15 @@ export function normalizeWordImportPlan(value: any, unit?: ImportUnit, misprinte
       // A (1)/(2) inside question 15 is source content, not question 15's label.
       if (numbered && normalizeImportNumber(number ?? "") !== (numbered[1] ?? numbered[2]) && !misprintedHere(numbered[2])) delete node.stripPrefix;
     }
-    if (node.ref && !node.stripPrefix) {
+    // A table is referenced whole: its first cell's "1." or "【答案】" stays in the table.
+    if (node.ref && !node.stripPrefix && originalEntries.get(node.ref)?.type !== "table") {
       const text = source.get(node.ref) ?? "";
-      const printedOption = text.match(/^\s*(?:[（(][ \t]*)?([A-H])(?:[ \t]*[.．、:：)）][ \t]*|[ \t]+)/);
+      // "A dog …" on an option's second line is the article, not the label.
+      const printedOption = text.match(optionOpenings.has(node) ? /^\s*(?:[（(][ \t]*)?([A-H])(?:[ \t]*[.．、:：)）][ \t]*|[ \t]+)/ : /^\s*(?:[（(][ \t]*)?([A-H])[ \t]*[.．、:：)）][ \t]*/);
       const printedQuestion = text.match(/^\s*(?:[（(]\s*[）)]\s*)?(?:(\d{1,3})[ \t]*(?:\.(?!\d)|[．、])|[（(]\s*(\d{1,3}|I{1,3}|IV|VI{0,3}|IX|X|[Ⅰ-Ⅻ])\s*[）)])[ \t]*/i);
       const sameNumber = printedQuestion && (printedQuestion[1] ?? printedQuestion[2]).normalize("NFKC").toUpperCase()
         === (number ?? "").normalize("NFKC").replace(/[()\s]/g, "").replace(/[.．、]$/, "").toUpperCase();
-      const regionLabel = region === "answer" ? text.match(wordAnswerLabel)?.[0] : region === "analysis" ? text.match(wordAnalysisLabel)?.[0] : undefined;
+      const regionLabel = region === "answer" ? text.match(wordAnswerLabel)?.[0] : region === "analysis" ? text.match(wordAnalysisRegionLabel)?.[0] : undefined;
       const prefix = regionLabel ?? (option && printedOption?.[1] === option ? printedOption[0]
         // An answer split from "【答案】26. F 27. A" keeps its item number; inside question 26 it is that question's label.
         : ["stem", "material", "answer", "analysis"].includes(region ?? "") && printedQuestion
@@ -409,7 +413,8 @@ export function normalizeWordImportPlan(value: any, unit?: ImportUnit, misprinte
           && (!printedQuestion[2] || /^[（(]/.test(number ?? ""))
           && (region !== "material" || !/^\s*_{2,}/.test(text.slice(printedQuestion[0].length))) ? printedQuestion[0]
         : printedQuestion && misprintedHere(printedQuestion[1]) ? printedQuestion[0] : undefined);
-      if (prefix) { wordPrefixLength(text, prefix); node.stripPrefix = prefix; }
+      // A prefix the checks would refuse ("（A is…" with its bracket never closed) is left for the writer to settle.
+      if (prefix) try { wordPrefixLength(text, prefix); node.stripPrefix = prefix; } catch { /* left as printed */ }
     }
     // "【答案】（1）-3；3" in part (1): its own number after the label goes too, as it would with no label before it.
     if (node.ref && typeof node.stripPrefix === "string" && ["answer", "analysis"].includes(region ?? "")
