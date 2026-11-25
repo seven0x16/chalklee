@@ -104,7 +104,7 @@ ChalkLee 不绑定某一家 AI，也不用注册账号。转换和对话用的�
 ## 下载安装
 
 - **GitHub Releases**：[前往下载最新版本](https://github.com/seven0x16/chalklee/releases/latest)
-- **百度网盘**：[点此下载（v0.1.0）](https://pan.baidu.com/s/13gsD0gfH682c4CehH2K46Q?pwd=rwmh)，提取码 `rwmh`
+- **百度网盘**：[点此下载（v0.2.0）](https://pan.baidu.com/s/1uoAg-R05FS7C_bR6zi5XqA?pwd=ivvc)，提取码 `ivvc`
 - **QQ 群文件**：加入交流群 **1135963910**（[扫码进群](#交流与反馈)），在群文件里下载
 
 | 电脑 | 安装包 |
