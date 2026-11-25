@@ -104,7 +104,7 @@ export function conversionUnfinished(task: Pick<ConversionTask, "status" | "erro
   // Every page marked means the run stopped as a whole, not that each page failed.
   const pages = !service && left.length < units.length ? left.flatMap(unit => unit.page ? [unit.page] : []) : [];
   // A handout has no questions to count, but pages that did convert are worth opening.
-  const usable = !!record?.questionCount || pages.length > 0;
+  const usable = !!record?.questionCount || pages.length > 0 || units.some(unit => unit.status === "converted");
   const detail = pages.length ? `${pages.length > PAGES_NAMED ? `有 ${pages.length} 页` : `第 ${pages.join("、")} 页`}没转好，其余已保存`
     : !service && record && !usable ? "还没有转出可用内容，进度已保存"
     : reason ? conversionFailureText(reason) : "还没转完，进度已保存";

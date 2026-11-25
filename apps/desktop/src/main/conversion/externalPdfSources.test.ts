@@ -14,7 +14,7 @@ import { runImportAgent } from "./model";
 import { getAiCredentials } from "../settings/ai";
 import { createChalkLeeMcp } from "../agent/mcp";
 import { ConversionTaskQueue } from "./taskQueue";
-import { EXTERNAL_CONVERSION_IDLE_MS } from "../../shared/conversion/tasks";
+import { conversionUnfinished, EXTERNAL_CONVERSION_IDLE_MS } from "../../shared/conversion/tasks";
 
 const { render, pages, bitmap } = vi.hoisted(() => {
   const bitmap: any = { getSize: () => ({ width: 1000, height: 1000 }), toBitmap: () => new Uint8Array(4000000).fill(255), crop: () => bitmap, toDataURL: () => "data:image/png;base64,aW1hZ2U=", toPNG: () => Buffer.from("image") };
@@ -255,6 +255,8 @@ describe("external PDF reference conversion", () => {
     const result = await service.finish(sessionId, "Agent", true), archive = await readChalkLeeArchive(await readFile(result.file.path));
     expect(result.record.conversion?.status).toBe("draft"); expect(importText(archive.document.content)).toContain("已识别的正文");
     expect(importText(archive.document.content)).toContain("第 2 页原稿"); expect(archive.manifest.assets).toHaveLength(1);
+    // The teacher is told which page is left, as for an unfinished ChalkLee AI conversion.
+    expect(conversionUnfinished({ status: "draft", result })).toMatchObject({ detail: "第 2 页没转好，其余已保存", usable: true });
     await expect(service.writeFragments(sessionId, { expectedRevision: 1, fragments: [question("page_1", [])] })).rejects.toThrow("已交付");
   });
 

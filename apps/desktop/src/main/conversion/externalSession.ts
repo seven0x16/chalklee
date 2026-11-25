@@ -7,7 +7,7 @@ import path from "node:path";
 import { validatedImportArchive } from "../../shared/conversion/importDocument";
 import { chalkLeeSchemaErrors, readChalkLeeArchive, type ChalkLeeDocument } from "@chalklee/format";
 import { renderChalkLeeDocx } from "../workspace/docxExport";
-import type { PreparedImport, ImportResult, SourceFragmentEdit } from "../../shared/conversion/types";
+import type { PreparedImport, ImportResult, ImportUnitResult, SourceFragmentEdit } from "../../shared/conversion/types";
 import { wordSourceEntries } from "../../shared/conversion/wordSource";
 import { AgentWorkspaceService, type AgentWorkspaceOptions } from "../agent/workspace";
 import type { AgentEditorBridge } from "../agent/editorBridge";
@@ -537,8 +537,13 @@ export class ExternalImportService {
       }
       // The places to check, as for ChalkLee AI: the teacher steps through them at the top of the document.
       const followUp = draft ? undefined : referenceFollowUp(session.input, [], concerns, []);
+      // As ChalkLee AI records an unfinished delivery: which pages are still the original image, so the teacher is told those.
+      const units = draft ? session.input.units.map((unit): ImportUnitResult => {
+        const kept = session.pdfSources?.pages.find(page => page.unitId === unit.id && page.recognition === "source-image");
+        return { id: unit.id, label: unit.label, ...(unit.page ? { page: unit.page } : {}), status: kept ? "source-preserved" : "converted", ...(kept ? { reason: kept.reason } : {}) };
+      }) : undefined;
       const result = await saveImportDocument({ root: session.root, input: session.input, title, sourceName: session.sourceName, credentials }, compiled.document, compiled.assets, compiled.notices,
-        { strategy: "autonomous-v1", status: draft ? "draft" : "converted", ...(followUp ? { followUp } : {}), ...(session.input.units.every(unit => unit.nativeReferences) ? { sourceReferences: true } : {}), ...(session.draft.sourceRevisions?.length ? { sourceRevisions: session.draft.sourceRevisions } : {}), structureModel: `external:${agentName}`, calls: [], cachedUnits: 0,
+        { strategy: "autonomous-v1", status: draft ? "draft" : "converted", ...(followUp ? { followUp } : {}), ...(units ? { units } : {}), ...(session.input.units.every(unit => unit.nativeReferences) ? { sourceReferences: true } : {}), ...(session.draft.sourceRevisions?.length ? { sourceRevisions: session.draft.sourceRevisions } : {}), structureModel: `external:${agentName}`, calls: [], cachedUnits: 0,
           answers: compiled.answers, agent: { rounds: 0, resumed: false, actions: [], previewPages: this.previews.get(id)?.value.pageCount ?? 0, ...(kept.length ? { kept } : {}) } }, this.controller.signal, () => {}, tags);
       session.result = result; session.deliveredRevision = autonomousRevision(session.draft); await this.store(session); this.remember(session); this.options.changed(result.file.path);
       this.notify({ kind: "finished", sessionId: id, result });

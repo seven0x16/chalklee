@@ -34,6 +34,8 @@ describe("an unfinished conversion", () => {
     const empty = task([unit(1, "题目还没整理完，进度已保存")], 0);
     expect(conversionUnfinished(empty)).toMatchObject({ detail: "还没有转出可用内容，进度已保存", usable: false });
     expect(conversionOpenTarget(empty)).toBe("source");
+    // A handout has no questions, yet what it converted is there to open.
+    expect(conversionUnfinished(task([unit(1), unit(2)], 0))).toMatchObject({ usable: true });
     expect(conversionOpenTarget(task([failed(1), unit(2)]))).toBe("result");
     expect(conversionOpenTarget({ status: "completed", result: task([]).result })).toBe("result");
   });
