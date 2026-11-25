@@ -28,11 +28,13 @@ export function parsePdfRegion(raw: string, region: NonNullable<NonNullable<Impo
   const markdown = lines.join("\n\n"), transcript = { markdown, figures: [], uncertainties: [], warnings: [] };
   lockTranscript(transcript);
   const printed = pdfRegionCharacters(region.text.replace(/\uFFFD/g, "")), recognized = pdfRegionCharacters(markdown);
+  // Each glyph the text layer could not read (�, or a private-use code) may be one character the picture shows.
+  const unreadable = [...region.text].filter(character => /[\uFFFD\p{Co}]/u.test(character)).length;
   if (recognized !== printed) {
     // Name the exact difference: a misread character (上 as ⊥) is then corrected rather than guessed again.
     const missing = [...printed], extra: string[] = [];
     for (const character of recognized) { const at = missing.indexOf(character); if (at >= 0) missing.splice(at, 1); else extra.push(character); }
-    throw new Error(`转录的汉字、字母或数字与文字层不一致：缺少「${missing.join("")}」，多出「${extra.join("")}」。文字层字符准确，只能使用其中已有的字符，各用原来的次数；不属于本行的字符不要补入。`);
+    if (missing.length || extra.length > unreadable) throw new Error(`转录的汉字、字母或数字与文字层不一致：缺少「${missing.join("")}」，多出「${extra.join("")}」。文字层字符准确，只能使用其中已有的字符，各用原来的次数；不属于本行的字符不要补入。`);
   }
   const page = unit.images.find(image => image.id === unit.id);
   if (!page) throw new Error("PDF 缺少原稿页面。");

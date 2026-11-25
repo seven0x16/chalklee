@@ -34,6 +34,15 @@ describe("PDF formula strips", () => {
     expect((block as { content: unknown[] }).content[0]).toMatchObject({ type: "blank", attrs: { label: "35" } });
     expect(wordSourceText(block)).toContain("Wang Kai is good at painting.");
   });
+  it("lets a glyph the text layer could not read be the character the picture shows, one for one", () => {
+    // Letters printed in a symbol font the text layer cannot map: " = � + 1" is "y = x + 1" on the page.
+    const line = { ref: "pdf_3_formula_1", text: " = � + 1 ， \\frac 1 2", box };
+    const [block] = parsePdfRegion("$y=x+1$，$\\frac{1}{2}$", line, page([line]));
+    expect(wordSourceText(block)).toContain("y=x+1");
+    // Only as many as the layer could not read; a printed character is never left out.
+    expect(() => parsePdfRegion("$y=x+z+1$，$\\frac{1}{2}$", line, page([line]))).toThrow("多出「");
+    expect(() => parsePdfRegion("$y=x+1$，$\\frac{1}{3}$", line, page([line]))).toThrow("缺少「2」");
+  });
 
   it("splices each recognized strip into the native text in place and repairs a strip that changed printed characters", async () => {
     strip({ [fraction.text]: ["x=$\\frac{1}{4}$，下一句", "x=$\\frac{1}{3}$，下一句"], [arrow.text]: ["A．煤 $\\xrightarrow{\\text{干馏}}$ 煤油"] });

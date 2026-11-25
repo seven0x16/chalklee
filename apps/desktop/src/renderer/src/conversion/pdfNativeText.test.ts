@@ -31,6 +31,12 @@ describe("native PDF text eligibility and source extraction", () => {
       item("Zn", 50, 160, 12), item("⇌", 66, 160, 9), small("放电", 63, 151, 14), small("充电", 63, 169, 14), item("Zn", 81, 160, 12), small("2+", 93, 156, 8)]);
     expect(arrows.candidate).toBe(true);
     expect(arrows.lines.slice(2).map(line => line.text)).toEqual(["A．煤 $\\xrightarrow{\\text{干馏}}$ 煤油", "Zn $\\xrightleftharpoons[\\text{充电}]{\\text{放电}}$ $\\mathrm{Zn}^{2+}$"]);
+    // An arrow line that goes to recognition for a fraction on it takes its conditions along, in the text and the picture.
+    const withFraction = extract([...body, ...[200, 220, 240, 260].map(top => item("另一行完整的正文内容。", 50, top, 110)),
+      item("A．煤", 50, 140, 26), item("→", 78, 140, 9), item("煤油", 93, 140, 20), small("干馏", 75, 128, 14), item("1", 120, 135, 5), item("3", 120, 148, 5)], { rules: [[119, 138, 7, 0]] });
+    const strip = withFraction.regions?.find(region => region.text.includes("煤油"));
+    expect(strip?.text).toContain("干馏");
+    expect(strip!.box[1]).toBeLessThan((128 - 7) / 800 * 1000);
     // Left scripts of a nuclide are not settled by position; they go to recognition together with their line only.
     const value = extract([...body, item("第一行正文", 50, 140, 50), small("14", 50, 151, 8), small("6", 50, 160, 4), item("C的衰变", 58, 157, 40), item("第三行正文", 50, 175, 50)]);
     expect(value).toMatchObject({ candidate: false, reason: "有 1 处公式需要看图识别", regions: [{ ref: "pdf_1_formula_1", text: expect.stringContaining("14"), box: expect.any(Array) }] });

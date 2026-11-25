@@ -48,7 +48,9 @@ export async function pdfNativeGeometry(page: PDFPageProxy): Promise<PdfNativeGe
   return { transform: viewport.transform, width: viewport.width, height: viewport.height, rules, invisibleText, fullPageImage, fonts };
 }
 
-type PdfRun = { item: TextItem; x: number; y: number; height: number; width: number; math?: { prefix: string; latex: string } };
+/** `parts`: the printed glyphs folded into this run (its scripts, an arrow's conditions), wherever they sit on the page. */
+type PdfRun = { item: TextItem; x: number; y: number; height: number; width: number; math?: { prefix: string; latex: string }; parts?: PdfRun[] };
+const printedParts = (run: PdfRun) => run.parts ?? [run];
 type PdfFormulaBand = { top: number; bottom: number; runs: PdfRun[]; rules: Set<number> };
 const SCRIPT_TEXT = /^[A-Za-z0-9+\-−–()·.]{1,8}$/;
 const FORMULA_TAIL = /[A-Za-z0-9.()[\]]+$/;
@@ -106,7 +108,7 @@ function attachPdfScripts(runs: PdfRun[], geometry: PdfNativeGeometry): PdfRun[]
     const part = (list: PdfRun[]) => list.sort((a, b) => a.x - b.x).map(script => formulaText(script.item.str.trim(), upright(script))).join("");
     const latex = formulaText(token, upright(run)) + (entry.sub.length ? `_{${part(entry.sub)}}` : "") + (entry.sup.length ? `^{${part(entry.sup)}}` : "");
     const right = Math.max(run.x + run.width, ...[...entry.sub, ...entry.sup].map(script => script.x + script.width));
-    return { ...run, width: right - run.x, math: { prefix: run.item.str.slice(0, -token.length), latex } };
+    return { ...run, width: right - run.x, math: { prefix: run.item.str.slice(0, -token.length), latex }, parts: [run, ...entry.sub, ...entry.sup] };
   });
 }
 
@@ -132,7 +134,8 @@ function attachPdfArrowConditions(runs: PdfRun[], geometry: PdfNativeGeometry, b
     if (!above.length && !below.length) continue;
     for (const run of [...above, ...below]) taken.add(run);
     // The arrow keeps its own position: spacing and overprint checks concern the printed line, not the conditions above it.
-    rebuilt.set(arrow, { ...arrow, math: { prefix: "", latex: `\\${command}${below.length ? `[${condition(below)}]` : ""}{${condition(above)}}` } });
+    rebuilt.set(arrow, { ...arrow, math: { prefix: "", latex: `\\${command}${below.length ? `[${condition(below)}]` : ""}{${condition(above)}}` },
+      parts: [...printedParts(arrow), ...[...above, ...below].flatMap(printedParts)] });
   }
   return runs.filter(run => !taken.has(run)).map(run => rebuilt.get(run) ?? run);
 }
@@ -177,6 +180,13 @@ function pdfFormulaBands(runs: PdfRun[], geometry: PdfNativeGeometry, body: numb
     const last = bands.at(-1);
     if (last && from < last.bottom) { last.top = Math.min(last.top, from); last.bottom = Math.max(last.bottom, to); }
     else bands.push({ top: from, bottom: to, runs: [], rules: new Set() });
+  }
+  // Growing to whole lines can reach past more than the band before: overlapping strips would print the same lines twice.
+  bands.sort((a, b) => a.top - b.top);
+  for (let index = 1; index < bands.length;) {
+    const before = bands[index - 1], band = bands[index];
+    if (band.top < before.bottom) { before.bottom = Math.max(before.bottom, band.bottom); bands.splice(index, 1); }
+    else index++;
   }
   for (const band of bands) {
     band.runs = runs.filter(run => Math.min(band.bottom, run.y) - Math.max(band.top, top(run)) > Math.min(1, run.height * .15));
@@ -263,8 +273,10 @@ export function extractPdfNativeText(content: Pick<TextContent, "items">, geomet
   for (const [index, row] of rows.entries()) {
     const band = bandRows.get(row);
     if (band) {
-      // Every glyph of the strip, scripts included, in printed lines: the recognized formula must use exactly these.
-      const parts = positioned.filter(part => part.y - part.height / 2 >= band.top - .5 && part.y - part.height / 2 <= band.bottom + .5).sort((a, b) => a.y - b.y);
+      // Every glyph of the strip, scripts included, in printed lines: the recognized formula must use exactly these. The
+      // conditions over an arrow in the strip were folded into it; they are printed in the strip too, if above its lines.
+      const parts = [...new Set([...positioned.filter(part => part.y - part.height / 2 >= band.top - .5 && part.y - part.height / 2 <= band.bottom + .5),
+        ...band.runs.flatMap(run => run.parts ?? [])])].sort((a, b) => a.y - b.y);
       const printed: PdfRun[][] = [];
       for (const part of parts) {
         const line = printed.find(line => Math.abs(line[0].y - line[0].height / 2 - part.y + part.height / 2) <= body * .6);
@@ -272,7 +284,7 @@ export function extractPdfNativeText(content: Pick<TextContent, "items">, geomet
       }
       const text = printed.map(line => line.sort((a, b) => a.x - b.x).map(part => part.item.str).join(" ")).join("\n");
       const left = Math.max(0, Math.min(...parts.map(part => part.x)) - body * .5), right = Math.min(geometry.width, Math.max(...parts.map(part => part.x + part.width)) + body * .5);
-      const from = Math.max(0, band.top - body * .3), to = Math.min(geometry.height, band.bottom + body * .3);
+      const from = Math.max(0, Math.min(band.top, ...parts.map(part => part.y - part.height)) - body * .3), to = Math.min(geometry.height, Math.max(band.bottom, ...parts.map(part => part.y)) + body * .3);
       const ref = `pdf_${pageNumber}_formula_${regions.length + 1}`;
       const box: Box = [left / geometry.width * 1000, from / geometry.height * 1000, (right - left) / geometry.width * 1000, (to - from) / geometry.height * 1000];
       result.blocks.push({ type: "paragraph", attrs: { id: ref, spaceAfterPt: 0 }, content: [{ type: "text", text }] });
