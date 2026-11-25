@@ -56,7 +56,8 @@ export async function locateWorkspaceOriginal(rootPath: string, recorded: string
 export async function readConversionSource(root: string, recorded: string, sourceHash: string): Promise<{ path: string; bytes: DocumentBytes }> {
   const unreadable = (error: unknown) => {
     if (["EACCES", "EPERM"].includes((error as NodeJS.ErrnoException).code ?? "")) throw new Error("没有读取原稿的权限，请检查文件权限后重试。");
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    // Not at the recorded place any more, whatever stands there now: look for the same content elsewhere.
+    if (!["ENOENT", "ENOTDIR", "EISDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
   };
   try {
     const bytes = await readWorkspaceDocument(root, recorded);
