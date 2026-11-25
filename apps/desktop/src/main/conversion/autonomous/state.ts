@@ -142,6 +142,8 @@ export function compileAutonomousDraft(input: PreparedImport, template: ChalkLee
   // These exact repeated title paragraphs were verified against the retained
   // front matter, and removed only after all following answers were moved.
   for (const id of answerResult.redundantIds) transcription.delete(id);
+  // Formulas of what was left out on purpose (a reprinted stem, a repeated copy) are not missing from the paper.
+  for (const [latex, count] of answerResult.removedFormulas) repeated.removedFormulas.set(latex, (repeated.removedFormulas.get(latex) ?? 0) + count);
   const repeatedAnswers = settleRepeatedAnswers(document);
   for (const id of repeatedAnswers.settledIds) transcription.delete(id);
   doubts.push(...repeatedAnswers.doubts);

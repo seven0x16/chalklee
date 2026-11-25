@@ -157,14 +157,22 @@ export function settleRepeatedAnswers(document: ChalkLeeDocument): { settledIds:
 /** Resolve after all units: printed numbers alone never select between duplicates.
  * Keep ambiguous/conflicting entries in their source position as ordinary prose.
  * Source child IDs survive moves, including formulas, figures and provenance. */
-export function reconcileImportAnswers(document: ChalkLeeDocument, entries: ImportAnswerEntry[], incompleteSource = false): { report: ImportAnswerReport; notices: ImportNotice[]; redundantIds: string[] } {
+export function reconcileImportAnswers(document: ChalkLeeDocument, entries: ImportAnswerEntry[], incompleteSource = false): { report: ImportAnswerReport; notices: ImportNotice[]; redundantIds: string[]; removedFormulas: Map<string, number> } {
   const report: ImportAnswerReport = { entries: entries.length, matched: 0, unmatched: 0, conflicting: 0, links: [] };
   const notices: ImportNotice[] = [];
   const redundantIds: string[] = [];
-  // A left-out block takes everything in it out of the content check: a reprinted question's paragraphs and figures too.
+  const removedFormulas = new Map<string, number>(), dropped = new Set<string>();
+  // A left-out block takes everything in it out of the content checks: a reprinted question's paragraphs, figures and
+  // formulas too, so leaving out a reprint is not mistaken for losing what the paper printed.
   const drop = (node: any) => {
     replacements.set(node.attrs.id, []);
-    const visit = (child: any) => { if (child.attrs?.id) redundantIds.push(child.attrs.id); child.content?.forEach(visit); };
+    if (dropped.has(node.attrs.id)) return;
+    dropped.add(node.attrs.id);
+    const visit = (child: any) => {
+      if (child.attrs?.id) redundantIds.push(child.attrs.id);
+      if (["mathInline", "blockMath"].includes(child.type) && typeof child.attrs?.latex === "string") removedFormulas.set(child.attrs.latex, (removedFormulas.get(child.attrs.latex) ?? 0) + 1);
+      child.content?.forEach(visit);
+    };
     visit(node);
   };
   const byId = new Map(entries.map(entry => [entry.nodeId, entry]));
@@ -293,7 +301,7 @@ export function reconcileImportAnswers(document: ChalkLeeDocument, entries: Impo
     const directlyLinked = end === blocks.length && index.some(({ node }) => node.content.some(region =>
       (region.type === "questionAnswer" || region.type === "questionAnalysis") && meaningful(region)));
     if ((linkedEntries || directlyLinked) && segment.every(item => byId.has(item.attrs.id) ? replacements.get(item.attrs.id)?.length === 0 : true)) {
-      for (const heading of blocks.slice(start, end).filter(item => !byId.has(item.attrs.id))) replacements.set(heading.attrs.id, []);
+      for (const heading of blocks.slice(start, end).filter(item => !byId.has(item.attrs.id))) drop(heading);
       for (let previous = start - 1; previous >= 0; previous--) {
         const title = blocks[previous];
         if (!["heading", "paragraph"].includes(title.type) || !frontMatter.has(titleKey(importText(title)))) break;
@@ -436,5 +444,5 @@ export function reconcileImportAnswers(document: ChalkLeeDocument, entries: Impo
     notices.push({ message: `第${reprinted.join("、")}题在解析部分重印的题干和选项已略去，答案和解析已放进原题。` });
   }
   document.content.content = blocks.flatMap(node => replacements.get(node.attrs.id) ?? [node]);
-  return { report, notices, redundantIds };
+  return { report, notices, redundantIds, removedFormulas };
 }

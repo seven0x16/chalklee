@@ -45,6 +45,12 @@ describe("whole-document answer association", () => {
     expect(document.content.content.map(node => node.attrs.id)).toEqual(["q1", "q2", "open", "loose", "note", "section", "q3"]);
     expect(result.redundantIds).toEqual(["label", "first", "second"]);
   });
+  it("takes a key's emptied subsection title out of the content check when it leaves it out", () => {
+    const document = doc([q("q1", "1"), q("q2", "2"), p("key", "参考答案"), p("sub", "（一）现代文阅读Ⅰ"), a("a1", "1", "B"), a("a2", "2", "C")]);
+    const result = reconcileImportAnswers(document, [entry("a1"), entry("a2")]);
+    expect(document.content.content.map(node => node.attrs.id)).toEqual(["q1", "q2"]);
+    expect(result.redundantIds).toEqual(expect.arrayContaining(["key", "sub"]));
+  });
   it("does not take a printed part (1) of a later question for question 1", () => {
     const part = q("part", "(1)");
     const group: any = { type: "questionGroup", attrs: { id: "g", kind: "composite", number: { mode: "fixed", label: "2" } }, content: [
@@ -95,6 +101,8 @@ describe("whole-document answer association", () => {
     expect(result.notices.map(notice => notice.message)).toContain("第8题在解析部分重印的题干和选项已略去，答案和解析已放进原题。");
     // The reprint's own paragraphs and figure leave the content check with it.
     expect(result.redundantIds).toEqual(expect.arrayContaining(["again", "againImage", "againA", "choiceAgain"]));
+    // Its formulas leave the formula count with it: the paper still prints each of them once, in the question.
+    expect(Object.fromEntries(result.removedFormulas)).toEqual({ "\\angle ADC=150^{\\circ}": 1, "8\\times3=24": 1 });
     // A stem that says something else, or a question still without its answer, keeps the reprint.
     const reworded = doc([...paper(), ...reprint("，则AC的长为（ ）"), a("key8", "8", "A")]);
     reconcileImportAnswers(reworded, [entry("key8")]);
