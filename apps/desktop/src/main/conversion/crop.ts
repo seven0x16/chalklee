@@ -144,9 +144,25 @@ export function overlappingCropInk(pixels: Uint8Array, size: { width: number; he
   return collisions;
 }
 
+/**
+ * Pages decoded lately. A page's figures are checked, bounded and cropped one after another, and decoding the same page
+ * PNG for each was most of that work on the main process. The images are never changed in place (crop makes a new one).
+ */
+const decodedPages = new Map<string, Electron.NativeImage>();
+const DECODED_PAGES = 6;
+function decodePage(dataUrl: string): Electron.NativeImage {
+  const cached = decodedPages.get(dataUrl);
+  if (cached) { decodedPages.delete(dataUrl); decodedPages.set(dataUrl, cached); return cached; }
+  const image = nativeImage.createFromDataURL(dataUrl);
+  if (!image.getSize().width) return image;
+  decodedPages.set(dataUrl, image);
+  if (decodedPages.size > DECODED_PAGES) decodedPages.delete(decodedPages.keys().next().value!);
+  return image;
+}
+
 export function importCropRect(dataUrl: string, box: ImportBox): { image: Electron.NativeImage; size: { width: number; height: number }; rect: PixelRect } {
   assertImportBox(box);
-  const image = nativeImage.createFromDataURL(dataUrl);
+  const image = decodePage(dataUrl);
   const size = image.getSize();
   if (!size.width || !size.height) throw new Error("原稿图像无法解码。");
   const x = Math.min(size.width - 1, Math.round(box[0] * size.width / 1000)), y = Math.min(size.height - 1, Math.round(box[1] * size.height / 1000));
