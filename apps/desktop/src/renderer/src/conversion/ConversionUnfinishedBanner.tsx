@@ -6,10 +6,14 @@ import { useConversionClock } from "./hooks";
 
 const FIX_ONE_BY_ONE = 5;
 
-/** The conversion this document is the unfinished result of, has places to check from, or that is continuing into it. */
+/**
+ * The conversion this document is the unfinished result of, has places to check from, or that is continuing into it. The
+ * latest one speaks for it: converting again into a paper an older original left can run under a task of its own.
+ */
 export function unfinishedConversionFor(tasks: readonly ConversionTask[], documentPath: string) {
-  return tasks.find(task => task.result?.file.path === documentPath && task.phase !== "proofread"
-    && (task.status === "draft" || conversionFollowUp(task) ? !task.dismissed : conversionIsActive(task) && task.into === documentPath));
+  return [...tasks].reverse().find(task => task.phase !== "proofread" && (conversionIsActive(task)
+    ? task.into === documentPath
+    : task.result?.file.path === documentPath && (task.status === "draft" || !!conversionFollowUp(task)) && !task.dismissed));
 }
 
 /**

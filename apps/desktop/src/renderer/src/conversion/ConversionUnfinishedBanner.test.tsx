@@ -33,6 +33,8 @@ describe("unfinished conversion banner on a document", () => {
     expect(unfinishedConversionFor([task({ status: "running" })], path)).toBeUndefined();
     expect(unfinishedConversionFor([task({ status: "running", into: path })], path)?.id).toBe("t1");
     expect(unfinishedConversionFor([task({ status: "running", into: path, phase: "proofread" })], path)).toBeUndefined();
+    // Converting again into the paper under a task of its own: it has no result yet, and the older task does not hide it.
+    expect(unfinishedConversionFor([task(), task({ id: "t2", status: "running", into: path, result: undefined })], path)?.id).toBe("t2");
   });
   it("says what is left and continues or stays out of the way", async () => {
     const handlers = render(task());

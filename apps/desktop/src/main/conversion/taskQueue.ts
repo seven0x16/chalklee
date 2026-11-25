@@ -9,6 +9,7 @@ import { questionReviewNotices } from "../../shared/conversion/questionReview";
 import { relocateWorkspacePath, sameWorkspaceDirectory } from "../../shared/workspace/paths";
 import type { WorkspaceFileNode } from "../../shared/contracts";
 import { readWorkspaceConversionSources } from "./workspaceLinks";
+import { sourceFormat } from "../../shared/document/kinds";
 import { appLog } from "../diagnostics/log";
 
 type Source = Pick<ConversionTask, "workspaceRoot" | "source" | "snapshot" | "sourceHash" | "retryOf" | "into">;
@@ -111,7 +112,8 @@ export class ConversionTaskQueue {
     try {
       const relative = path.relative(task.workspaceRoot, filePath);
       if (path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`)) return false;
-      return (await readWorkspaceConversionSources(filePath)).some(source => source.type === task.source.extension
+      // The record names the format ("latex", "markdown"), not the extension ("tex", "md").
+      return (await readWorkspaceConversionSources(filePath)).some(source => source.type === sourceFormat(task.source.name)
         && source.sha256?.toLowerCase() === task.sourceHash.toLowerCase());
     } catch { return false; }
   }
@@ -138,7 +140,8 @@ export class ConversionTaskQueue {
     const existing = [...this.tasks].reverse().find(task => task.workspaceRoot === source.workspaceRoot && task.sourceHash === source.sourceHash
       && (task.source.path === source.source.path || (source.retryOf && (task.result?.file.path === source.retryOf || task.attempts.some(attempt => attempt.result?.file.path === source.retryOf)))));
     if (existing) {
-      existing.dismissed = false; existing.reviewed = undefined;
+      // Shown again in the list; the places already checked stay checked until it runs again (requeue clears them).
+      existing.dismissed = false;
       if (existing.source.path === source.source.path) existing.source = source.source;
       if (batchId) existing.batchId = batchId;
       // Starting an unfinished original picks it up where it stopped.
@@ -177,8 +180,8 @@ export class ConversionTaskQueue {
     task.phase = undefined; task.proofreadFromMs = undefined;
     if (fresh) task.elapsedMs = 0;
     if (fresh && this.options.freshCache) task.cacheScope = randomUUID();
-    // Converting again starts over; continuing an unfinished one counts on.
-    if (fresh && previous.status !== "draft") delete task.unfinishedRuns;
+    // Converting again starts over, an unfinished one too; continuing an unfinished one counts on.
+    if (fresh) delete task.unfinishedRuns;
     // The teacher's 继续整理 runs once and delivers what it reaches.
     else if (conversionFollowUp(previous)) task.unfinishedRuns = AUTO_CONTINUE_LIMIT;
     return this.requeue(task, previous, priority);
@@ -305,7 +308,8 @@ export class ConversionTaskQueue {
   }
   async updateReviewCount(filePath: string, count: number) {
     await this.ready;
-    const task = this.tasks.find(item => item.result?.file.path === filePath || item.attempts.some(attempt => attempt.result?.file.path === filePath));
+    // The latest conversion of that document, not an earlier one an older original left in the list.
+    const task = [...this.tasks].reverse().find(item => item.result?.file.path === filePath || item.attempts.some(attempt => attempt.result?.file.path === filePath));
     if (!task) return;
     const attempt = task.attempts.find(item => item.result?.file.path === filePath);
     if (task.result?.file.path === filePath) task.pendingReviewCount = count;
@@ -321,7 +325,12 @@ export class ConversionTaskQueue {
       if (this.tasks.some(task => sameSource(task) && !task.agent && conversionIsActive(task))) throw new Error("ChalkLee AI 正在转换这份文档，请等待完成，或在 ChalkLee 中停止后再试。");
       let task = [...this.tasks].reverse().find(task => sameSource(task) && task.sourceHash === event.sourceHash);
       if (task) {
-        if (task.sessionId) this.externalOwners.delete(task.sessionId);
+        // The session this one replaces is closed, so it cannot deliver another document later. Not awaited: the new
+        // session is being opened inside the same queue that closing it waits for.
+        if (task.sessionId && task.sessionId !== event.sessionId) {
+          void this.options.stopExternal?.({ ...task })?.catch(error => appLog.warn("[conversion] 未能关闭被取代的外部转换会话：", error));
+        }
+        if (task.sessionId) { this.externalOwners.delete(task.sessionId); this.externalCalls.delete(task.sessionId); }
         // A newer session for the same source supersedes the one still marked running.
         if (conversionIsActive(task)) this.endAttempt(task, "interrupted", now);
         task.attempt += 1;
@@ -331,7 +340,9 @@ export class ConversionTaskQueue {
         this.tasks.push(task);
       }
       Object.assign(task, { source: event.source, snapshot: event.snapshot, agent: event.agent, sessionId: event.sessionId, status: "running",
-        startedAt: now, updatedAt: now, finishedAt: undefined, progress: undefined, error: undefined, externalWait: undefined, retryOf: undefined, into: undefined, dismissed: false, reviewed: undefined });
+        startedAt: now, updatedAt: now, finishedAt: undefined, progress: undefined, error: undefined, externalWait: undefined, retryOf: undefined, into: undefined, dismissed: false, reviewed: undefined,
+        // A new conversion by another hand: an earlier proofread, batch or count of unfinished runs is not this one's.
+        phase: undefined, proofreadFromMs: undefined, proofreadChanges: undefined, unfinishedRuns: undefined, batchId: undefined, priority: undefined, requested: undefined });
       this.bindExternalConnection(event.sessionId, event.connectionId);
     } else {
       const task = this.tasks.find(item => item.sessionId === event.sessionId);

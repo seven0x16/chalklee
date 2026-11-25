@@ -331,14 +331,17 @@ export function App({ documentOnly = false }: { documentOnly?: boolean }) {
   }, []);
   const importHistory = useImportHistory(activeTab?.file ?? null, fileMutationBusy);
   const sourceConversion = activeTab ? conversionForFile(conversionTasks, activeTab.file.path) : undefined;
-  const currentSourceConversion = sourceConversion && (sourceConversion.snapshot.path === activeTab?.file.path || sourceConversion.source.modifiedAt === activeTab?.loadedModifiedAt) ? sourceConversion : undefined;
+  // A conversion speaks for the original as it was converted: once the file has changed since, its banner offers to convert
+  // again. Only a copy kept under .chalklee/sources by older versions is shown as it was, whatever its time.
+  const keptCopy = !!sourceConversion && sourceConversion.snapshot.path !== sourceConversion.source.path && sourceConversion.snapshot.path === activeTab?.file.path;
+  const currentSourceConversion = sourceConversion && (keptCopy || sourceConversion.source.modifiedAt === (activeTab?.loadedModifiedAt ?? activeTab?.file.modifiedAt)) ? sourceConversion : undefined;
   // A converted paper whose first draft still waits for the teacher's decision, or is being proofread.
   const proofreadTask = activeTab?.file.extension === "chalklee" ? proofreadTaskFor(conversionTasks, activeTab.file.path) : undefined;
   // A document whose conversion stopped short, or is continuing into it.
   const unfinishedTask = activeTab?.file.extension === "chalklee" ? unfinishedConversionFor(conversionTasks, activeTab.file.path) : undefined;
   // Closing the notice does not settle what it listed: the places stay one click away in the document's properties.
   const closedPlaces = activeTab?.file.extension === "chalklee" && !unfinishedTask
-    ? conversionTasks.find(task => task.result?.file.path === activeTab.file.path && task.phase !== "proofread" && !!task.dismissed && followUpPlacesLeft(task) > 0) : undefined;
+    ? [...conversionTasks].reverse().find(task => task.result?.file.path === activeTab.file.path && task.phase !== "proofread" && !!task.dismissed && followUpPlacesLeft(task) > 0) : undefined;
   // Named on the built-in conversion button's tooltip; re-read when an original is shown or settings close.
   const [conversionModel, setConversionModel] = useState<string>();
   const [conversionModelId, setConversionModelId] = useState<string>();

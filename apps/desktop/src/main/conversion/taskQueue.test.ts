@@ -8,6 +8,7 @@ import { ConversionTaskQueue } from "./taskQueue";
 import { conversionForFile, conversionStatusText, conversionUnfinished, EXTERNAL_CONNECTION_TIMEOUT_MS, EXTERNAL_CONVERSION_IDLE_MS, type ConversionTask } from "../../shared/conversion/tasks";
 import type { ImportProgress, ImportResult, PreparedImport } from "../../shared/conversion/types";
 import type { WorkspaceFileNode } from "../../shared/contracts";
+import { sourceFormat } from "../../shared/document/kinds";
 
 const file = (name: string): WorkspaceFileNode => ({ kind: "file", id: name, fileId: name, path: name, name: path.basename(name), extension: name.endsWith(".chalklee") ? "chalklee" : "pdf", size: 1, modifiedAt: 1, status: "unparsed" });
 const source = (name: string, root = "/workspace") => ({ workspaceRoot: root, source: file(`${root}/${name}.pdf`), snapshot: file(`${root}/.chalklee/sources/${name}.pdf`), sourceHash: name });
@@ -16,7 +17,7 @@ async function saveResult(value: ImportResult, task: ConversionTask) {
   const document = createEmptyChalkLeeDocument(task.source.name);
   document.id = value.record.documentId;
   const coverage = value.record.conversion?.status === "draft" ? { coverage: "partial" as const } : {};
-  document.provenance = { method: "import", sources: [{ id: "original", type: "pdf", fileName: task.source.name, sha256: task.sourceHash, ...coverage }] };
+  document.provenance = { method: "import", sources: [{ id: "original", type: sourceFormat(task.source.name), fileName: task.source.name, sha256: task.sourceHash, ...coverage }] };
   await writeFile(value.file.path, await createChalkLeeArchive(document));
 }
 /** An unfinished result that says why the run stopped. */
@@ -645,5 +646,50 @@ describe("conversions driven by external agents", () => {
     await queue.batch("batch", "stop"); await wait("a", "stopped");
     await queue.batch("batch", "skip-proofread");
     expect(queue.list().map(task => task.status)).toEqual(["completed", "completed", "stopped"]);
+  });
+  it("continues an unfinished LaTeX or Markdown conversion into the document it saved", async () => {
+    const { queue, jobs, options, wait } = await setup();
+    const root = path.dirname(options.filePath);
+    for (const [name, extension] of [["notes", "tex"], ["paper", "md"]] as const) {
+      const original = { ...file(`${root}/${name}.${extension}`), extension };
+      const task = await queue.enqueue({ workspaceRoot: root, source: original, snapshot: original, sourceHash: name }); await wait(name, "running");
+      // A balance problem waits for the teacher instead of going again by itself.
+      const draft = stoppedAt(jobs.get(name)!.task, "模型余额或额度不足，进度已保存");
+      await saveResult(draft, jobs.get(name)!.task);
+      jobs.get(name)!.resolve(draft); await wait(name, "draft");
+      await queue.resume(task.id); await wait(name, "running");
+      expect(jobs.get(name)!.task.into).toBe(draft.file.path);
+      jobs.get(name)!.resolve(result(jobs.get(name)!.task)); await wait(name, "completed");
+    }
+  });
+  it("keeps the places a teacher checked when a converted original is started again, and converting again counts afresh", async () => {
+    const { queue, jobs, options, wait, convert } = await setup();
+    const root = path.dirname(options.filePath);
+    const task = await queue.enqueue(source("paper", root)); await wait("paper", "running");
+    const delivered = result(jobs.get("paper")!.task);
+    delivered.record.conversion!.followUp = { questions: ["18", "19"], pages: [] };
+    await saveResult(delivered, jobs.get("paper")!.task);
+    jobs.get("paper")!.resolve(delivered); await wait("paper", "completed");
+    await queue.reviewFollowUp(task.id, "q18");
+    await queue.enqueue(source("paper", root));
+    expect(queue.list()[0]).toMatchObject({ status: "completed", reviewed: ["q18"] });
+    // An unfinished run that went as far as it may: converting again gives the new run its own automatic continues.
+    Object.assign((queue as unknown as { tasks: ConversionTask[] }).tasks[0], { status: "draft", unfinishedRuns: 3 });
+    await queue.enqueue(source("paper", root), true); await wait("paper", "running");
+    expect(convert.mock.calls.at(-1)![1]).not.toHaveProperty("deliverUnfinished");
+    expect(queue.list()[0].unfinishedRuns).toBeUndefined();
+  });
+  it("starts an agent's new session for an original clean, and closes the session it replaces", async () => {
+    const { options } = await setup();
+    const stopExternal = vi.fn(async () => {});
+    const queue = new ConversionTaskQueue({ ...options, filePath: `${options.filePath}.agents`, stopExternal });
+    resources.push({ queue, directory: path.dirname(options.filePath) }); await queue.ready;
+    await queue.trackExternal({ kind: "open", sessionId: "first", agent: "WorkBuddy", ...source("paper") });
+    Object.assign((queue as unknown as { tasks: ConversionTask[] }).tasks[0], { phase: "proofread", batchId: "batch", unfinishedRuns: 2 });
+    await queue.trackExternal({ kind: "open", sessionId: "second", agent: "Codex", ...source("paper") });
+    await vi.waitFor(() => expect(stopExternal).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "first" })));
+    const [task] = queue.list();
+    expect(task).toMatchObject({ sessionId: "second", agent: "Codex", status: "running" });
+    expect(task.phase).toBeUndefined(); expect(task.batchId).toBeUndefined(); expect(task.unfinishedRuns).toBeUndefined();
   });
 });
